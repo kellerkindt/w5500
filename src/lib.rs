@@ -95,36 +95,10 @@ impl<E, S: FullDuplex<u8, Error=E> + Sized, O: OutputPin> W5500<E, S, O> {
 
         self.set_mac(&MacAddress::new(0x00, 0x08, 0xDC, 0x01, 0x02, 0x03))?;
 
-
         self.set_ip(&IpAddress::new(192, 168, 3, 222))?;
         self.set_subnet(&IpAddress::new(255, 255, 255, 0))?;
         self.set_gateway(&IpAddress::new(192, 168, 3, 1))?;
 
-        // socket 0 with udp
-
-        self.write_to(
-            Register::Socket0Register(0x00_00),
-            &[
-                0b0000_0010, // UDP
-                0x01 // OPEN / initialize
-            ]
-        );
-        self.write_to(
-            Register::Socket0Register(0x00_04),
-            &[
-                0, 50, // local port u16
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // destination mac
-                192, 168, 3, 55, // target IP
-                0x14, 0xEA, // destination port (5354)
-            ]
-        )?;
-
-        self.write_to(
-            Register::Socket0Register(0x00_01),
-            &[
-                0x20 // SEND
-            ]
-        )?;
         Ok(self)
     }
 
@@ -208,8 +182,8 @@ impl<E, S: FullDuplex<u8, Error=E> + Sized, O: OutputPin> W5500<E, S, O> {
         self.write_to(
             socket.register_at(0x00_00),
             &[
-                0b0000_0010, // UDP
-                0x01 // OPEN / initialize
+                Protocol::UDP as u8, // Socket Mode Register
+                SocketCommand::Open as u8 // Socket Command Regsiter
             ]
         );
 
@@ -256,6 +230,80 @@ impl<E, S: FullDuplex<u8, Error=E> + Sized, O: OutputPin> W5500<E, S, O> {
         )
     }
 
+    pub fn listen_udp(&mut self, socket: Socket, port: u16) -> Result<(), E> {
+        self.write_u16(
+            socket.register_at(0x00_04),
+            port
+        )?;
+        self.write_to(
+            socket.register_at(0x00_00),
+            &[
+                Protocol::UDP as u8, // Socket Mode Register
+                SocketCommand::Open as u8 // Socket Command Regsiter
+            ]
+        )
+    }
+
+    /// TODO destination buffer has to be as large as the receive buffer or complete read is not guaranteed
+    pub fn try_receive_udp(&mut self, socket: Socket, destination: &mut [u8]) -> Result<Option<(IpAddress, u16, usize)>, E> {
+        if self.read_u8(socket.register_at(0x00_2c))? & 0x04 == 0 {
+            return Ok(None);
+        }
+        let receive_size = loop {
+            let s0 = self.read_u16(socket.register_at(0x00_26))?;
+            let s1 = self.read_u16(socket.register_at(0x00_26))?;
+            if s0 == s1 {
+                break s0 as usize;
+            }
+        };
+        if receive_size > 8 {
+            let read_pointer = self.read_u16(socket.register_at(0x00_28))?;
+
+            // |<-- read_pointer                                read_pointer + received_size -->|
+            // |Destination IP Address | Destination Port | Byte Size of DATA | Actual DATA ... |
+            // |   --- 4 Bytes ---     |  --- 2 Bytes --- |  --- 2 Bytes ---  |      ....       |
+
+            let ip = self.read_ip(socket.rx_register_at(read_pointer))?;
+            let port = self.read_u16(socket.rx_register_at(read_pointer+4))?;
+            let data_length = destination.len().min(self.read_u16(socket.rx_register_at(read_pointer+6))? as usize);
+
+            self.read_from(
+                socket.rx_register_at(read_pointer+8),
+                &mut destination[..data_length]
+            )?;
+
+            // self.read_from(socket.register_at(0x00_0C), &mut ip.address)?;
+            // self.read_u16(socket.register_at(0x00_10))?;
+
+            // reset
+            self.write_u16(socket.register_at(0x00_28), read_pointer + receive_size as u16)?;
+            self.write_u8(socket.register_at(0x00_01), SocketCommand::Recv as u8)?;
+
+            Ok(Some((ip, port, data_length)))
+
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn read_u8(&mut self, register: Register) -> Result<u8, E> {
+        let mut buffer = [0u8; 1];
+        self.read_from(register, &mut buffer)?;
+        Ok(buffer[0])
+    }
+
+    pub fn read_u16(&mut self, register: Register) -> Result<u16, E> {
+        let mut buffer = [0u8; 2];
+        self.read_from(register, &mut buffer)?;
+        Ok(BigEndian::read_u16(&buffer))
+    }
+
+    pub fn read_ip(&mut self, register: Register) -> Result<IpAddress, E> {
+        let mut ip = IpAddress::default();
+        self.read_from(register, &mut ip.address)?;
+        Ok(ip)
+    }
+
     pub fn read_from(&mut self, register: Register, target: &mut [u8]) -> Result<(), E> {
         self.chip_select();
         let mut request = [0_u8, 0_u8, register.control_byte() | COMMAND_READ | VARIABLE_DATA_LENGTH];
@@ -265,6 +313,16 @@ impl<E, S: FullDuplex<u8, Error=E> + Sized, O: OutputPin> W5500<E, S, O> {
             .and_then(|_| self.read_bytes(target));
         self.chip_deselect();
         result
+    }
+
+    pub fn write_u8(&mut self, register: Register, value: u8) -> Result<(), E> {
+        self.write_to(register, &[value])
+    }
+
+    pub fn write_u16(&mut self, register: Register, value: u16) -> Result<(), E> {
+        let mut data = [0u8; 2];
+        BigEndian::write_u16(&mut data, value);
+        self.write_to(register, &data)
     }
 
     pub fn write_to(&mut self, register: Register, data: &[u8]) -> Result<(), E> {
@@ -318,6 +376,28 @@ fn u16_to_be_bytes(u16: u16) -> [u8; 2] {
     let mut bytes = [0u8; 2];
     BigEndian::write_u16(&mut bytes, u16);
     bytes
+}
+
+#[repr(u8)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum Protocol {
+    TCP = 0b0001,
+    UDP = 0b0010,
+    MACRAW = 0b0100,
+}
+
+#[repr(u8)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum SocketCommand {
+    Open = 0x01,
+    Listen = 0x02,
+    Connect = 0x04,
+    Disconnect = 0x08,
+    Close = 0x10,
+    Send = 0x20,
+    SendMac = 0x21,
+    SendKeep = 0x22,
+    Recv = 0x40,
 }
 
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug)]
