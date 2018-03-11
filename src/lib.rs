@@ -256,7 +256,7 @@ impl<E, S: FullDuplex<u8, Error=E> + Sized, O: OutputPin> W5500<E, S, O> {
                 break s0 as usize;
             }
         };
-        if receive_size > 8 {
+        if receive_size >= 8 {
             let read_pointer = self.read_u16(socket.register_at(0x00_28))?;
 
             // |<-- read_pointer                                read_pointer + received_size -->|
