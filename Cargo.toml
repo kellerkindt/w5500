@@ -1,0 +1,9 @@
+[package]
+name = "w5500"
+version = "0.1.0"
+authors = ["Michael Watzko <michael@watzko.de>"]
+
+[dependencies]
+byteorder = { version = "1.2.1", default-features = false }
+embedded-hal = "0.1.2"
+nb = "0.1.1"
