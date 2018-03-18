@@ -1,8 +1,8 @@
 [package]
 name = "w5500"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Michael Watzko <michael@watzko.de>"]
-repository = "https://git.tallbyte.com/rust/w5500.git"
+repository = "https://github.com/kellerkindt/w5500.git"
 description = "W5500 IoT Controller implementation. Currently UDP sending and receiving is working. WIP"
 keywords = ["embedded", "w5500", "iot", "arm", "stm32"]
 categories = ["embedded", "hardware-support", "no-std", "network-programming"]
