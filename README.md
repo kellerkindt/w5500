@@ -9,7 +9,8 @@ Below some really basic usage how I am ca using it:
     let mut w5500 = W5500::new(spi, cs).unwrap();
 
     w5500.set_mode(false, false, false, false).unwrap();
-    w5500.set_mac(&MacAddress::new(0x00, 0x01, 0x02, 0x03, 0x04, 0x05)).unwrap();
+    // using a 'locally administered' MAC address
+    w5500.set_mac(&MacAddress::new(0x02, 0x01, 0x02, 0x03, 0x04, 0x05)).unwrap();
     w5500.set_ip(&IpAddress::new(192, 168, 0, 222)).unwrap();
     w5500.set_subnet(&IpAddress::new(255, 255, 255, 0)).unwrap();
     w5500.set_gateway(&IpAddress::new(192, 168, 0, 1)).unwrap();
