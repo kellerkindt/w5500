@@ -92,13 +92,6 @@ impl<E, S: FullDuplex<u8, Error=E> + Sized, O: OutputPin> W5500<E, S, O> {
     fn init(mut self) -> Result<Self, E> {
         self.reset()?;
         self.set_mode(false, false, false, false)?;
-
-        self.set_mac(&MacAddress::new(0x00, 0x08, 0xDC, 0x01, 0x02, 0x03))?;
-
-        self.set_ip(&IpAddress::new(192, 168, 3, 222))?;
-        self.set_subnet(&IpAddress::new(255, 255, 255, 0))?;
-        self.set_gateway(&IpAddress::new(192, 168, 3, 1))?;
-
         Ok(self)
     }
 
