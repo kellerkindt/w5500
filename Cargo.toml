@@ -1,12 +1,13 @@
 [package]
 name = "w5500"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Michael Watzko <michael@watzko.de>"]
 repository = "https://github.com/kellerkindt/w5500.git"
 description = "W5500 IoT Controller implementation. Currently UDP sending and receiving is working. WIP"
 keywords = ["embedded", "w5500", "iot", "arm", "stm32"]
 categories = ["embedded", "hardware-support", "no-std", "network-programming"]
 license = "MIT"
+readme = "README.md"
 
 [dependencies]
 byteorder = { version = "1.2.1", default-features = false }
