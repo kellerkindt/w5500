@@ -75,28 +75,27 @@ impl ::core::fmt::Display for MacAddress {
 }
 
 
-pub struct W5500<E, S: FullDuplex<u8, Error=E> + Sized, O: OutputPin>  {
-    spi: S,
-    cs:  O,
+pub struct W5500<'a>  {
+    cs:  &'a mut OutputPin,
 }
 
-impl<E, S: FullDuplex<u8, Error=E> + Sized, O: OutputPin> W5500<E, S, O> {
+impl<'a> W5500<'a> {
 
-    pub fn new(spi: S, cs: O) -> Result<W5500<E, S, O>, E> {
+    pub fn new<E, S: FullDuplex<u8, Error=E>>(spi: &mut S, cs: &'a mut OutputPin) -> Result<W5500<'a>, E> {
         W5500 {
-            spi,
             cs,
-        }.init()
+        }.init(spi)
     }
 
-    fn init(mut self) -> Result<Self, E> {
-        self.reset()?;
-        self.set_mode(false, false, false, false)?;
+    fn init<E, S: FullDuplex<u8, Error=E>>(mut self, spi: &mut S) -> Result<Self, E> {
+        self.reset(spi)?;
+        self.set_mode(spi,false, false, false, false)?;
         Ok(self)
     }
 
-    pub fn reset(&mut self) -> Result<(), E> {
+    pub fn reset<E, S: FullDuplex<u8, Error=E>>(&mut self, spi: &mut S) -> Result<(), E> {
         self.write_to(
+            spi,
             Register::CommonRegister(0x00_00_u16),
             &[
                 0b1000_0000, // Mode Register (force reset)
@@ -104,7 +103,7 @@ impl<E, S: FullDuplex<u8, Error=E> + Sized, O: OutputPin> W5500<E, S, O> {
         )
     }
 
-    pub fn set_mode(&mut self, wol: bool, ping_block: bool, ppoe: bool, force_arp: bool) -> Result<(), E> {
+    pub fn set_mode<E, S: FullDuplex<u8, Error=E>>(&mut self, spi: &mut S, wol: bool, ping_block: bool, ppoe: bool, force_arp: bool) -> Result<(), E> {
 
         let mut mode = 0x00;
 
@@ -125,54 +124,61 @@ impl<E, S: FullDuplex<u8, Error=E> + Sized, O: OutputPin> W5500<E, S, O> {
         }
 
         self.write_to(
+            spi,
             Register::CommonRegister(0x00_00_u16),
             &[mode]
         )
     }
 
-    pub fn set_gateway(&mut self, gateway: &IpAddress) -> Result<(), E> {
+    pub fn set_gateway<E, S: FullDuplex<u8, Error=E>>(&mut self, spi: &mut S, gateway: &IpAddress) -> Result<(), E> {
         self.write_to(
+            spi,
             Register::CommonRegister(0x00_01_u16),
             &gateway.address
         )
     }
 
-    pub fn set_subnet(&mut self, subnet: &IpAddress) -> Result<(), E> {
+    pub fn set_subnet<E, S: FullDuplex<u8, Error=E>>(&mut self, spi: &mut S, subnet: &IpAddress) -> Result<(), E> {
         self.write_to(
+            spi,
             Register::CommonRegister(0x00_05_u16),
             &subnet.address
         )
     }
 
-    pub fn set_mac(&mut self, mac: &MacAddress) -> Result<(), E> {
+    pub fn set_mac<E, S: FullDuplex<u8, Error=E>>(&mut self, spi: &mut S, mac: &MacAddress) -> Result<(), E> {
         self.write_to(
+            spi,
             Register::CommonRegister(0x00_09_u16),
             &mac.address
         )
     }
 
-    pub fn get_mac(&mut self) -> Result<MacAddress, E> {
+    pub fn get_mac<E, S: FullDuplex<u8, Error=E>>(&mut self, spi: &mut S) -> Result<MacAddress, E> {
         let mut mac = MacAddress::default();
         self.read_from(
+            spi,
             Register::CommonRegister(0x00_09_u16),
             &mut mac.address
         )?;
         Ok(mac)
     }
 
-    pub fn set_ip(&mut self, ip: &IpAddress) -> Result<(), E> {
+    pub fn set_ip<E, S: FullDuplex<u8, Error=E>>(&mut self, spi: &mut S, ip: &IpAddress) -> Result<(), E> {
         self.write_to(
+            spi,
             Register::CommonRegister(0x00_0F_u16),
             &ip.address
         )
     }
 
-    pub fn send_udp(&mut self, socket: Socket, local_port: u16, host: &IpAddress, host_port: u16, data: &[u8]) -> Result<(), E> {
+    pub fn send_udp<E, S: FullDuplex<u8, Error=E>>(&mut self, spi: &mut S, socket: Socket, local_port: u16, host: &IpAddress, host_port: u16, data: &[u8]) -> Result<(), E> {
         // TODO not always socket 0
         // TODO check if in use
 
 
         self.write_to(
+            spi,
             socket.register_at(0x00_00),
             &[
                 Protocol::UDP as u8, // Socket Mode Register
@@ -185,6 +191,7 @@ impl<E, S: FullDuplex<u8, Error=E> + Sized, O: OutputPin> W5500<E, S, O> {
             let host_port = u16_to_be_bytes(host_port);
 
             self.write_to(
+                spi,
                 socket.register_at(0x00_04),
                 &[
                     local_port[0], local_port[1], // local port u16
@@ -201,6 +208,7 @@ impl<E, S: FullDuplex<u8, Error=E> + Sized, O: OutputPin> W5500<E, S, O> {
             let data_length = u16_to_be_bytes(data_length);
 
             self.write_to(
+                spi,
                 socket.register_at(0x00_22),
                 &[
                     0x00, 0x00,
@@ -211,11 +219,13 @@ impl<E, S: FullDuplex<u8, Error=E> + Sized, O: OutputPin> W5500<E, S, O> {
 
 
         self.write_to(
+            spi,
             socket.tx_register_at(0x00_00),
             &data[..data_length as usize]
         );
 
         self.write_to(
+            spi,
             socket.register_at(0x00_01),
             &[
                 0x20 // SEND
@@ -223,12 +233,14 @@ impl<E, S: FullDuplex<u8, Error=E> + Sized, O: OutputPin> W5500<E, S, O> {
         )
     }
 
-    pub fn listen_udp(&mut self, socket: Socket, port: u16) -> Result<(), E> {
+    pub fn listen_udp<E, S: FullDuplex<u8, Error=E>>(&mut self, spi: &mut S, socket: Socket, port: u16) -> Result<(), E> {
         self.write_u16(
+            spi,
             socket.register_at(0x00_04),
             port
         )?;
         self.write_to(
+            spi,
             socket.register_at(0x00_00),
             &[
                 Protocol::UDP as u8, // Socket Mode Register
@@ -238,29 +250,30 @@ impl<E, S: FullDuplex<u8, Error=E> + Sized, O: OutputPin> W5500<E, S, O> {
     }
 
     /// TODO destination buffer has to be as large as the receive buffer or complete read is not guaranteed
-    pub fn try_receive_udp(&mut self, socket: Socket, destination: &mut [u8]) -> Result<Option<(IpAddress, u16, usize)>, E> {
-        if self.read_u8(socket.register_at(0x00_2c))? & 0x04 == 0 {
+    pub fn try_receive_udp<E, S: FullDuplex<u8, Error=E>>(&mut self, spi: &mut S, socket: Socket, destination: &mut [u8]) -> Result<Option<(IpAddress, u16, usize)>, E> {
+        if self.read_u8(spi, socket.register_at(0x00_2c))? & 0x04 == 0 {
             return Ok(None);
         }
         let receive_size = loop {
-            let s0 = self.read_u16(socket.register_at(0x00_26))?;
-            let s1 = self.read_u16(socket.register_at(0x00_26))?;
+            let s0 = self.read_u16(spi, socket.register_at(0x00_26))?;
+            let s1 = self.read_u16(spi, socket.register_at(0x00_26))?;
             if s0 == s1 {
                 break s0 as usize;
             }
         };
         if receive_size >= 8 {
-            let read_pointer = self.read_u16(socket.register_at(0x00_28))?;
+            let read_pointer = self.read_u16(spi, socket.register_at(0x00_28))?;
 
             // |<-- read_pointer                                read_pointer + received_size -->|
             // |Destination IP Address | Destination Port | Byte Size of DATA | Actual DATA ... |
             // |   --- 4 Bytes ---     |  --- 2 Bytes --- |  --- 2 Bytes ---  |      ....       |
 
-            let ip = self.read_ip(socket.rx_register_at(read_pointer))?;
-            let port = self.read_u16(socket.rx_register_at(read_pointer+4))?;
-            let data_length = destination.len().min(self.read_u16(socket.rx_register_at(read_pointer+6))? as usize);
+            let ip = self.read_ip(spi, socket.rx_register_at(read_pointer))?;
+            let port = self.read_u16(spi, socket.rx_register_at(read_pointer+4))?;
+            let data_length = destination.len().min(self.read_u16(spi, socket.rx_register_at(read_pointer+6))? as usize);
 
             self.read_from(
+                spi,
                 socket.rx_register_at(read_pointer+8),
                 &mut destination[..data_length]
             )?;
@@ -269,8 +282,8 @@ impl<E, S: FullDuplex<u8, Error=E> + Sized, O: OutputPin> W5500<E, S, O> {
             // self.read_u16(socket.register_at(0x00_10))?;
 
             // reset
-            self.write_u16(socket.register_at(0x00_28), read_pointer + receive_size as u16)?;
-            self.write_u8(socket.register_at(0x00_01), SocketCommand::Recv as u8)?;
+            self.write_u16(spi, socket.register_at(0x00_28), read_pointer + receive_size as u16)?;
+            self.write_u8(spi, socket.register_at(0x00_01), SocketCommand::Recv as u8)?;
 
             Ok(Some((ip, port, data_length)))
 
@@ -279,79 +292,79 @@ impl<E, S: FullDuplex<u8, Error=E> + Sized, O: OutputPin> W5500<E, S, O> {
         }
     }
 
-    pub fn read_u8(&mut self, register: Register) -> Result<u8, E> {
+    pub fn read_u8<E, S: FullDuplex<u8, Error=E>>(&mut self, spi: &mut S, register: Register) -> Result<u8, E> {
         let mut buffer = [0u8; 1];
-        self.read_from(register, &mut buffer)?;
+        self.read_from(spi, register, &mut buffer)?;
         Ok(buffer[0])
     }
 
-    pub fn read_u16(&mut self, register: Register) -> Result<u16, E> {
+    pub fn read_u16<E, S: FullDuplex<u8, Error=E>>(&mut self, spi: &mut S, register: Register) -> Result<u16, E> {
         let mut buffer = [0u8; 2];
-        self.read_from(register, &mut buffer)?;
+        self.read_from(spi, register, &mut buffer)?;
         Ok(BigEndian::read_u16(&buffer))
     }
 
-    pub fn read_ip(&mut self, register: Register) -> Result<IpAddress, E> {
+    pub fn read_ip<E, S: FullDuplex<u8, Error=E>>(&mut self, spi: &mut S, register: Register) -> Result<IpAddress, E> {
         let mut ip = IpAddress::default();
-        self.read_from(register, &mut ip.address)?;
+        self.read_from(spi, register, &mut ip.address)?;
         Ok(ip)
     }
 
-    pub fn read_from(&mut self, register: Register, target: &mut [u8]) -> Result<(), E> {
+    pub fn read_from<E, S: FullDuplex<u8, Error=E>>(&mut self, spi: &mut S, register: Register, target: &mut [u8]) -> Result<(), E> {
         self.chip_select();
         let mut request = [0_u8, 0_u8, register.control_byte() | COMMAND_READ | VARIABLE_DATA_LENGTH];
         BigEndian::write_u16(&mut request[..2], register.address());
         let result = self
-            .write_bytes(&request)
-            .and_then(|_| self.read_bytes(target));
+            .write_bytes(spi, &request)
+            .and_then(|_| self.read_bytes(spi, target));
         self.chip_deselect();
         result
     }
 
-    pub fn write_u8(&mut self, register: Register, value: u8) -> Result<(), E> {
-        self.write_to(register, &[value])
+    pub fn write_u8<E, S: FullDuplex<u8, Error=E>>(&mut self, spi: &mut S, register: Register, value: u8) -> Result<(), E> {
+        self.write_to(spi, register, &[value])
     }
 
-    pub fn write_u16(&mut self, register: Register, value: u16) -> Result<(), E> {
+    pub fn write_u16<E, S: FullDuplex<u8, Error=E>>(&mut self, spi: &mut S, register: Register, value: u16) -> Result<(), E> {
         let mut data = [0u8; 2];
         BigEndian::write_u16(&mut data, value);
-        self.write_to(register, &data)
+        self.write_to(spi, register, &data)
     }
 
-    pub fn write_to(&mut self, register: Register, data: &[u8]) -> Result<(), E> {
+    pub fn write_to<E, S: FullDuplex<u8, Error=E>>(&mut self, spi: &mut S, register: Register, data: &[u8]) -> Result<(), E> {
         self.chip_select();
         let mut request = [0_u8, 0_u8, register.control_byte() | COMMAND_WRITE | VARIABLE_DATA_LENGTH];
         BigEndian::write_u16(&mut request[..2], register.address());
         let result = self
-            .write_bytes(&request)
-            .and_then(|_| self.write_bytes(data));
+            .write_bytes(spi, &request)
+            .and_then(|_| self.write_bytes(spi, data));
         self.chip_deselect();
         result
     }
 
-    fn read_bytes(&mut self, bytes: &mut [u8]) -> Result<(), E> {
+    fn read_bytes<E, S: FullDuplex<u8, Error=E>>(&mut self, spi: &mut S, bytes: &mut [u8]) -> Result<(), E> {
         for i in 0..bytes.len() {
-            bytes[i] = self.read()?;
+            bytes[i] = self.read(spi)?;
         }
         Ok(())
     }
 
-    fn read(&mut self) -> Result<u8, E> {
-        block!(self.spi.send(0x00))?;
-        let result = block!(self.spi.read());
+    fn read<E, S: FullDuplex<u8, Error=E>>(&mut self, spi: &mut S) -> Result<u8, E> {
+        block!(spi.send(0x00))?;
+        let result = block!(spi.read());
         result
     }
 
-    fn write_bytes(&mut self, bytes: &[u8]) -> Result<(), E> {
+    fn write_bytes<E, S: FullDuplex<u8, Error=E>>(&mut self, spi: &mut S, bytes: &[u8]) -> Result<(), E> {
         for b in bytes {
-            self.write(*b)?;
+            self.write(spi, *b)?;
         }
         Ok(())
     }
 
-    fn write(&mut self, byte: u8) -> Result<(), E> {
-        block!(self.spi.send(byte))?;
-        block!(self.spi.read())?;
+    fn write<E, S: FullDuplex<u8, Error=E>>(&mut self, spi: &mut S, byte: u8) -> Result<(), E> {
+        block!(spi.send(byte))?;
+        block!(spi.read())?;
         Ok(())
     }
 
