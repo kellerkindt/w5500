@@ -25,7 +25,7 @@ const FIXED_DATA_LENGTH_4_BYTES : u8 = 0b_11;
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug)]
 pub struct IpAddress {
-    address: [u8; 4]
+    pub address: [u8; 4]
 }
 
 impl IpAddress {
@@ -50,7 +50,7 @@ impl ::core::fmt::Display for IpAddress {
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug)]
 pub struct MacAddress {
-    address: [u8; 6]
+    pub address: [u8; 6]
 }
 
 impl MacAddress {
