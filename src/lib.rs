@@ -81,16 +81,16 @@ pub struct W5500<'a>  {
 
 impl<'a> W5500<'a> {
 
-    pub fn new<E, S: FullDuplex<u8, Error=E>>(spi: &mut S, cs: &'a mut OutputPin) -> Result<W5500<'a>, E> {
+    pub fn new<E, S: FullDuplex<u8, Error=E>>(spi: &mut S, cs: &'a mut OutputPin) -> W5500<'a> {
         W5500 {
             cs,
-        }.init(spi)
+        }
     }
 
-    fn init<E, S: FullDuplex<u8, Error=E>>(mut self, spi: &mut S) -> Result<Self, E> {
+    pub fn init<E>(&mut self, spi: &mut FullDuplex<u8, Error=E>) -> Result<(), E> {
         self.reset(spi)?;
-        self.set_mode(spi,false, false, false, false)?;
-        Ok(self)
+        self.set_mode(spi, false, false, false, false)?;
+        Ok(())
     }
 
     pub fn reset<E>(&mut self, spi: &mut FullDuplex<u8, Error=E>) -> Result<(), E> {
