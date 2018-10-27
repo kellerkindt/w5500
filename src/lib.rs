@@ -1,6 +1,5 @@
 #![no_std]
 #![allow(unused)]
-#![feature(const_fn)]
 
 extern crate byteorder;
 extern crate embedded_hal as hal;
