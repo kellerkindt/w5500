@@ -351,7 +351,6 @@ pub trait Udp<E> {
         &mut self,
         host: &IpAddress,
         host_port: u16,
-        local_port: u16,
         data: &[u8],
     ) -> Result<(), E>;
 }
@@ -412,12 +411,12 @@ impl<E> Udp<E> for (&mut ActiveW5500<'_, '_, '_, E>, &UdpSocket) {
         &mut self,
         host: &IpAddress,
         host_port: u16,
-        local_port: u16,
         data: &[u8],
     ) -> Result<(), E> {
         let (w5500, UdpSocket(socket)) = self;
 
         {
+            let local_port = w5500.read_u16(socket.at(SocketRegister::LocalPort))?;
             let local_port = u16_to_be_bytes(local_port);
             let host_port = u16_to_be_bytes(host_port);
 

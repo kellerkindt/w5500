@@ -27,9 +27,9 @@ Below some really basic usage how I am ca using it:
         if let Ok(Some((ip, port, len))) = (w5500, socket).receive(&mut buffer[..]) {
             let (request_buffer, response_buffer) = buffer.split_mut_at(len);
 
-            //...
+            // ... fill the response_buffer with some data ...
 
-            (w5500, socket).blocking_send(ip, port, 1234, response_buffer[..response_len]).unwrap();
+            (w5500, socket).blocking_send(ip, port, response_buffer[..response_len]).unwrap();
         }
     }
 ```
