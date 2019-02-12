@@ -6,7 +6,7 @@ repository = "https://github.com/kellerkindt/w5500.git"
 description = "W5500 IoT Controller implementation. Currently UDP sending and receiving is working. WIP"
 keywords = ["embedded", "w5500", "iot", "arm", "embedded-hal-driver"]
 categories = ["embedded", "hardware-support", "no-std", "network-programming"]
-license = "MIT"
+license = "MIT OR Apache-2.0"
 readme = "README.md"
 
 [dependencies]
