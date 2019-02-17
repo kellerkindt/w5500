@@ -12,6 +12,15 @@ Below some really basic usage how I am ca using it:
         ArpResponses::Cache,
     )
     .ok();
+    
+    if let Some(ref mut w5500) = w5500 {
+        let mut w5500: ActiveW5500<_> = w5500.activate(&mut spi).unwrap();
+        // using a 'locally administered' MAC address
+        active.set_mac(MacAddress::new(0x02, 0x01, 0x02, 0x03, 0x04, 0x05)).unwrap();
+        active.set_ip(IpAddress::new(192, 168, 0, 222)).unwrap();
+        active.set_subnet(IpAddress::new(255, 255, 255, 0)).unwrap();
+        active.set_gateway(IpAddress::new(192, 168, 0, 1)).unwrap();
+    }
 
     let mut udp_server_socket: Option<UdpSocket> = w5500.as_mut().and_then(|w5500| {
         let mut w5500: ActiveW5500<_> = w5500.activate(&mut spi).ok()?;
