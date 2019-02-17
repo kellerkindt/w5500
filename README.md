@@ -3,6 +3,9 @@
 Below some really basic usage how I am ca using it:
 
 ```rust
+    let mut spi = ...; // SPI interface to use
+    let mut cs_w5500 : OutputPin = ...; // chip select
+    
     let mut w5500: Option<W5500> = W5500::with_initialisation(
         &mut cs_w5500, // borrowed for whole W5500 lifetime
         &mut spi, // borrowed for call to `with_initialisation` only
