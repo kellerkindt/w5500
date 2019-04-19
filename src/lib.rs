@@ -417,8 +417,8 @@ impl<E> Udp<E> for (&mut ActiveW5500<'_, '_, '_, E>, &UdpSocket) {
 
         {
             let local_port = w5500.read_u16(socket.at(SocketRegister::LocalPort))?;
-            let local_port = u16_to_be_bytes(local_port);
-            let host_port = u16_to_be_bytes(host_port);
+            let local_port = local_port.to_be_bytes();
+            let host_port = host_port.to_be_bytes();
 
             w5500.write_to(
                 socket.at(SocketRegister::LocalPort),
@@ -443,7 +443,7 @@ impl<E> Udp<E> for (&mut ActiveW5500<'_, '_, '_, E>, &UdpSocket) {
 
         let data_length = data.len() as u16;
         {
-            let data_length = u16_to_be_bytes(data_length);
+            let data_length = data_length.to_be_bytes();
 
             // TODO why write [0x00, 0x00] at TxReadPointer at all?
             // TODO Is TxWritePointer not sufficient enough?
@@ -486,12 +486,6 @@ impl<E> Udp<E> for (&mut ActiveW5500<'_, '_, '_, E>, &UdpSocket) {
     }
 }
 
-
-fn u16_to_be_bytes(u16: u16) -> [u8; 2] {
-    let mut bytes = [0u8; 2];
-    BigEndian::write_u16(&mut bytes, u16);
-    bytes
-}
 
 #[repr(u8)]
 #[derive(Copy, Clone, PartialEq, Debug)]
