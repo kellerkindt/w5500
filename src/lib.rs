@@ -101,22 +101,22 @@ pub enum ArpResponses {
 pub struct UninitializedSocket(Socket);
 pub struct UdpSocket(Socket);
 
-pub struct W5500<'a> {
-    chip_select: &'a mut OutputPin,
+pub struct W5500<'a, ChipSelect: OutputPin> {
+    chip_select: &'a mut ChipSelect,
     sockets: u8, // each bit represents whether the corresponding socket is available for take
 }
 
-impl<'b, 'a: 'b> W5500<'a> {
-    fn new(chip_select: &mut OutputPin) -> W5500 {
+impl<'b, 'a: 'b, ChipSelect: OutputPin> W5500<'a, ChipSelect> {
+    fn new(chip_select: &'a mut ChipSelect) -> Self {
         W5500 {
             chip_select,
             sockets: 0xFF,
         }
     }
 
-    pub fn with_initialisation<'c, E>(
-        chip_select: &'a mut OutputPin,
-        spi: &'c mut FullDuplex<u8, Error = E>,
+    pub fn with_initialisation<'c, E, Spi: FullDuplex<u8, Error = E>>(
+        chip_select: &'a mut ChipSelect,
+        spi: &'c mut Spi,
         wol: OnWakeOnLan,
         ping: OnPingRequest,
         mode: ConnectionType,
@@ -143,17 +143,17 @@ impl<'b, 'a: 'b> W5500<'a> {
         }
     }
 
-    pub fn activate<'c, E>(
+    pub fn activate<'c, E, Spi: FullDuplex<u8, Error = E>>(
         &'b mut self,
-        spi: &'c mut FullDuplex<u8, Error = E>,
-    ) -> Result<ActiveW5500<'b, 'a, 'c, E>, E> {
+        spi: &'c mut Spi,
+    ) -> Result<ActiveW5500<'b, 'a, 'c, E, ChipSelect, Spi>, E> {
         Ok(ActiveW5500(self, spi))
     }
 }
 
-pub struct ActiveW5500<'a, 'b: 'a, 'c, E>(&'a mut W5500<'b>, &'c mut FullDuplex<u8, Error = E>);
+pub struct ActiveW5500<'a, 'b: 'a, 'c, E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>>(&'a mut W5500<'b, ChipSelect>, &'c mut Spi);
 
-impl<E> ActiveW5500<'_, '_, '_, E> {
+impl<E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>> ActiveW5500<'_, '_, '_, E, ChipSelect, Spi> {
     pub fn take_socket(&mut self, socket: Socket) -> Option<UninitializedSocket> {
         self.0.take_socket(socket)
     }
@@ -322,8 +322,8 @@ pub trait IntoUdpSocket<E> {
         Self: Sized;
 }
 
-impl<E> IntoUdpSocket<UninitializedSocket>
-    for (&mut ActiveW5500<'_, '_, '_, E>, UninitializedSocket)
+impl<E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>> IntoUdpSocket<UninitializedSocket>
+    for (&mut ActiveW5500<'_, '_, '_, E, ChipSelect, Spi>, UninitializedSocket)
 {
     fn try_into_udp_server_socket(self, port: u16) -> Result<UdpSocket, UninitializedSocket> {
         let socket = (self.1).0;
@@ -355,7 +355,7 @@ pub trait Udp<E> {
     ) -> Result<(), E>;
 }
 
-impl<E> Udp<E> for (&mut ActiveW5500<'_, '_, '_, E>, &UdpSocket) {
+impl<E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>> Udp<E> for (&mut ActiveW5500<'_, '_, '_, E, ChipSelect, Spi>, &UdpSocket) {
     fn receive(&mut self, destination: &mut [u8]) -> Result<Option<(IpAddress, u16, usize)>, E> {
         let (w5500, UdpSocket(socket)) = self;
 
