@@ -151,9 +151,14 @@ impl<'b, 'a: 'b, ChipSelect: OutputPin> W5500<'a, ChipSelect> {
     }
 }
 
-pub struct ActiveW5500<'a, 'b: 'a, 'c, E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>>(&'a mut W5500<'b, ChipSelect>, &'c mut Spi);
+pub struct ActiveW5500<'a, 'b: 'a, 'c, E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>>(
+    &'a mut W5500<'b, ChipSelect>,
+    &'c mut Spi,
+);
 
-impl<E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>> ActiveW5500<'_, '_, '_, E, ChipSelect, Spi> {
+impl<E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>>
+    ActiveW5500<'_, '_, '_, E, ChipSelect, Spi>
+{
     pub fn take_socket(&mut self, socket: Socket) -> Option<UninitializedSocket> {
         self.0.take_socket(socket)
     }
@@ -252,7 +257,8 @@ impl<E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>> ActiveW5500<'_, '
             register.control_byte() | COMMAND_READ | VARIABLE_DATA_LENGTH,
         ];
         BigEndian::write_u16(&mut request[..2], register.address());
-        let result = self.write_bytes(&request)
+        let result = self
+            .write_bytes(&request)
             .and_then(|_| self.read_bytes(target));
         self.chip_deselect();
         result
@@ -288,7 +294,8 @@ impl<E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>> ActiveW5500<'_, '
             register.control_byte() | COMMAND_WRITE | VARIABLE_DATA_LENGTH,
         ];
         BigEndian::write_u16(&mut request[..2], register.address());
-        let result = self.write_bytes(&request)
+        let result = self
+            .write_bytes(&request)
             .and_then(|_| self.write_bytes(data));
         self.chip_deselect();
         result
@@ -323,7 +330,10 @@ pub trait IntoUdpSocket<E> {
 }
 
 impl<E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>> IntoUdpSocket<UninitializedSocket>
-    for (&mut ActiveW5500<'_, '_, '_, E, ChipSelect, Spi>, UninitializedSocket)
+    for (
+        &mut ActiveW5500<'_, '_, '_, E, ChipSelect, Spi>,
+        UninitializedSocket,
+    )
 {
     fn try_into_udp_server_socket(self, port: u16) -> Result<UdpSocket, UninitializedSocket> {
         let socket = (self.1).0;
@@ -347,15 +357,12 @@ impl<E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>> IntoUdpSocket<Uni
 
 pub trait Udp<E> {
     fn receive(&mut self, target_buffer: &mut [u8]) -> Result<Option<(IpAddress, u16, usize)>, E>;
-    fn blocking_send(
-        &mut self,
-        host: &IpAddress,
-        host_port: u16,
-        data: &[u8],
-    ) -> Result<(), E>;
+    fn blocking_send(&mut self, host: &IpAddress, host_port: u16, data: &[u8]) -> Result<(), E>;
 }
 
-impl<E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>> Udp<E> for (&mut ActiveW5500<'_, '_, '_, E, ChipSelect, Spi>, &UdpSocket) {
+impl<E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>> Udp<E>
+    for (&mut ActiveW5500<'_, '_, '_, E, ChipSelect, Spi>, &UdpSocket)
+{
     fn receive(&mut self, destination: &mut [u8]) -> Result<Option<(IpAddress, u16, usize)>, E> {
         let (w5500, UdpSocket(socket)) = self;
 
@@ -407,12 +414,7 @@ impl<E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>> Udp<E> for (&mut 
         }
     }
 
-    fn blocking_send(
-        &mut self,
-        host: &IpAddress,
-        host_port: u16,
-        data: &[u8],
-    ) -> Result<(), E> {
+    fn blocking_send(&mut self, host: &IpAddress, host_port: u16, data: &[u8]) -> Result<(), E> {
         let (w5500, UdpSocket(socket)) = self;
 
         {
@@ -485,7 +487,6 @@ impl<E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>> Udp<E> for (&mut 
         Ok(())
     }
 }
-
 
 #[repr(u8)]
 #[derive(Copy, Clone, PartialEq, Debug)]
