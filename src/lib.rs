@@ -306,7 +306,7 @@ impl<
         self.chip_select()
             .map_err(|error| -> TransferError<SpiError, ChipSelectError> {
                 TransferError::ChipSelectError(error)
-            });
+            })?;
         let mut request = [
             0_u8,
             0_u8,
@@ -319,7 +319,7 @@ impl<
         self.chip_deselect()
             .map_err(|error| -> TransferError<SpiError, ChipSelectError> {
                 TransferError::ChipSelectError(error)
-            });
+            })?;
         result.map_err(|error| TransferError::SpiError(error))
     }
 
@@ -361,7 +361,7 @@ impl<
         self.chip_select()
             .map_err(|error| -> TransferError<SpiError, ChipSelectError> {
                 TransferError::ChipSelectError(error)
-            });
+            })?;
         let mut request = [
             0_u8,
             0_u8,
@@ -374,7 +374,7 @@ impl<
         self.chip_deselect()
             .map_err(|error| -> TransferError<SpiError, ChipSelectError> {
                 TransferError::ChipSelectError(error)
-            });
+            })?;
         result.map_err(|error| TransferError::SpiError(error))
     }
 
