@@ -122,14 +122,14 @@ impl<'b, 'a: 'b, ChipSelectError, ChipSelect: OutputPin<Error = ChipSelectError>
         }
     }
 
-    pub fn with_initialisation<'c, SpiError, Spi: FullDuplex<u8, Error = SpiError>>(
+    pub fn with_initialisation<'c, Spi: FullDuplex<u8>>(
         chip_select: &'a mut ChipSelect,
         spi: &'c mut Spi,
         wol: OnWakeOnLan,
         ping: OnPingRequest,
         mode: ConnectionType,
         arp: ArpResponses,
-    ) -> Result<Self, TransferError<SpiError, ChipSelectError>> {
+    ) -> Result<Self, TransferError<Spi::Error, ChipSelectError>> {
         let mut w5500 = Self::new(chip_select);
         {
             let mut w5500_active = w5500.activate(spi)?;
@@ -151,10 +151,10 @@ impl<'b, 'a: 'b, ChipSelectError, ChipSelect: OutputPin<Error = ChipSelectError>
         }
     }
 
-    pub fn activate<'c, SpiError, Spi: FullDuplex<u8, Error = SpiError>>(
+    pub fn activate<'c, Spi: FullDuplex<u8>>(
         &'b mut self,
         spi: &'c mut Spi,
-    ) -> Result<ActiveW5500<'b, 'a, 'c, ChipSelect, Spi>, TransferError<SpiError, ChipSelectError>>
+    ) -> Result<ActiveW5500<'b, 'a, 'c, ChipSelect, Spi>, TransferError<Spi::Error, ChipSelectError>>
     {
         Ok(ActiveW5500(self, spi))
     }
@@ -443,18 +443,13 @@ pub trait Udp<SpiError, ChipSelectError> {
     ) -> Result<(), TransferError<SpiError, ChipSelectError>>;
 }
 
-impl<
-        SpiError,
-        ChipSelectError,
-        ChipSelect: OutputPin<Error = ChipSelectError>,
-        Spi: FullDuplex<u8, Error = SpiError>,
-    > Udp<SpiError, ChipSelectError>
+impl<ChipSelect: OutputPin, Spi: FullDuplex<u8>> Udp<Spi::Error, ChipSelect::Error>
     for (&mut ActiveW5500<'_, '_, '_, ChipSelect, Spi>, &UdpSocket)
 {
     fn receive(
         &mut self,
         destination: &mut [u8],
-    ) -> Result<Option<(IpAddress, u16, usize)>, TransferError<SpiError, ChipSelectError>> {
+    ) -> Result<Option<(IpAddress, u16, usize)>, TransferError<Spi::Error, ChipSelect::Error>> {
         let (w5500, UdpSocket(socket)) = self;
 
         if w5500.read_u8(socket.at(SocketRegister::InterruptMask))? & 0x04 == 0 {
@@ -510,7 +505,7 @@ impl<
         host: &IpAddress,
         host_port: u16,
         data: &[u8],
-    ) -> Result<(), TransferError<SpiError, ChipSelectError>> {
+    ) -> Result<(), TransferError<Spi::Error, ChipSelect::Error>> {
         let (w5500, UdpSocket(socket)) = self;
 
         {
