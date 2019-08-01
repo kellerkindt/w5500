@@ -107,13 +107,13 @@ pub enum ArpResponses {
 pub struct UninitializedSocket(Socket);
 pub struct UdpSocket(Socket);
 
-pub struct W5500<'a, ChipSelectError, ChipSelect: OutputPin<Error = ChipSelectError>> {
+pub struct W5500<'a, ChipSelect: OutputPin> {
     chip_select: &'a mut ChipSelect,
     sockets: u8, // each bit represents whether the corresponding socket is available for take
 }
 
 impl<'b, 'a: 'b, ChipSelectError, ChipSelect: OutputPin<Error = ChipSelectError>>
-    W5500<'a, ChipSelectError, ChipSelect>
+    W5500<'a, ChipSelect>
 {
     fn new(chip_select: &'a mut ChipSelect) -> Self {
         W5500 {
@@ -122,14 +122,14 @@ impl<'b, 'a: 'b, ChipSelectError, ChipSelect: OutputPin<Error = ChipSelectError>
         }
     }
 
-    pub fn with_initialisation<'c, E, Spi: FullDuplex<u8, Error = E>>(
+    pub fn with_initialisation<'c, SpiError, Spi: FullDuplex<u8, Error = SpiError>>(
         chip_select: &'a mut ChipSelect,
         spi: &'c mut Spi,
         wol: OnWakeOnLan,
         ping: OnPingRequest,
         mode: ConnectionType,
         arp: ArpResponses,
-    ) -> Result<Self, TransferError<E, ChipSelectError>> {
+    ) -> Result<Self, TransferError<SpiError, ChipSelectError>> {
         let mut w5500 = Self::new(chip_select);
         {
             let mut w5500_active = w5500.activate(spi)?;
@@ -151,33 +151,26 @@ impl<'b, 'a: 'b, ChipSelectError, ChipSelect: OutputPin<Error = ChipSelectError>
         }
     }
 
-    pub fn activate<'c, E, Spi: FullDuplex<u8, Error = E>>(
+    pub fn activate<'c, SpiError, Spi: FullDuplex<u8, Error = SpiError>>(
         &'b mut self,
         spi: &'c mut Spi,
-    ) -> Result<
-        ActiveW5500<'b, 'a, 'c, E, ChipSelectError, ChipSelect, Spi>,
-        TransferError<E, ChipSelectError>,
-    > {
+    ) -> Result<ActiveW5500<'b, 'a, 'c, ChipSelect, Spi>, TransferError<SpiError, ChipSelectError>>
+    {
         Ok(ActiveW5500(self, spi))
     }
 }
 
-pub struct ActiveW5500<
-    'a,
-    'b: 'a,
-    'c,
-    SpiError,
-    ChipSelectError,
-    ChipSelect: OutputPin<Error = ChipSelectError>,
-    Spi: FullDuplex<u8, Error = SpiError>,
->(&'a mut W5500<'b, ChipSelectError, ChipSelect>, &'c mut Spi);
+pub struct ActiveW5500<'a, 'b: 'a, 'c, ChipSelect: OutputPin, Spi: FullDuplex<u8>>(
+    &'a mut W5500<'b, ChipSelect>,
+    &'c mut Spi,
+);
 
 impl<
-        SpiError,
         ChipSelectError,
         ChipSelect: OutputPin<Error = ChipSelectError>,
+        SpiError,
         Spi: FullDuplex<u8, Error = SpiError>,
-    > ActiveW5500<'_, '_, '_, SpiError, ChipSelectError, ChipSelect, Spi>
+    > ActiveW5500<'_, '_, '_, ChipSelect, Spi>
 {
     pub fn take_socket(&mut self, socket: Socket) -> Option<UninitializedSocket> {
         self.0.take_socket(socket)
@@ -407,13 +400,13 @@ pub trait IntoUdpSocket<SpiError> {
 }
 
 impl<
-        SpiError,
         ChipSelectError,
         ChipSelect: OutputPin<Error = ChipSelectError>,
+        SpiError,
         Spi: FullDuplex<u8, Error = SpiError>,
     > IntoUdpSocket<UninitializedSocket>
     for (
-        &mut ActiveW5500<'_, '_, '_, SpiError, ChipSelectError, ChipSelect, Spi>,
+        &mut ActiveW5500<'_, '_, '_, ChipSelect, Spi>,
         UninitializedSocket,
     )
 {
@@ -456,10 +449,7 @@ impl<
         ChipSelect: OutputPin<Error = ChipSelectError>,
         Spi: FullDuplex<u8, Error = SpiError>,
     > Udp<SpiError, ChipSelectError>
-    for (
-        &mut ActiveW5500<'_, '_, '_, SpiError, ChipSelectError, ChipSelect, Spi>,
-        &UdpSocket,
-    )
+    for (&mut ActiveW5500<'_, '_, '_, ChipSelect, Spi>, &UdpSocket)
 {
     fn receive(
         &mut self,
