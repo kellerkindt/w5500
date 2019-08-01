@@ -425,26 +425,31 @@ impl<ChipSelect: OutputPin, Spi: FullDuplex<u8>> IntoUdpSocket<UninitializedSock
     }
 }
 
-pub trait Udp<SpiError, ChipSelectError> {
+pub trait Udp {
+    type Error;
+
     fn receive(
         &mut self,
         target_buffer: &mut [u8],
-    ) -> Result<Option<(IpAddress, u16, usize)>, TransferError<SpiError, ChipSelectError>>;
+    ) -> Result<Option<(IpAddress, u16, usize)>, Self::Error>;
+
     fn blocking_send(
         &mut self,
         host: &IpAddress,
         host_port: u16,
         data: &[u8],
-    ) -> Result<(), TransferError<SpiError, ChipSelectError>>;
+    ) -> Result<(), Self::Error>;
 }
 
-impl<ChipSelect: OutputPin, Spi: FullDuplex<u8>> Udp<Spi::Error, ChipSelect::Error>
+impl<ChipSelect: OutputPin, Spi: FullDuplex<u8>> Udp
     for (&mut ActiveW5500<'_, '_, '_, ChipSelect, Spi>, &UdpSocket)
 {
+    type Error = TransferError<Spi::Error, ChipSelect::Error>;
+
     fn receive(
         &mut self,
         destination: &mut [u8],
-    ) -> Result<Option<(IpAddress, u16, usize)>, TransferError<Spi::Error, ChipSelect::Error>> {
+    ) -> Result<Option<(IpAddress, u16, usize)>, Self::Error> {
         let (w5500, UdpSocket(socket)) = self;
 
         if w5500.read_u8(socket.at(SocketRegister::InterruptMask))? & 0x04 == 0 {
@@ -500,7 +505,7 @@ impl<ChipSelect: OutputPin, Spi: FullDuplex<u8>> Udp<Spi::Error, ChipSelect::Err
         host: &IpAddress,
         host_port: u16,
         data: &[u8],
-    ) -> Result<(), TransferError<Spi::Error, ChipSelect::Error>> {
+    ) -> Result<(), Self::Error> {
         let (w5500, UdpSocket(socket)) = self;
 
         {
