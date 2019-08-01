@@ -7,7 +7,7 @@ extern crate embedded_hal as hal;
 #[macro_use(block)]
 extern crate nb;
 
-use hal::digital::OutputPin;
+use hal::digital::v2::OutputPin;
 use hal::spi::FullDuplex;
 
 use byteorder::BigEndian;
@@ -72,6 +72,12 @@ impl ::core::fmt::Display for MacAddress {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum TransferError<SpiError, ChipSelectError> {
+    SpiError(SpiError),
+    ChipSelectError(ChipSelectError),
+}
+
 #[derive(Copy, Clone, PartialOrd, PartialEq)]
 pub enum OnWakeOnLan {
     InvokeInterrupt,
@@ -106,7 +112,9 @@ pub struct W5500<'a, ChipSelect: OutputPin> {
     sockets: u8, // each bit represents whether the corresponding socket is available for take
 }
 
-impl<'b, 'a: 'b, ChipSelect: OutputPin> W5500<'a, ChipSelect> {
+impl<'b, 'a: 'b, ChipSelectError, ChipSelect: OutputPin<Error = ChipSelectError>>
+    W5500<'a, ChipSelect>
+{
     fn new(chip_select: &'a mut ChipSelect) -> Self {
         W5500 {
             chip_select,
@@ -114,14 +122,14 @@ impl<'b, 'a: 'b, ChipSelect: OutputPin> W5500<'a, ChipSelect> {
         }
     }
 
-    pub fn with_initialisation<'c, E, Spi: FullDuplex<u8, Error = E>>(
+    pub fn with_initialisation<'c, Spi: FullDuplex<u8>>(
         chip_select: &'a mut ChipSelect,
         spi: &'c mut Spi,
         wol: OnWakeOnLan,
         ping: OnPingRequest,
         mode: ConnectionType,
         arp: ArpResponses,
-    ) -> Result<Self, E> {
+    ) -> Result<Self, TransferError<Spi::Error, ChipSelectError>> {
         let mut w5500 = Self::new(chip_select);
         {
             let mut w5500_active = w5500.activate(spi)?;
@@ -143,17 +151,27 @@ impl<'b, 'a: 'b, ChipSelect: OutputPin> W5500<'a, ChipSelect> {
         }
     }
 
-    pub fn activate<'c, E, Spi: FullDuplex<u8, Error = E>>(
+    pub fn activate<'c, Spi: FullDuplex<u8>>(
         &'b mut self,
         spi: &'c mut Spi,
-    ) -> Result<ActiveW5500<'b, 'a, 'c, E, ChipSelect, Spi>, E> {
+    ) -> Result<ActiveW5500<'b, 'a, 'c, ChipSelect, Spi>, TransferError<Spi::Error, ChipSelectError>>
+    {
         Ok(ActiveW5500(self, spi))
     }
 }
 
-pub struct ActiveW5500<'a, 'b: 'a, 'c, E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>>(&'a mut W5500<'b, ChipSelect>, &'c mut Spi);
+pub struct ActiveW5500<'a, 'b: 'a, 'c, ChipSelect: OutputPin, Spi: FullDuplex<u8>>(
+    &'a mut W5500<'b, ChipSelect>,
+    &'c mut Spi,
+);
 
-impl<E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>> ActiveW5500<'_, '_, '_, E, ChipSelect, Spi> {
+impl<
+        ChipSelectError,
+        ChipSelect: OutputPin<Error = ChipSelectError>,
+        SpiError,
+        Spi: FullDuplex<u8, Error = SpiError>,
+    > ActiveW5500<'_, '_, '_, ChipSelect, Spi>
+{
     pub fn take_socket(&mut self, socket: Socket) -> Option<UninitializedSocket> {
         self.0.take_socket(socket)
     }
@@ -164,7 +182,7 @@ impl<E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>> ActiveW5500<'_, '
         ping: OnPingRequest,
         mode: ConnectionType,
         arp: ArpResponses,
-    ) -> Result<(), E> {
+    ) -> Result<(), TransferError<SpiError, ChipSelectError>> {
         let mut value = 0x00;
 
         if let OnWakeOnLan::InvokeInterrupt = wol {
@@ -186,23 +204,38 @@ impl<E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>> ActiveW5500<'_, '
         self.write_to(Register::CommonRegister(0x00_00_u16), &[value])
     }
 
-    pub fn set_gateway(&mut self, gateway: IpAddress) -> Result<(), E> {
+    pub fn set_gateway(
+        &mut self,
+        gateway: IpAddress,
+    ) -> Result<(), TransferError<SpiError, ChipSelectError>> {
         self.write_to(Register::CommonRegister(0x00_01_u16), &gateway.address)
     }
 
-    pub fn set_subnet(&mut self, subnet: IpAddress) -> Result<(), E> {
+    pub fn set_subnet(
+        &mut self,
+        subnet: IpAddress,
+    ) -> Result<(), TransferError<SpiError, ChipSelectError>> {
         self.write_to(Register::CommonRegister(0x00_05_u16), &subnet.address)
     }
 
-    pub fn set_mac(&mut self, mac: MacAddress) -> Result<(), E> {
+    pub fn set_mac(
+        &mut self,
+        mac: MacAddress,
+    ) -> Result<(), TransferError<SpiError, ChipSelectError>> {
         self.write_to(Register::CommonRegister(0x00_09_u16), &mac.address)
     }
 
-    pub fn set_ip(&mut self, ip: IpAddress) -> Result<(), E> {
+    pub fn set_ip(
+        &mut self,
+        ip: IpAddress,
+    ) -> Result<(), TransferError<SpiError, ChipSelectError>> {
         self.write_to(Register::CommonRegister(0x00_0F_u16), &ip.address)
     }
 
-    pub fn read_ip(&mut self, register: Register) -> Result<IpAddress, E> {
+    pub fn read_ip(
+        &mut self,
+        register: Register,
+    ) -> Result<IpAddress, TransferError<SpiError, ChipSelectError>> {
         let mut ip = IpAddress::default();
         self.read_from(register, &mut ip.address)?;
         Ok(ip)
@@ -211,7 +244,7 @@ impl<E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>> ActiveW5500<'_, '
     /// This is unsafe because it cannot set taken sockets back to be uninitialized
     /// It assumes, none of the old sockets will used anymore. Otherwise that socket
     /// will have undefined behavior.
-    pub unsafe fn reset(&mut self) -> Result<(), E> {
+    pub unsafe fn reset(&mut self) -> Result<(), TransferError<SpiError, ChipSelectError>> {
         self.write_to(
             Register::CommonRegister(0x00_00_u16),
             &[
@@ -222,108 +255,160 @@ impl<E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>> ActiveW5500<'_, '
         Ok(())
     }
 
-    fn is_interrupt_set(&mut self, socket: Socket, interrupt: Interrupt) -> Result<bool, E> {
+    fn is_interrupt_set(
+        &mut self,
+        socket: Socket,
+        interrupt: Interrupt,
+    ) -> Result<bool, TransferError<SpiError, ChipSelectError>> {
         let mut state = [0u8; 1];
         self.read_from(socket.at(SocketRegister::Interrupt), &mut state)?;
         Ok(state[0] & interrupt as u8 != 0)
     }
 
-    pub fn reset_interrupt(&mut self, socket: Socket, interrupt: Interrupt) -> Result<(), E> {
+    pub fn reset_interrupt(
+        &mut self,
+        socket: Socket,
+        interrupt: Interrupt,
+    ) -> Result<(), TransferError<SpiError, ChipSelectError>> {
         self.write_to(socket.at(SocketRegister::Interrupt), &[interrupt as u8])
     }
 
-    fn read_u8(&mut self, register: Register) -> Result<u8, E> {
+    fn read_u8(
+        &mut self,
+        register: Register,
+    ) -> Result<u8, TransferError<SpiError, ChipSelectError>> {
         let mut buffer = [0u8; 1];
         self.read_from(register, &mut buffer)?;
         Ok(buffer[0])
     }
 
-    fn read_u16(&mut self, register: Register) -> Result<u16, E> {
+    fn read_u16(
+        &mut self,
+        register: Register,
+    ) -> Result<u16, TransferError<SpiError, ChipSelectError>> {
         let mut buffer = [0u8; 2];
         self.read_from(register, &mut buffer)?;
         Ok(BigEndian::read_u16(&buffer))
     }
 
-    fn read_from(&mut self, register: Register, target: &mut [u8]) -> Result<(), E> {
-        self.chip_select();
+    fn read_from(
+        &mut self,
+        register: Register,
+        target: &mut [u8],
+    ) -> Result<(), TransferError<SpiError, ChipSelectError>> {
+        self.chip_select()
+            .map_err(|error| -> TransferError<SpiError, ChipSelectError> {
+                TransferError::ChipSelectError(error)
+            })?;
         let mut request = [
             0_u8,
             0_u8,
             register.control_byte() | COMMAND_READ | VARIABLE_DATA_LENGTH,
         ];
         BigEndian::write_u16(&mut request[..2], register.address());
-        let result = self.write_bytes(&request)
+        let result = self
+            .write_bytes(&request)
             .and_then(|_| self.read_bytes(target));
-        self.chip_deselect();
-        result
+        self.chip_deselect()
+            .map_err(|error| -> TransferError<SpiError, ChipSelectError> {
+                TransferError::ChipSelectError(error)
+            })?;
+        result.map_err(|error| TransferError::SpiError(error))
     }
 
-    fn read_bytes(&mut self, bytes: &mut [u8]) -> Result<(), E> {
+    fn read_bytes(&mut self, bytes: &mut [u8]) -> Result<(), SpiError> {
         for byte in bytes {
             *byte = self.read()?;
         }
         Ok(())
     }
 
-    fn read(&mut self) -> Result<u8, E> {
+    fn read(&mut self) -> Result<u8, SpiError> {
         block!(self.1.send(0x00))?;
         block!(self.1.read())
     }
 
-    fn write_u8(&mut self, register: Register, value: u8) -> Result<(), E> {
+    fn write_u8(
+        &mut self,
+        register: Register,
+        value: u8,
+    ) -> Result<(), TransferError<SpiError, ChipSelectError>> {
         self.write_to(register, &[value])
     }
 
-    fn write_u16(&mut self, register: Register, value: u16) -> Result<(), E> {
+    fn write_u16(
+        &mut self,
+        register: Register,
+        value: u16,
+    ) -> Result<(), TransferError<SpiError, ChipSelectError>> {
         let mut data = [0u8; 2];
         BigEndian::write_u16(&mut data, value);
         self.write_to(register, &data)
     }
 
-    fn write_to(&mut self, register: Register, data: &[u8]) -> Result<(), E> {
-        self.chip_select();
+    fn write_to(
+        &mut self,
+        register: Register,
+        data: &[u8],
+    ) -> Result<(), TransferError<SpiError, ChipSelectError>> {
+        self.chip_select()
+            .map_err(|error| -> TransferError<SpiError, ChipSelectError> {
+                TransferError::ChipSelectError(error)
+            })?;
         let mut request = [
             0_u8,
             0_u8,
             register.control_byte() | COMMAND_WRITE | VARIABLE_DATA_LENGTH,
         ];
         BigEndian::write_u16(&mut request[..2], register.address());
-        let result = self.write_bytes(&request)
+        let result = self
+            .write_bytes(&request)
             .and_then(|_| self.write_bytes(data));
-        self.chip_deselect();
-        result
+        self.chip_deselect()
+            .map_err(|error| -> TransferError<SpiError, ChipSelectError> {
+                TransferError::ChipSelectError(error)
+            })?;
+        result.map_err(|error| TransferError::SpiError(error))
     }
 
-    fn write_bytes(&mut self, bytes: &[u8]) -> Result<(), E> {
+    fn write_bytes(&mut self, bytes: &[u8]) -> Result<(), SpiError> {
         for b in bytes {
             self.write(*b)?;
         }
         Ok(())
     }
 
-    fn write(&mut self, byte: u8) -> Result<(), E> {
+    fn write(&mut self, byte: u8) -> Result<(), SpiError> {
         block!(self.1.send(byte))?;
         block!(self.1.read())?;
         Ok(())
     }
 
-    fn chip_select(&mut self) {
+    fn chip_select(&mut self) -> Result<(), ChipSelectError> {
         self.0.chip_select.set_low()
     }
 
-    fn chip_deselect(&mut self) {
+    fn chip_deselect(&mut self) -> Result<(), ChipSelectError> {
         self.0.chip_select.set_high()
     }
 }
 
-pub trait IntoUdpSocket<E> {
-    fn try_into_udp_server_socket(self, port: u16) -> Result<UdpSocket, E>
+pub trait IntoUdpSocket<SpiError> {
+    fn try_into_udp_server_socket(self, port: u16) -> Result<UdpSocket, SpiError>
     where
         Self: Sized;
 }
 
-impl<E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>> IntoUdpSocket<UninitializedSocket>
-    for (&mut ActiveW5500<'_, '_, '_, E, ChipSelect, Spi>, UninitializedSocket)
+impl<
+        ChipSelectError,
+        ChipSelect: OutputPin<Error = ChipSelectError>,
+        SpiError,
+        Spi: FullDuplex<u8, Error = SpiError>,
+    > IntoUdpSocket<UninitializedSocket>
+    for (
+        &mut ActiveW5500<'_, '_, '_, ChipSelect, Spi>,
+        UninitializedSocket,
+    )
 {
     fn try_into_udp_server_socket(self, port: u16) -> Result<UdpSocket, UninitializedSocket> {
         let socket = (self.1).0;
@@ -341,22 +426,30 @@ impl<E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>> IntoUdpSocket<Uni
             )?;
             Ok(UdpSocket(socket))
         })()
-        .map_err(|_: E| UninitializedSocket(socket))
+        .map_err(|_: TransferError<SpiError, ChipSelectError>| UninitializedSocket(socket))
     }
 }
 
-pub trait Udp<E> {
-    fn receive(&mut self, target_buffer: &mut [u8]) -> Result<Option<(IpAddress, u16, usize)>, E>;
+pub trait Udp<SpiError, ChipSelectError> {
+    fn receive(
+        &mut self,
+        target_buffer: &mut [u8],
+    ) -> Result<Option<(IpAddress, u16, usize)>, TransferError<SpiError, ChipSelectError>>;
     fn blocking_send(
         &mut self,
         host: &IpAddress,
         host_port: u16,
         data: &[u8],
-    ) -> Result<(), E>;
+    ) -> Result<(), TransferError<SpiError, ChipSelectError>>;
 }
 
-impl<E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>> Udp<E> for (&mut ActiveW5500<'_, '_, '_, E, ChipSelect, Spi>, &UdpSocket) {
-    fn receive(&mut self, destination: &mut [u8]) -> Result<Option<(IpAddress, u16, usize)>, E> {
+impl<ChipSelect: OutputPin, Spi: FullDuplex<u8>> Udp<Spi::Error, ChipSelect::Error>
+    for (&mut ActiveW5500<'_, '_, '_, ChipSelect, Spi>, &UdpSocket)
+{
+    fn receive(
+        &mut self,
+        destination: &mut [u8],
+    ) -> Result<Option<(IpAddress, u16, usize)>, TransferError<Spi::Error, ChipSelect::Error>> {
         let (w5500, UdpSocket(socket)) = self;
 
         if w5500.read_u8(socket.at(SocketRegister::InterruptMask))? & 0x04 == 0 {
@@ -412,7 +505,7 @@ impl<E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>> Udp<E> for (&mut 
         host: &IpAddress,
         host_port: u16,
         data: &[u8],
-    ) -> Result<(), E> {
+    ) -> Result<(), TransferError<Spi::Error, ChipSelect::Error>> {
         let (w5500, UdpSocket(socket)) = self;
 
         {
@@ -485,7 +578,6 @@ impl<E, ChipSelect: OutputPin, Spi: FullDuplex<u8, Error = E>> Udp<E> for (&mut 
         Ok(())
     }
 }
-
 
 #[repr(u8)]
 #[derive(Copy, Clone, PartialEq, Debug)]
