@@ -399,12 +399,7 @@ pub trait IntoUdpSocket<SpiError> {
         Self: Sized;
 }
 
-impl<
-        ChipSelectError,
-        ChipSelect: OutputPin<Error = ChipSelectError>,
-        SpiError,
-        Spi: FullDuplex<u8, Error = SpiError>,
-    > IntoUdpSocket<UninitializedSocket>
+impl<ChipSelect: OutputPin, Spi: FullDuplex<u8>> IntoUdpSocket<UninitializedSocket>
     for (
         &mut ActiveW5500<'_, '_, '_, ChipSelect, Spi>,
         UninitializedSocket,
@@ -426,7 +421,7 @@ impl<
             )?;
             Ok(UdpSocket(socket))
         })()
-        .map_err(|_: TransferError<SpiError, ChipSelectError>| UninitializedSocket(socket))
+        .map_err(|_: TransferError<Spi::Error, ChipSelect::Error>| UninitializedSocket(socket))
     }
 }
 
