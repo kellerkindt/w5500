@@ -21,12 +21,14 @@ const FIXED_DATA_LENGTH_1_BYTE: u8 = 0b_01;
 const FIXED_DATA_LENGTH_2_BYTES: u8 = 0b_10;
 const FIXED_DATA_LENGTH_4_BYTES: u8 = 0b_11;
 
+/// IP Address struct.  Represents an IP address as a u8 array of length 4.  Can be instantiated with `IpAddress::new`
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug)]
 pub struct IpAddress {
     pub address: [u8; 4],
 }
 
 impl IpAddress {
+    /// Instantiate a new IP address with u8s for each address fragment
     pub fn new(a0: u8, a1: u8, a2: u8, a3: u8) -> IpAddress {
         IpAddress {
             address: [a0, a1, a2, a3],
@@ -35,6 +37,7 @@ impl IpAddress {
 }
 
 impl ::core::fmt::Display for IpAddress {
+    /// String formatter for IP addresses, useful for debugging output
     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
         write!(
             f,
@@ -44,12 +47,14 @@ impl ::core::fmt::Display for IpAddress {
     }
 }
 
+/// MAC address struct.  Represents a MAC address as a u8 array of length 6. Can be instantiated with `MacAddress::new`
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug)]
 pub struct MacAddress {
     pub address: [u8; 6],
 }
 
 impl MacAddress {
+    /// Instantiate a new MAC address with u8s for each address fragment
     pub fn new(a0: u8, a1: u8, a2: u8, a3: u8, a4: u8, a5: u8) -> MacAddress {
         MacAddress {
             address: [a0, a1, a2, a3, a4, a5],
@@ -58,6 +63,7 @@ impl MacAddress {
 }
 
 impl ::core::fmt::Display for MacAddress {
+    /// String formatter for MAC addresses, useful for debugging output
     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
         write!(
             f,
@@ -72,18 +78,22 @@ impl ::core::fmt::Display for MacAddress {
     }
 }
 
+/// Error enum that represents the union between SPI hardware errors and digital IO pin errors.  Returned as an Error
+/// type by many W5500 that talk to the chip
 #[derive(Copy, Clone, Debug)]
 pub enum TransferError<SpiError, ChipSelectError> {
     SpiError(SpiError),
     ChipSelectError(ChipSelectError),
 }
 
+/// Settings for wake on LAN.  Allows the W5500 to optionally emit an interrupt upon receiving a packet
 #[derive(Copy, Clone, PartialOrd, PartialEq)]
 pub enum OnWakeOnLan {
     InvokeInterrupt,
     Ignore,
 }
 
+/// Settings for ping.  Allows the W5500 to respond to or ignore network ping requests
 #[derive(Copy, Clone, PartialOrd, PartialEq)]
 pub enum OnPingRequest {
     Respond,
@@ -104,9 +114,14 @@ pub enum ArpResponses {
     DropAfterUse,
 }
 
+/// Represents a socket that has not yet been initialized for a particular protocol
 pub struct UninitializedSocket(Socket);
+
+/// Represents a socket that has been initialized to use the UDP protocol
 pub struct UdpSocket(Socket);
 
+/// The first level of instantiating communication with the W5500.  It can not communicate by itself, but calling
+/// `activate` will return an `ActiveW5500` which can.
 pub struct W5500<'a, ChipSelect: OutputPin> {
     chip_select: &'a mut ChipSelect,
     sockets: u8, // each bit represents whether the corresponding socket is available for take
@@ -122,6 +137,7 @@ impl<'b, 'a: 'b, ChipSelectError, ChipSelect: OutputPin<Error = ChipSelectError>
         }
     }
 
+    /// Primary method for instantiating.  Briefly activates the W5500, and sets it up with the specified configuration
     pub fn with_initialisation<'c, Spi: FullDuplex<u8>>(
         chip_select: &'a mut ChipSelect,
         spi: &'c mut Spi,
@@ -141,6 +157,7 @@ impl<'b, 'a: 'b, ChipSelectError, ChipSelect: OutputPin<Error = ChipSelectError>
         Ok(w5500)
     }
 
+    /// Returns the requested socket if it is not already used.
     pub fn take_socket(&mut self, socket: Socket) -> Option<UninitializedSocket> {
         let mask = (0x01 << socket.number());
         if self.sockets & mask == mask {
@@ -151,6 +168,7 @@ impl<'b, 'a: 'b, ChipSelectError, ChipSelect: OutputPin<Error = ChipSelectError>
         }
     }
 
+    /// Creates a new `ActiveW5500` with the provided `FullDuplex` implementation
     pub fn activate<'c, Spi: FullDuplex<u8>>(
         &'b mut self,
         spi: &'c mut Spi,
@@ -160,6 +178,7 @@ impl<'b, 'a: 'b, ChipSelectError, ChipSelect: OutputPin<Error = ChipSelectError>
     }
 }
 
+/// Struct that can communicate with the W5500 chip, configuring it and reading/writing to the registers on a low level
 pub struct ActiveW5500<'a, 'b: 'a, 'c, ChipSelect: OutputPin, Spi: FullDuplex<u8>>(
     &'a mut W5500<'b, ChipSelect>,
     &'c mut Spi,
@@ -172,10 +191,12 @@ impl<
         Spi: FullDuplex<u8, Error = SpiError>,
     > ActiveW5500<'_, '_, '_, ChipSelect, Spi>
 {
+    /// Returns the requested socket if it is not already used
     pub fn take_socket(&mut self, socket: Socket) -> Option<UninitializedSocket> {
         self.0.take_socket(socket)
     }
 
+    /// Set up basic configuration of the W5500 chip
     pub fn update_operation_mode(
         &mut self,
         wol: OnWakeOnLan,
@@ -204,6 +225,7 @@ impl<
         self.write_to(Register::CommonRegister(0x00_00_u16), &[value])
     }
 
+    /// Sets the IP address of the network gateway (router)
     pub fn set_gateway(
         &mut self,
         gateway: IpAddress,
@@ -211,6 +233,7 @@ impl<
         self.write_to(Register::CommonRegister(0x00_01_u16), &gateway.address)
     }
 
+    /// Sets the subnet on the network
     pub fn set_subnet(
         &mut self,
         subnet: IpAddress,
@@ -218,6 +241,7 @@ impl<
         self.write_to(Register::CommonRegister(0x00_05_u16), &subnet.address)
     }
 
+    /// Sets the MAC address of the W5500 device on the network
     pub fn set_mac(
         &mut self,
         mac: MacAddress,
@@ -225,6 +249,7 @@ impl<
         self.write_to(Register::CommonRegister(0x00_09_u16), &mac.address)
     }
 
+    /// Sets the IP address of the W5500 device on network.  Must be within the range permitted by the gateway
     pub fn set_ip(
         &mut self,
         ip: IpAddress,
@@ -232,6 +257,7 @@ impl<
         self.write_to(Register::CommonRegister(0x00_0F_u16), &ip.address)
     }
 
+    /// Reads 4 bytesfrom any register location and returns the value as an IP address
     pub fn read_ip(
         &mut self,
         register: Register,
@@ -255,6 +281,7 @@ impl<
         Ok(())
     }
 
+    /// TODO document
     fn is_interrupt_set(
         &mut self,
         socket: Socket,
@@ -265,6 +292,7 @@ impl<
         Ok(state[0] & interrupt as u8 != 0)
     }
 
+    /// TODO document
     pub fn reset_interrupt(
         &mut self,
         socket: Socket,
@@ -273,6 +301,7 @@ impl<
         self.write_to(socket.at(SocketRegister::Interrupt), &[interrupt as u8])
     }
 
+    /// Reads one byte from any register address as a u8
     fn read_u8(
         &mut self,
         register: Register,
@@ -282,6 +311,7 @@ impl<
         Ok(buffer[0])
     }
 
+    /// Reads two bytes from any register address and returns as a u16
     fn read_u16(
         &mut self,
         register: Register,
@@ -291,6 +321,7 @@ impl<
         Ok(BigEndian::read_u16(&buffer))
     }
 
+    /// Reads enough bytes from any register address to fill the `target` u8 slice
     fn read_from(
         &mut self,
         register: Register,
@@ -316,6 +347,7 @@ impl<
         result.map_err(|error| TransferError::SpiError(error))
     }
 
+    /// Reads enough bytes over SPI to fill the `target` u8 slice
     fn read_bytes(&mut self, bytes: &mut [u8]) -> Result<(), SpiError> {
         for byte in bytes {
             *byte = self.read()?;
@@ -323,11 +355,13 @@ impl<
         Ok(())
     }
 
+    /// Reads a single byte over SPI by writing a zero and reading the response
     fn read(&mut self) -> Result<u8, SpiError> {
         block!(self.1.send(0x00))?;
         block!(self.1.read())
     }
 
+    /// Write a single u8 byte to any register address
     fn write_u8(
         &mut self,
         register: Register,
@@ -336,6 +370,7 @@ impl<
         self.write_to(register, &[value])
     }
 
+    /// Write a u16 as two bytes o any register address
     fn write_u16(
         &mut self,
         register: Register,
@@ -346,6 +381,7 @@ impl<
         self.write_to(register, &data)
     }
 
+    /// Write a slice of u8 bytes to any register address
     fn write_to(
         &mut self,
         register: Register,
@@ -371,6 +407,7 @@ impl<
         result.map_err(|error| TransferError::SpiError(error))
     }
 
+    /// Write a slice of u8 bytes over SPI
     fn write_bytes(&mut self, bytes: &[u8]) -> Result<(), SpiError> {
         for b in bytes {
             self.write(*b)?;
@@ -378,16 +415,19 @@ impl<
         Ok(())
     }
 
+    /// Write a single byte over SPI
     fn write(&mut self, byte: u8) -> Result<(), SpiError> {
         block!(self.1.send(byte))?;
         block!(self.1.read())?;
         Ok(())
     }
 
+    /// Begin a SPI frame by setting the CS signal to low
     fn chip_select(&mut self) -> Result<(), ChipSelectError> {
         self.0.chip_select.set_low()
     }
 
+    /// End a SPI frame by setting the CS signal to high
     fn chip_deselect(&mut self) -> Result<(), ChipSelectError> {
         self.0.chip_select.set_high()
     }
@@ -405,6 +445,7 @@ impl<ChipSelect: OutputPin, Spi: FullDuplex<u8>> IntoUdpSocket<UninitializedSock
         UninitializedSocket,
     )
 {
+    /// Initialize a socket to operate in UDP mode
     fn try_into_udp_server_socket(self, port: u16) -> Result<UdpSocket, UninitializedSocket> {
         let socket = (self.1).0;
         (|| {
@@ -425,6 +466,7 @@ impl<ChipSelect: OutputPin, Spi: FullDuplex<u8>> IntoUdpSocket<UninitializedSock
     }
 }
 
+/// UDP trait that can send and receive UDP packets
 pub trait Udp {
     type Error;
 
@@ -446,6 +488,7 @@ impl<ChipSelect: OutputPin, Spi: FullDuplex<u8>> Udp
 {
     type Error = TransferError<Spi::Error, ChipSelect::Error>;
 
+    /// Returns a UDP packet if one is available.  Will return `None` if no UDP packets are in the socket's buffer
     fn receive(
         &mut self,
         destination: &mut [u8],
@@ -481,9 +524,6 @@ impl<ChipSelect: OutputPin, Spi: FullDuplex<u8>> Udp
                 &mut destination[..data_length],
             )?;
 
-            // self.read_from(socket.register_at(0x00_0C), &mut ip.address)?;
-            // self.read_u16(socket.register_at(0x00_10))?;
-
             // reset
             w5500.write_u16(
                 socket.at(SocketRegister::RxReadPointer),
@@ -500,6 +540,7 @@ impl<ChipSelect: OutputPin, Spi: FullDuplex<u8>> Udp
         }
     }
 
+    /// Sends a UDP packet to the specified IP and port, and blocks until it is sent
     fn blocking_send(
         &mut self,
         host: &IpAddress,
@@ -564,10 +605,6 @@ impl<ChipSelect: OutputPin, Spi: FullDuplex<u8>> Udp
             }
         }
         // restore listen state
-        /*
-        self.network
-            .listen_udp(self.spi, SOCKET_UDP, SOCKET_UDP_PORT)
-        */
         w5500.write_to(
             socket.at(SocketRegister::Mode),
             &[
@@ -579,6 +616,7 @@ impl<ChipSelect: OutputPin, Spi: FullDuplex<u8>> Udp
     }
 }
 
+/// Offset addresses in each socket register
 #[repr(u8)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum SocketRegister {
@@ -609,6 +647,7 @@ pub enum SocketRegister {
     // Reserved 0x0030 - 0xFFFF
 }
 
+/// Interrupt state bits
 #[repr(u8)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Interrupt {
@@ -619,6 +658,7 @@ pub enum Interrupt {
     Connected = 1, // 1 << 0
 }
 
+/// Register protocol mode bits
 #[repr(u8)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Protocol {
@@ -627,6 +667,7 @@ pub enum Protocol {
     MACRAW = 0b0100,
 }
 
+/// Bits for socket commands
 #[repr(u8)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum SocketCommand {
@@ -641,6 +682,7 @@ pub enum SocketCommand {
     Recv = 0x40,
 }
 
+/// Identifiers for each socket on the W5500
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug)]
 pub enum Socket {
     Socket0,
@@ -654,6 +696,7 @@ pub enum Socket {
 }
 
 impl Socket {
+    /// Gets the number of any given socket
     pub fn number(self) -> usize {
         match self {
             Socket::Socket0 => 0,
@@ -667,6 +710,7 @@ impl Socket {
         }
     }
 
+    /// Returns the register address for a socket instance's TX
     fn tx_register_at(self, address: u16) -> Register {
         match self {
             Socket::Socket0 => Register::Socket0TxBuffer(address),
@@ -680,6 +724,7 @@ impl Socket {
         }
     }
 
+    /// Returns the register address for a socket instance's RX
     fn rx_register_at(self, address: u16) -> Register {
         match self {
             Socket::Socket0 => Register::Socket0RxBuffer(address),
@@ -693,6 +738,7 @@ impl Socket {
         }
     }
 
+    /// Returns the register address for a socket instance's register
     fn register_at(self, address: u16) -> Register {
         match self {
             Socket::Socket0 => Register::Socket0Register(address),
@@ -711,6 +757,7 @@ impl Socket {
     }
 }
 
+/// Chip register names
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Register {
     CommonRegister(u16),
@@ -749,6 +796,7 @@ pub enum Register {
 }
 
 impl Register {
+    /// Gets the control bits to identify any given register
     fn control_byte(self) -> u8 {
         #[allow(clippy::inconsistent_digit_grouping)]
         match self {
@@ -788,6 +836,7 @@ impl Register {
         }
     }
 
+    /// Returns the associated address as a u16
     fn address(self) -> u16 {
         match self {
             Register::CommonRegister(address) => address,
