@@ -69,7 +69,7 @@ of the SPI implementation.  It must be set up to work as the W5500 chip requires
     }
 ```
 
-## To To
+## Todo
 
 In no particular order, things to do to improve this driver.
 
