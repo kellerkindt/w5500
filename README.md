@@ -1,47 +1,82 @@
-# Example usage
+# W5500 Driver
 
-Below some really basic usage how I am ca using it:
+This crate is a driver for the WIZnet W5500 chips.  The W5500 chip is a hardwired TCP/IP embedded Ethernet controller
+that enables easier internet connection for embedded systems using SPI (Serial Peripheral Interface).  It is one of the
+more popular platforms for Ethernet modules on Arduino platforms.
+
+## Embedded-HAL
+
+Embedded-HAL is a standard set of traits meant to permit communication between MCU implementations and hardware drivers
+like this one.  Any microcontroller that implements the
+[`spi::FullDuplex<u8>`](https://docs.rs/embedded-hal/0.2.3/embedded_hal/spi/trait.FullDuplex.html) interface can use
+this driver.
+
+## Implementation
+
+This driver is built in several layers of structs.
+
+The lowest level (and the first a program would instantiate) is the `W5500` struct.  It contains a reference to the
+chip-select [pin](https://docs.rs/embedded-hal/0.2.3/embedded_hal/digital/v2/trait.OutputPin.html).
+
+The next layer is the `ActiveW5500` struct.  It contains a reference to a `W5500` instance, and an implementation of
+the [`spi::FullDuplex<u8>`](https://docs.rs/embedded-hal/0.2.3/embedded_hal/spi/trait.FullDuplex.html) trait.  It has
+the ability to actually communicate with the chip.  It has general methods for reading/writing to the chip, and
+higher-level functions that can set up specific configuration, like the MAC address, etc.
+
+The last layer is the network protocol.  Currently that is only `Udp`.  `Udp` is a tuple struct made up of an
+`ActiveW5500` and a `Socket`.  This last layer can be used to send and receive UDP packets over the network via the
+`receive` and `blocking_send` methods.
+
+# Example Usage
+
+Below is a basic example of listening for UDP packets and replying.  An important thing to confirm is the configuration
+of the SPI implementation.  It must be set up to work as the W5500 chip requires.  That configuration is as follows:
+
+* Data Order: Most significant bit first
+* Clock Polarity: Idle low
+* Clock Phase: Sample leading edge
+* Clock speed: 33MHz maximum
 
 ```rust
     let mut spi = ...; // SPI interface to use
     let mut cs_w5500 : OutputPin = ...; // chip select
     
-    let mut w5500: Option<W5500> = W5500::with_initialisation(
+    let mut w5500 = W5500::with_initialisation(
         &mut cs_w5500, // borrowed for whole W5500 lifetime
         &mut spi, // borrowed for call to `with_initialisation` only
         OnWakeOnLan::Ignore,
         OnPingRequest::Respond,
         ConnectionType::Ethernet,
         ArpResponses::Cache,
-    )
-    .ok();
+    ).unwrap();
     
-    if let Some(ref mut w5500) = w5500 {
-        let mut w5500: ActiveW5500<_> = w5500.activate(&mut spi).unwrap();
-        // using a 'locally administered' MAC address
-        active.set_mac(MacAddress::new(0x02, 0x01, 0x02, 0x03, 0x04, 0x05)).unwrap();
-        active.set_ip(IpAddress::new(192, 168, 0, 222)).unwrap();
-        active.set_subnet(IpAddress::new(255, 255, 255, 0)).unwrap();
-        active.set_gateway(IpAddress::new(192, 168, 0, 1)).unwrap();
-    }
+    let mut active = w5500.activate(&mut spi).unwrap();
+    // using a 'locally administered' MAC address
+    active.set_mac(MacAddress::new(0x02, 0x01, 0x02, 0x03, 0x04, 0x05)).unwrap();
+    active.set_ip(IpAddress::new(192, 168, 0, 222)).unwrap();
+    active.set_subnet(IpAddress::new(255, 255, 255, 0)).unwrap();
+    active.set_gateway(IpAddress::new(192, 168, 0, 1)).unwrap();
 
-    let mut udp_server_socket: Option<UdpSocket> = w5500.as_mut().and_then(|w5500| {
-        let mut w5500: ActiveW5500<_> = w5500.activate(&mut spi).ok()?;
-        let socket0: UninitializedSocket = w5500.take_socket(Socket::Socket0)?;
-        (&mut w5500, socket0).try_into_udp_server_socket(1234).ok()
-    });
+    let socket0: UninitializedSocket = w5500.take_socket(Socket::Socket0).unwrap();
+    let udp_server_socket = (&mut w5500, socket0).try_into_udp_server_socket(1234).unwrap();
 
     let mut buffer = [0u8; 256];
-    if let (Some(ref mut w5500), Some(ref socket)) = (
-        w5500.as_mut().and_then(w5500.activate(&mut spi).ok()),
-        udp_server_socket,
-    ) {
-        if let Ok(Some((ip, port, len))) = (w5500, socket).receive(&mut buffer[..]) {
-            let (request_buffer, response_buffer) = buffer.split_mut_at(len);
-
-            // ... fill the response_buffer with some data ...
-
-            (w5500, socket).blocking_send(ip, port, response_buffer[..response_len]).unwrap();
+    let response = [104, 101, 108, 108, 111, 10];// "hello" as ASCII
+    loop {
+        if let Ok(Some((ip, port, len))) = udp_server_socket.receive(&mut buffer[..]) {
+            udp_server_socket.blocking_send(ip, port, response[..]).unwrap();
         }
     }
 ```
+
+## To To
+
+In no particular order, things to do to improve this driver.
+
+* Add support for TCP
+* Add support for DHCP
+* Method to return socket back to the pool
+* Make reset safe by requiring that all sockets be returned to the pool first
+* Support a 3-wire SPI bus
+* Sane defaults for IP/Gateway/Subnet
+* Improve documentation
