@@ -1,34 +1,33 @@
-use embedded_hal::spi::FullDuplex;
+use bus::{ActiveBus, ActiveFourWire, ActiveThreeWire};
 use embedded_hal::digital::v2::OutputPin;
-use bus::{Bus, FourWire, ThreeWire};
+use embedded_hal::spi::FullDuplex;
 use w5500::W5500;
 
-pub struct UninitializedW5500<Spi: FullDuplex<u8>, SpiBus: Bus<Spi>> {
+pub struct UninitializedW5500<SpiBus: ActiveBus> {
     bus: SpiBus,
-    spi: Spi,
 }
 
-impl<Spi: FullDuplex<u8>, SpiBus: Bus<Spi>> UninitializedW5500<Spi, SpiBus> {
-    pub fn initialize() -> W5500 {
+impl<SpiBus: ActiveBus> UninitializedW5500<SpiBus> {
+    pub fn initialize(self) -> W5500<SpiBus> {
         // TODO actually initialize chip
-        W5500 {}
+        W5500::new(self.bus)
+    }
+    pub fn new(bus: SpiBus) -> UninitializedW5500<SpiBus> {
+        UninitializedW5500 { bus: bus }
     }
 }
 
-impl<Spi: FullDuplex<u8>, ChipSelect: OutputPin> UninitializedW5500<Spi, FourWire<ChipSelect>> {
-    pub fn new(spi: Spi, cs: ChipSelect) -> Self {
-        Self { spi, bus: FourWire::new(cs) }
-    }
+impl<Spi: FullDuplex<u8>, ChipSelect: OutputPin>
+    UninitializedW5500<ActiveFourWire<Spi, ChipSelect>>
+{
     pub fn deactivate(self) -> (Spi, ChipSelect) {
-        (self.spi, self.bus.release())
+        let (bus, spi) = self.bus.deactivate();
+        (spi, bus.release())
     }
 }
 
-impl<Spi: FullDuplex<u8>> UninitializedW5500<Spi, ThreeWire> {
-    pub fn new(spi: Spi) -> Self {
-        Self { spi, bus: ThreeWire::new() }
-    }
+impl<Spi: FullDuplex<u8>> UninitializedW5500<ActiveThreeWire<Spi>> {
     pub fn deactivate(self) -> Spi {
-        self.spi
+        self.bus.deactivate().1
     }
 }

@@ -1,16 +1,18 @@
 use nb::Result;
-use embedded_hal::spi::FullDuplex;
 
 mod four_wire;
 mod three_wire;
 
+pub use self::four_wire::ActiveFourWire;
 pub use self::four_wire::FourWire;
+pub use self::three_wire::ActiveThreeWire;
 pub use self::three_wire::ThreeWire;
 
-pub trait Bus<Spi: FullDuplex<u8>> {
+pub trait Bus {}
+
+pub trait ActiveBus {
     type Error;
-    fn transfer_frame<'a, 'b>(
-        spi: &'b mut Spi,
+    fn transfer_frame<'a>(
         address_phase: [u8; 2],
         control_phase: u8,
         data_phase: &'a mut [u8],

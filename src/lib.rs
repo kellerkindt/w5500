@@ -901,7 +901,7 @@ extern crate nb;
 //     }
 // }
 
-
-pub mod uninitialized_w5500;
 pub mod bus;
+pub mod inactive_w5500;
+pub mod uninitialized_w5500;
 pub mod w5500;
