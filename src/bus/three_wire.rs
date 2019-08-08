@@ -25,7 +25,8 @@ pub struct ActiveThreeWire<Spi: FullDuplex<u8>> {
 impl<Spi: FullDuplex<u8>> ActiveBus for ActiveThreeWire<Spi> {
     type Error = Spi::Error;
     fn transfer_frame<'a>(
-        address_phase: [u8; 2],
+        &mut self,
+        address_phase: u16,
         control_phase: u8,
         data_phase: &'a mut [u8],
     ) -> Result<&'a mut [u8], nb::Error<Self::Error>> {

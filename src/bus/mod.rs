@@ -1,3 +1,4 @@
+use embedded_hal::spi::FullDuplex;
 use nb::Result;
 
 mod four_wire;
@@ -12,9 +13,29 @@ pub trait Bus {}
 
 pub trait ActiveBus {
     type Error;
+
     fn transfer_frame<'a>(
-        address_phase: [u8; 2],
+        &mut self,
+        address_phase: u16,
         control_phase: u8,
         data_phase: &'a mut [u8],
     ) -> Result<&'a mut [u8], Self::Error>;
+
+    fn transfer_bytes<'a, Spi: FullDuplex<u8>>(
+        spi: &mut Spi,
+        bytes: &'a mut [u8],
+    ) -> Result<&'a mut [u8], Spi::Error> {
+        for byte in bytes.iter_mut() {
+            Self::transfer_byte(spi, byte)?;
+        }
+        Ok(bytes)
+    }
+
+    fn transfer_byte<'a, Spi: FullDuplex<u8>>(
+        spi: &mut Spi,
+        byte: &'a mut u8,
+    ) -> Result<&'a mut u8, Spi::Error> {
+        *byte = spi.send(*byte).and_then(|_| spi.read())?;
+        Ok(byte)
+    }
 }

@@ -2,10 +2,10 @@
 // #![allow(unused)]
 #![deny(broken_intra_doc_links)]
 
-// extern crate byteorder;
+extern crate byteorder;
 extern crate embedded_hal;
 
-// #[macro_use(block)]
+#[macro_use(block)]
 extern crate nb;
 
 // use hal::digital::v2::OutputPin;
