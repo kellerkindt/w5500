@@ -1,4 +1,4 @@
-// #![no_std]
+#![no_std]
 // #![allow(unused)]
 #![deny(broken_intra_doc_links)]
 
@@ -22,62 +22,62 @@ extern crate nb;
 // const FIXED_DATA_LENGTH_2_BYTES: u8 = 0b_10;
 // const FIXED_DATA_LENGTH_4_BYTES: u8 = 0b_11;
 
-// /// IP Address struct.  Represents an IP address as a u8 array of length 4.  Can be instantiated with `IpAddress::new`
-// #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug)]
-// pub struct IpAddress {
-//     pub address: [u8; 4],
-// }
+/// IP Address struct.  Represents an IP address as a u8 array of length 4.  Can be instantiated with `IpAddress::new`
+#[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug)]
+pub struct IpAddress {
+    pub address: [u8; 4],
+}
 
-// impl IpAddress {
-//     /// Instantiate a new IP address with u8s for each address fragment
-//     pub fn new(a0: u8, a1: u8, a2: u8, a3: u8) -> IpAddress {
-//         IpAddress {
-//             address: [a0, a1, a2, a3],
-//         }
-//     }
-// }
+impl IpAddress {
+    /// Instantiate a new IP address with u8s for each address fragment
+    pub fn new(a0: u8, a1: u8, a2: u8, a3: u8) -> IpAddress {
+        IpAddress {
+            address: [a0, a1, a2, a3],
+        }
+    }
+}
 
-// impl ::core::fmt::Display for IpAddress {
-//     /// String formatter for IP addresses, useful for debugging output
-//     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-//         write!(
-//             f,
-//             "{}.{}.{}.{}",
-//             self.address[0], self.address[1], self.address[2], self.address[3],
-//         )
-//     }
-// }
+impl ::core::fmt::Display for IpAddress {
+    /// String formatter for IP addresses, useful for debugging output
+    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        write!(
+            f,
+            "{}.{}.{}.{}",
+            self.address[0], self.address[1], self.address[2], self.address[3],
+        )
+    }
+}
 
-// /// MAC address struct.  Represents a MAC address as a u8 array of length 6. Can be instantiated with `MacAddress::new`
-// #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug)]
-// pub struct MacAddress {
-//     pub address: [u8; 6],
-// }
+/// MAC address struct.  Represents a MAC address as a u8 array of length 6. Can be instantiated with `MacAddress::new`
+#[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug)]
+pub struct MacAddress {
+    pub address: [u8; 6],
+}
 
-// impl MacAddress {
-//     /// Instantiate a new MAC address with u8s for each address fragment
-//     pub fn new(a0: u8, a1: u8, a2: u8, a3: u8, a4: u8, a5: u8) -> MacAddress {
-//         MacAddress {
-//             address: [a0, a1, a2, a3, a4, a5],
-//         }
-//     }
-// }
+impl MacAddress {
+    /// Instantiate a new MAC address with u8s for each address fragment
+    pub fn new(a0: u8, a1: u8, a2: u8, a3: u8, a4: u8, a5: u8) -> MacAddress {
+        MacAddress {
+            address: [a0, a1, a2, a3, a4, a5],
+        }
+    }
+}
 
-// impl ::core::fmt::Display for MacAddress {
-//     /// String formatter for MAC addresses, useful for debugging output
-//     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-//         write!(
-//             f,
-//             "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
-//             self.address[0],
-//             self.address[1],
-//             self.address[2],
-//             self.address[3],
-//             self.address[4],
-//             self.address[5],
-//         )
-//     }
-// }
+impl ::core::fmt::Display for MacAddress {
+    /// String formatter for MAC addresses, useful for debugging output
+    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        write!(
+            f,
+            "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
+            self.address[0],
+            self.address[1],
+            self.address[2],
+            self.address[3],
+            self.address[4],
+            self.address[5],
+        )
+    }
+}
 
 // /// Error enum that represents the union between SPI hardware errors and digital IO pin errors.  Returned as an Error
 // /// type by many W5500 that talk to the chip
@@ -87,33 +87,72 @@ extern crate nb;
 //     ChipSelectError(ChipSelectError),
 // }
 
-// /// Settings for wake on LAN.  Allows the W5500 to optionally emit an interrupt upon receiving a packet
-// #[derive(Copy, Clone, PartialOrd, PartialEq)]
-// pub enum OnWakeOnLan {
-//     InvokeInterrupt,
-//     Ignore,
+// if let OnWakeOnLan::InvokeInterrupt = settings.on_wake_on_lan {
+//     value |= 1 << 5;
 // }
 
-// /// Settings for ping.  Allows the W5500 to respond to or ignore network ping requests
-// #[derive(Copy, Clone, PartialOrd, PartialEq)]
-// pub enum OnPingRequest {
-//     Respond,
-//     Ignore,
+// if let OnPingRequest::Ignore = settings.on_ping_request {
+//     value |= 1 << 4;
 // }
 
-// /// Use [TransmissionMode::PPoE] when talking
-// /// to an ADSL modem. Otherwise use [TransmissionMode::Ethernet]
-// #[derive(Copy, Clone, PartialOrd, PartialEq)]
-// pub enum ConnectionType {
-//     PPoE,
-//     Ethernet,
+// if let ConnectionType::PPoE = settings.connection_type {
+//     value |= 1 << 3;
 // }
 
-// #[derive(Copy, Clone, PartialOrd, PartialEq)]
-// pub enum ArpResponses {
-//     Cache,
-//     DropAfterUse,
+// if let ArpResponses::DropAfterUse = settings.arp_responses {
+//     value |= 1 << 1;
 // }
+
+/// Settings for wake on LAN.  Allows the W5500 to optionally emit an interrupt upon receiving a packet
+#[repr(u8)]
+#[derive(Copy, Clone, PartialOrd, PartialEq)]
+pub enum OnWakeOnLan {
+    InvokeInterrupt = 0b00100000,
+    Ignore = 0b00000000,
+}
+
+/// Settings for ping.  Allows the W5500 to respond to or ignore network ping requests
+#[repr(u8)]
+#[derive(Copy, Clone, PartialOrd, PartialEq)]
+pub enum OnPingRequest {
+    Respond = 0b00000000,
+    Ignore = 0b00010000,
+}
+
+/// Use [TransmissionMode::PPoE] when talking
+/// to an ADSL modem. Otherwise use [TransmissionMode::Ethernet]
+#[repr(u8)]
+#[derive(Copy, Clone, PartialOrd, PartialEq)]
+pub enum ConnectionType {
+    PPoE = 0b00001000,
+    Ethernet = 0b00000000,
+}
+
+#[derive(Copy, Clone, PartialOrd, PartialEq)]
+#[repr(u8)]
+pub enum ArpResponses {
+    Cache = 0b00000000,
+    DropAfterUse = 0b00000010,
+}
+
+#[derive(Copy, Clone, PartialEq)]
+pub struct Settings {
+    on_wake_on_lan: OnWakeOnLan,
+    on_ping_request: OnPingRequest,
+    connection_type: ConnectionType,
+    arp_responses: ArpResponses
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            on_wake_on_lan: OnWakeOnLan::Ignore,
+            on_ping_request: OnPingRequest::Respond,
+            connection_type: ConnectionType::Ethernet,
+            arp_responses: ArpResponses::DropAfterUse,
+        }
+    }
+}
 
 // /// Represents a socket that has not yet been initialized for a particular protocol
 // pub struct UninitializedSocket {
