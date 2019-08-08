@@ -37,8 +37,8 @@ impl<Spi: FullDuplex<u8>, ChipSelect: OutputPin> ActiveBus for ActiveFourWire<Sp
     type Error = FourWireError<Spi::Error, ChipSelect::Error>;
     fn transfer_frame<'a>(
         &mut self,
-        address: u16,
         block: u8,
+        address: u16,
         is_write: bool,
         data: &'a mut [u8],
     ) -> Result<&'a mut [u8], nb::Error<Self::Error>> {

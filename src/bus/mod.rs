@@ -16,8 +16,8 @@ pub trait ActiveBus {
 
     fn transfer_frame<'a>(
         &mut self,
-        address: u16,
         block: u8,
+        address: u16,
         is_write: bool,
         data: &'a mut [u8],
     ) -> Result<&'a mut [u8], Self::Error>;

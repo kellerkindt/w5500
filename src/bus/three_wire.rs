@@ -46,8 +46,8 @@ impl<Spi: FullDuplex<u8>> ActiveBus for ActiveThreeWire<Spi> {
     /// (address 29) AA
     fn transfer_frame<'a>(
         &mut self,
-        mut address: u16,
         block: u8,
+        mut address: u16,
         is_write: bool,
         data: &'a mut [u8],
     ) -> Result<&'a mut [u8], nb::Error<Self::Error>> {
