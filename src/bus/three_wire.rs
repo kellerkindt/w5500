@@ -3,12 +3,11 @@ use embedded_hal::spi::FullDuplex;
 
 use crate::bus::{ActiveBus, Bus};
 
-const WRITE_MODE_MASK: u8 = 0b11111_1_11;
-const READ_MODE_MASK: u8 = 0b_11111_0_11;
+const WRITE_MODE_MASK: u8 = 0b00000_1_0;
 
-const FIXED_DATA_LENGTH_MODE_1: u8 = 0b111111_01;
-const FIXED_DATA_LENGTH_MODE_2: u8 = 0b111111_10;
-const FIXED_DATA_LENGTH_MODE_4: u8 = 0b111111_11;
+const FIXED_DATA_LENGTH_MODE_1: u8 = 0b000000_01;
+const FIXED_DATA_LENGTH_MODE_2: u8 = 0b000000_10;
+const FIXED_DATA_LENGTH_MODE_4: u8 = 0b000000_11;
 
 pub struct ThreeWire {}
 
@@ -53,22 +52,20 @@ impl<Spi: FullDuplex<u8>> ActiveBus for ActiveThreeWire<Spi> {
     ) -> Result<&'a mut [u8], nb::Error<Self::Error>> {
         let mut control_phase = block << 3;
         if is_write {
-            control_phase &= WRITE_MODE_MASK;
-        } else {
-            control_phase &= READ_MODE_MASK;
+            control_phase |= WRITE_MODE_MASK;
         }
 
         let mut data_phase = &mut data[..];
         let mut last_length_written: u16;
         while data_phase.len() > 0 {
             if data_phase.len() >= 4 {
-                control_phase &= FIXED_DATA_LENGTH_MODE_4;
+                control_phase |= FIXED_DATA_LENGTH_MODE_4;
                 last_length_written = 4;
             } else if data_phase.len() >= 2 {
-                control_phase &= FIXED_DATA_LENGTH_MODE_2;
+                control_phase |= FIXED_DATA_LENGTH_MODE_2;
                 last_length_written = 2;
             } else {
-                control_phase &= FIXED_DATA_LENGTH_MODE_1;
+                control_phase |= FIXED_DATA_LENGTH_MODE_1;
                 last_length_written = 1;
             }
 

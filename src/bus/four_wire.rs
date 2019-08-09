@@ -4,8 +4,7 @@ use embedded_hal::spi::FullDuplex;
 
 use crate::bus::{ActiveBus, Bus};
 
-const WRITE_MODE_MASK: u8 = 0b11111_1_11;
-const READ_MODE_MASK: u8 = 0b_11111_0_11;
+const WRITE_MODE_MASK: u8 = 0b00000_1_00;
 
 pub struct FourWire<ChipSelect: OutputPin> {
     cs: ChipSelect,
@@ -44,9 +43,7 @@ impl<Spi: FullDuplex<u8>, ChipSelect: OutputPin> ActiveBus for ActiveFourWire<Sp
     ) -> Result<&'a mut [u8], nb::Error<Self::Error>> {
         let mut control_phase = block << 3;
         if is_write {
-            control_phase &= WRITE_MODE_MASK;
-        } else {
-            control_phase &= READ_MODE_MASK;
+            control_phase |= WRITE_MODE_MASK;
         }
         let data_phase = data;
         let mut address_phase = [0u8; 2];
