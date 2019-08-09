@@ -1,5 +1,5 @@
 use crate::bus::ActiveBus;
-use crate::network::{Network,NetworkSettings};
+use crate::network::{Network, NetworkSettings};
 use crate::MacAddress;
 
 pub struct Dhcp {

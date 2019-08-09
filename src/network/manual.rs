@@ -1,7 +1,7 @@
-use crate::network::NetworkSettings;
-use crate::network::Network;
 use crate::bus::ActiveBus;
-use crate::{MacAddress, IpAddress};
+use crate::network::Network;
+use crate::network::NetworkSettings;
+use crate::{IpAddress, MacAddress};
 
 pub struct Manual {
     is_setup: bool,
@@ -19,7 +19,7 @@ impl Manual {
                 gateway,
                 subnet,
             },
-            current: NetworkSettings::default()
+            current: NetworkSettings::default(),
         }
     }
 }

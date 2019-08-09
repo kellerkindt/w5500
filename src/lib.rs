@@ -942,7 +942,7 @@ impl Default for Mode {
 
 pub mod bus;
 pub mod inactive_w5500;
+mod network;
+mod register;
 pub mod uninitialized_w5500;
 pub mod w5500;
-mod register;
-mod network;
