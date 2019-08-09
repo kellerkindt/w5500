@@ -136,14 +136,14 @@ pub enum ArpResponses {
 }
 
 #[derive(Copy, Clone, PartialEq)]
-pub struct Settings {
+pub struct Mode {
     on_wake_on_lan: OnWakeOnLan,
     on_ping_request: OnPingRequest,
     connection_type: ConnectionType,
-    arp_responses: ArpResponses
+    arp_responses: ArpResponses,
 }
 
-impl Default for Settings {
+impl Default for Mode {
     fn default() -> Self {
         Self {
             on_wake_on_lan: OnWakeOnLan::Ignore,
