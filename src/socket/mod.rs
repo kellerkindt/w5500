@@ -1,4 +1,6 @@
-pub trait Socket {}
+pub trait Socket {
+    // TODO expose method to get address of socket
+}
 
 pub type OwnedSockets = (
     Socket0,
