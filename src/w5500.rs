@@ -51,6 +51,7 @@ impl<SpiBus: ActiveBus, NetworkImpl: Network> W5500<SpiBus, NetworkImpl> {
     }
 
     pub fn open_udp_socket<SocketImpl: Socket>(&self, socket: SocketImpl) -> UdpSocket<SocketImpl> {
+        // TODO compare socket to sockets list
         UdpSocket::new(socket)
     }
 }
