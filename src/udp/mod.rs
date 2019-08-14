@@ -1,12 +1,12 @@
 use crate::socket::Socket;
 
-pub struct UdpSocket<SocketImpl: Socket> {
-    socket: SocketImpl,
+pub struct UdpSocket<'a, SocketImpl: Socket> {
+    socket: &'a mut SocketImpl,
 }
 
-impl<SocketImpl: Socket> UdpSocket<SocketImpl> {
-	pub fn new(socket: SocketImpl) -> Self {
-		// TODO initialize socket for UDP mode
-		UdpSocket { socket }
-	}
+impl<'a, SocketImpl: Socket> UdpSocket<'a, SocketImpl> {
+    pub fn new(socket: &'a mut SocketImpl) -> Self {
+        // TODO initialize socket for UDP mode
+        UdpSocket { socket }
+    }
 }

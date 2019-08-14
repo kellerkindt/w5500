@@ -50,7 +50,10 @@ impl<SpiBus: ActiveBus, NetworkImpl: Network> W5500<SpiBus, NetworkImpl> {
         Ok(())
     }
 
-    pub fn open_udp_socket<SocketImpl: Socket>(&self, socket: SocketImpl) -> UdpSocket<SocketImpl> {
+    pub fn open_udp_socket<'a, SocketImpl: Socket>(
+        &self,
+        socket: &'a mut SocketImpl,
+    ) -> UdpSocket<'a, SocketImpl> {
         // TODO compare socket to sockets list
         UdpSocket::new(socket)
     }
