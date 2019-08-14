@@ -24,6 +24,7 @@ impl Network for Dhcp {
     /// Gets (if necessary) and sets the network settings on the chip
     fn refresh<SpiBus: ActiveBus>(&mut self, _bus: &mut SpiBus) -> Result<(), SpiBus::Error> {
         // TODO actually negotiate settings from DHCP
+        // TODO figure out how should receive socket for DHCP negotiations
         Ok(())
     }
 }

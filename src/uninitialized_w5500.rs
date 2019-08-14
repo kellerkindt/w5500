@@ -4,6 +4,7 @@ use bus::{ActiveBus, ActiveFourWire, ActiveThreeWire};
 use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::spi::FullDuplex;
 use register;
+use socket::{Socket0, Socket1, Socket2, Socket3, Socket4, Socket5, Socket6, Socket7};
 use w5500::W5500;
 
 pub struct UninitializedW5500<SpiBus: ActiveBus> {
@@ -64,8 +65,17 @@ impl<SpiBus: ActiveBus> UninitializedW5500<SpiBus> {
         network
             .refresh(&mut self.bus)
             .map_err(|e| InitializeError::SpiError(e))?;
-        Ok(W5500::new(self.bus, network))
-        // TODO give ownership of all sockets
+        let sockets = (
+            Socket0 {},
+            Socket1 {},
+            Socket2 {},
+            Socket3 {},
+            Socket4 {},
+            Socket5 {},
+            Socket6 {},
+            Socket7 {},
+        );
+        Ok(W5500::new(self.bus, network, sockets))
     }
 
     fn assert_chip_version(

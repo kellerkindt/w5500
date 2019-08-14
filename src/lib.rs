@@ -940,9 +940,11 @@ impl Default for Mode {
 //     }
 // }
 
-pub mod bus;
-pub mod inactive_w5500;
+mod bus;
+mod inactive_w5500;
 mod network;
 mod register;
+mod socket;
+mod udp;
 pub mod uninitialized_w5500;
-pub mod w5500;
+mod w5500;
