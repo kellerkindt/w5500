@@ -1,5 +1,7 @@
+use crate::register;
+
 pub trait Socket {
-    fn is_owned_by(&self, sockets: OwnedSockets) -> bool;
+    fn is_owned_by(&self, sockets: &OwnedSockets) -> bool;
     fn register(&self) -> u8;
     fn tx_buffer(&self) -> u8;
     fn rx_buffer(&self) -> u8;
@@ -28,121 +30,121 @@ pub type Sockets<'a> = (
 
 pub struct Socket0 {}
 impl Socket for Socket0 {
-    fn is_owned_by(&self, sockets: OwnedSockets) -> bool {
+    fn is_owned_by(&self, sockets: &OwnedSockets) -> bool {
         self as *const _ == &sockets.0 as *const _
     }
     fn register(&self) -> u8 {
-        0b000_00001
+        register::SOCKET0
     }
     fn tx_buffer(&self) -> u8 {
-        0b000_00010
+        register::socket0::TX_BUFFER
     }
     fn rx_buffer(&self) -> u8 {
-        0b000_00011
+        register::socket0::RX_BUFFER
     }
 }
 pub struct Socket1 {}
 impl Socket for Socket1 {
-    fn is_owned_by(&self, sockets: OwnedSockets) -> bool {
+    fn is_owned_by(&self, sockets: &OwnedSockets) -> bool {
         self as *const _ == &sockets.1 as *const _
     }
     fn register(&self) -> u8 {
-        0b000_00101
+        register::SOCKET1
     }
     fn tx_buffer(&self) -> u8 {
-        0b000_00110
+        register::socket1::TX_BUFFER
     }
     fn rx_buffer(&self) -> u8 {
-        0b000_00111
+        register::socket1::RX_BUFFER
     }
 }
 pub struct Socket2 {}
 impl Socket for Socket2 {
-    fn is_owned_by(&self, sockets: OwnedSockets) -> bool {
+    fn is_owned_by(&self, sockets: &OwnedSockets) -> bool {
         self as *const _ == &sockets.2 as *const _
     }
     fn register(&self) -> u8 {
-        0b000_01001
+        register::SOCKET2
     }
     fn tx_buffer(&self) -> u8 {
-        0b000_01010
+        register::socket2::TX_BUFFER
     }
     fn rx_buffer(&self) -> u8 {
-        0b000_01011
+        register::socket2::RX_BUFFER
     }
 }
 pub struct Socket3 {}
 impl Socket for Socket3 {
-    fn is_owned_by(&self, sockets: OwnedSockets) -> bool {
+    fn is_owned_by(&self, sockets: &OwnedSockets) -> bool {
         self as *const _ == &sockets.3 as *const _
     }
     fn register(&self) -> u8 {
-        0b000_01101
+        register::SOCKET3
     }
     fn tx_buffer(&self) -> u8 {
-        0b000_01110
+        register::socket3::TX_BUFFER
     }
     fn rx_buffer(&self) -> u8 {
-        0b000_01111
+        register::socket3::RX_BUFFER
     }
 }
 pub struct Socket4 {}
 impl Socket for Socket4 {
-    fn is_owned_by(&self, sockets: OwnedSockets) -> bool {
+    fn is_owned_by(&self, sockets: &OwnedSockets) -> bool {
         self as *const _ == &sockets.4 as *const _
     }
     fn register(&self) -> u8 {
-        0b000_10001
+        register::SOCKET4
     }
     fn tx_buffer(&self) -> u8 {
-        0b000_10010
+        register::socket4::TX_BUFFER
     }
     fn rx_buffer(&self) -> u8 {
-        0b000_10011
+        register::socket4::RX_BUFFER
     }
 }
 pub struct Socket5 {}
 impl Socket for Socket5 {
-    fn is_owned_by(&self, sockets: OwnedSockets) -> bool {
+    fn is_owned_by(&self, sockets: &OwnedSockets) -> bool {
         self as *const _ == &sockets.5 as *const _
     }
     fn register(&self) -> u8 {
-        0b000_10101
+        register::SOCKET5
     }
     fn tx_buffer(&self) -> u8 {
-        0b000_10110
+        register::socket5::TX_BUFFER
     }
     fn rx_buffer(&self) -> u8 {
-        0b000_10111
+        register::socket5::RX_BUFFER
     }
 }
 pub struct Socket6 {}
 impl Socket for Socket6 {
-    fn is_owned_by(&self, sockets: OwnedSockets) -> bool {
+    fn is_owned_by(&self, sockets: &OwnedSockets) -> bool {
         self as *const _ == &sockets.6 as *const _
     }
     fn register(&self) -> u8 {
-        0b000_11001
+        register::SOCKET6
     }
     fn tx_buffer(&self) -> u8 {
-        0b000_11010
+        register::socket6::TX_BUFFER
     }
     fn rx_buffer(&self) -> u8 {
-        0b000_11011
+        register::socket6::RX_BUFFER
     }
 }
 pub struct Socket7 {}
 impl Socket for Socket7 {
-    fn is_owned_by(&self, sockets: OwnedSockets) -> bool {
+    fn is_owned_by(&self, sockets: &OwnedSockets) -> bool {
         self as *const _ == &sockets.7 as *const _
     }
     fn register(&self) -> u8 {
-        0b000_11101
+        register::SOCKET7
     }
     fn tx_buffer(&self) -> u8 {
-        0b000_11110
+        register::socket7::TX_BUFFER
     }
     fn rx_buffer(&self) -> u8 {
-        0b000_11111
+        register::socket7::RX_BUFFER
     }
 }

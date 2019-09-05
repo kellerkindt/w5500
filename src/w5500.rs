@@ -51,10 +51,10 @@ impl<SpiBus: ActiveBus, NetworkImpl: Network> W5500<SpiBus, NetworkImpl> {
     }
 
     pub fn open_udp_socket<'a, SocketImpl: Socket>(
-        &self,
+        self,
         socket: &'a mut SocketImpl,
     ) -> Result<UdpSocket<'a, SpiBus, NetworkImpl, SocketImpl>, ForeignSocketError> {
-        if socket.is_owned_by(self.sockets) {
+        if socket.is_owned_by(&self.sockets) {
             Ok(UdpSocket::new(self.bus, self.network, self.sockets, socket))
         } else {
             Err(ForeignSocketError {})
