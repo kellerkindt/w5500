@@ -1,7 +1,7 @@
 use byteorder::{BigEndian, ByteOrder};
 
-use crate::register;
 use crate::bus::ActiveBus;
+use crate::register;
 use crate::register::socketn;
 
 pub trait Socket {
@@ -9,17 +9,29 @@ pub trait Socket {
     fn register(&self) -> u8;
     fn tx_buffer(&self) -> u8;
     fn rx_buffer(&self) -> u8;
-    fn set_mode<SpiBus: ActiveBus>(&self, bus: &mut SpiBus, mode: socketn::Protocol) -> Result<(), SpiBus::Error> {
+    fn set_mode<SpiBus: ActiveBus>(
+        &self,
+        bus: &mut SpiBus,
+        mode: socketn::Protocol,
+    ) -> Result<(), SpiBus::Error> {
         let mut mode = [mode as u8];
         block!(bus.transfer_frame(self.register(), socketn::MODE, true, &mut mode))?;
         Ok(())
     }
-    fn reset_interrupt<SpiBus: ActiveBus>(&self, bus: &mut SpiBus, code: socketn::Interrupt) -> Result<(), SpiBus::Error> {
+    fn reset_interrupt<SpiBus: ActiveBus>(
+        &self,
+        bus: &mut SpiBus,
+        code: socketn::Interrupt,
+    ) -> Result<(), SpiBus::Error> {
         let mut data = [code as u8];
         block!(bus.transfer_frame(self.register(), socketn::INTERRUPT, true, &mut data))?;
         Ok(())
     }
-    fn set_source_port<SpiBus: ActiveBus>(&self, bus: &mut SpiBus, port: u16) -> Result<(), SpiBus::Error> {
+    fn set_source_port<SpiBus: ActiveBus>(
+        &self,
+        bus: &mut SpiBus,
+        port: u16,
+    ) -> Result<(), SpiBus::Error> {
         let mut data = [0u8; 2];
         BigEndian::write_u16(&mut data[..], port);
         block!(bus.transfer_frame(self.register(), socketn::SOURCE_PORT, true, &mut data))?;

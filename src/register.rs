@@ -44,13 +44,13 @@ pub mod socketn {
     pub const MODE: u16 = 0x00;
     #[repr(u8)]
     pub enum Protocol {
-        Udp = 0b10u8
+        Udp = 0b10u8,
     }
 
     pub const INTERRUPT: u16 = 0x02;
     #[repr(u8)]
     pub enum Interrupt {
-        SendOk = 0b10000u8
+        SendOk = 0b10000u8,
     }
 
     pub const SOURCE_PORT: u16 = 0x04;

@@ -54,7 +54,8 @@ impl<SpiBus: ActiveBus, NetworkImpl: Network> W5500<SpiBus, NetworkImpl> {
         self,
         port: u16,
         socket: &'a mut SocketImpl,
-    ) -> Result<UdpSocket<'a, SpiBus, NetworkImpl, SocketImpl>, OpenSocketError<SpiBus::Error>> {
+    ) -> Result<UdpSocket<'a, SpiBus, NetworkImpl, SocketImpl>, OpenSocketError<SpiBus::Error>>
+    {
         if socket.is_owned_by(&self.sockets) {
             UdpSocket::new(port, self.bus, self.network, self.sockets, socket)
                 .map_err(|e| OpenSocketError::BusError(e))
