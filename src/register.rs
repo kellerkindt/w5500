@@ -9,49 +9,49 @@ pub mod common {
 }
 
 pub const SOCKET0: u8 = 0b000_00001;
-pub mod socket0 {
-	pub const TX_BUFFER: u8 = 0b000_00010;
-	pub const RX_BUFFER: u8 = 0b000_00011;
-}
+pub const SOCKET0_BUFFER_TX: u8 = 0b000_00010;
+pub const SOCKET0_BUFFER_RX: u8 = 0b000_00011;
 
 pub const SOCKET1: u8 = 0b000_00101;
-pub mod socket1 {
-	pub const TX_BUFFER: u8 = 0b000_00110;
-	pub const RX_BUFFER: u8 = 0b000_00111;
-}
+pub const SOCKET1_BUFFER_TX: u8 = 0b000_00110;
+pub const SOCKET1_BUFFER_RX: u8 = 0b000_00111;
 
 pub const SOCKET2: u8 = 0b000_01001;
-pub mod socket2 {
-	pub const TX_BUFFER: u8 = 0b000_01010;
-	pub const RX_BUFFER: u8 = 0b000_01011;
-}
+pub const SOCKET2_BUFFER_TX: u8 = 0b000_01010;
+pub const SOCKET2_BUFFER_RX: u8 = 0b000_01011;
 
 pub const SOCKET3: u8 = 0b000_01101;
-pub mod socket3 {
-	pub const TX_BUFFER: u8 = 0b000_01110;
-	pub const RX_BUFFER: u8 = 0b000_01111;
-}
+pub const SOCKET3_BUFFER_TX: u8 = 0b000_01110;
+pub const SOCKET3_BUFFER_RX: u8 = 0b000_01111;
 
 pub const SOCKET4: u8 = 0b000_10001;
-pub mod socket4 {
-	pub const TX_BUFFER: u8 = 0b000_10010;
-	pub const RX_BUFFER: u8 = 0b000_10011;
-}
+pub const SOCKET4_BUFFER_TX: u8 = 0b000_10010;
+pub const SOCKET4_BUFFER_RX: u8 = 0b000_10011;
 
 pub const SOCKET5: u8 = 0b000_10101;
-pub mod socket5 {
-	pub const TX_BUFFER: u8 = 0b000_10110;
-	pub const RX_BUFFER: u8 = 0b000_10111;
-}
+pub const SOCKET5_BUFFER_TX: u8 = 0b000_10110;
+pub const SOCKET5_BUFFER_RX: u8 = 0b000_10111;
 
 pub const SOCKET6: u8 = 0b000_11001;
-pub mod socket6 {
-	pub const TX_BUFFER: u8 = 0b000_11010;
-	pub const RX_BUFFER: u8 = 0b000_11011;
-}
+pub const SOCKET6_BUFFER_TX: u8 = 0b000_11010;
+pub const SOCKET6_BUFFER_RX: u8 = 0b000_11011;
 
 pub const SOCKET7: u8 = 0b000_11101;
-pub mod socket7 {
-	pub const TX_BUFFER: u8 = 0b000_11110;
-	pub const RX_BUFFER: u8 = 0b000_11111;
+pub const SOCKET7_BUFFER_TX: u8 = 0b000_11110;
+pub const SOCKET7_BUFFER_RX: u8 = 0b000_11111;
+
+pub mod socketn {
+    pub const MODE: u16 = 0x00;
+    #[repr(u8)]
+    pub enum Protocol {
+        Udp = 0b10u8
+    }
+
+    pub const INTERRUPT: u16 = 0x02;
+    #[repr(u8)]
+    pub enum Interrupt {
+        SendOk = 0b10000u8
+    }
+
+    pub const SOURCE_PORT: u16 = 0x04;
 }

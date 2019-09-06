@@ -52,12 +52,14 @@ impl<SpiBus: ActiveBus, NetworkImpl: Network> W5500<SpiBus, NetworkImpl> {
 
     pub fn open_udp_socket<'a, SocketImpl: Socket>(
         self,
+        port: u16,
         socket: &'a mut SocketImpl,
-    ) -> Result<UdpSocket<'a, SpiBus, NetworkImpl, SocketImpl>, ForeignSocketError> {
+    ) -> Result<UdpSocket<'a, SpiBus, NetworkImpl, SocketImpl>, OpenSocketError<SpiBus::Error>> {
         if socket.is_owned_by(&self.sockets) {
-            Ok(UdpSocket::new(self.bus, self.network, self.sockets, socket))
+            UdpSocket::new(port, self.bus, self.network, self.sockets, socket)
+                .map_err(|e| OpenSocketError::BusError(e))
         } else {
-            Err(ForeignSocketError {})
+            Err(OpenSocketError::ForeignSocketError)
         }
     }
 
@@ -80,6 +82,11 @@ impl<Spi: FullDuplex<u8>, NetworkImpl: Network> W5500<ActiveThreeWire<Spi>, Netw
         let (bus, spi) = self.bus.deactivate();
         (InactiveW5500::new(bus, self.network, self.sockets), spi)
     }
+}
+
+pub enum OpenSocketError<BusError> {
+    ForeignSocketError,
+    BusError(BusError),
 }
 
 pub struct ForeignSocketError {}

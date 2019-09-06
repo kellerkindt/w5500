@@ -1,10 +1,30 @@
+use byteorder::{BigEndian, ByteOrder};
+
 use crate::register;
+use crate::bus::ActiveBus;
+use crate::register::socketn;
 
 pub trait Socket {
     fn is_owned_by(&self, sockets: &OwnedSockets) -> bool;
     fn register(&self) -> u8;
     fn tx_buffer(&self) -> u8;
     fn rx_buffer(&self) -> u8;
+    fn set_mode<SpiBus: ActiveBus>(&self, bus: &mut SpiBus, mode: socketn::Protocol) -> Result<(), SpiBus::Error> {
+        let mut mode = [mode as u8];
+        block!(bus.transfer_frame(self.register(), socketn::MODE, true, &mut mode))?;
+        Ok(())
+    }
+    fn reset_interrupt<SpiBus: ActiveBus>(&self, bus: &mut SpiBus, code: socketn::Interrupt) -> Result<(), SpiBus::Error> {
+        let mut data = [code as u8];
+        block!(bus.transfer_frame(self.register(), socketn::INTERRUPT, true, &mut data))?;
+        Ok(())
+    }
+    fn set_source_port<SpiBus: ActiveBus>(&self, bus: &mut SpiBus, port: u16) -> Result<(), SpiBus::Error> {
+        let mut data = [0u8; 2];
+        BigEndian::write_u16(&mut data[..], port);
+        block!(bus.transfer_frame(self.register(), socketn::SOURCE_PORT, true, &mut data))?;
+        Ok(())
+    }
 }
 
 pub type OwnedSockets = (
@@ -37,10 +57,10 @@ impl Socket for Socket0 {
         register::SOCKET0
     }
     fn tx_buffer(&self) -> u8 {
-        register::socket0::TX_BUFFER
+        register::SOCKET0_BUFFER_TX
     }
     fn rx_buffer(&self) -> u8 {
-        register::socket0::RX_BUFFER
+        register::SOCKET0_BUFFER_RX
     }
 }
 pub struct Socket1 {}
@@ -52,10 +72,10 @@ impl Socket for Socket1 {
         register::SOCKET1
     }
     fn tx_buffer(&self) -> u8 {
-        register::socket1::TX_BUFFER
+        register::SOCKET1_BUFFER_TX
     }
     fn rx_buffer(&self) -> u8 {
-        register::socket1::RX_BUFFER
+        register::SOCKET1_BUFFER_RX
     }
 }
 pub struct Socket2 {}
@@ -67,10 +87,10 @@ impl Socket for Socket2 {
         register::SOCKET2
     }
     fn tx_buffer(&self) -> u8 {
-        register::socket2::TX_BUFFER
+        register::SOCKET2_BUFFER_TX
     }
     fn rx_buffer(&self) -> u8 {
-        register::socket2::RX_BUFFER
+        register::SOCKET2_BUFFER_RX
     }
 }
 pub struct Socket3 {}
@@ -82,10 +102,10 @@ impl Socket for Socket3 {
         register::SOCKET3
     }
     fn tx_buffer(&self) -> u8 {
-        register::socket3::TX_BUFFER
+        register::SOCKET3_BUFFER_TX
     }
     fn rx_buffer(&self) -> u8 {
-        register::socket3::RX_BUFFER
+        register::SOCKET3_BUFFER_RX
     }
 }
 pub struct Socket4 {}
@@ -97,10 +117,10 @@ impl Socket for Socket4 {
         register::SOCKET4
     }
     fn tx_buffer(&self) -> u8 {
-        register::socket4::TX_BUFFER
+        register::SOCKET4_BUFFER_TX
     }
     fn rx_buffer(&self) -> u8 {
-        register::socket4::RX_BUFFER
+        register::SOCKET4_BUFFER_RX
     }
 }
 pub struct Socket5 {}
@@ -112,10 +132,10 @@ impl Socket for Socket5 {
         register::SOCKET5
     }
     fn tx_buffer(&self) -> u8 {
-        register::socket5::TX_BUFFER
+        register::SOCKET5_BUFFER_TX
     }
     fn rx_buffer(&self) -> u8 {
-        register::socket5::RX_BUFFER
+        register::SOCKET5_BUFFER_RX
     }
 }
 pub struct Socket6 {}
@@ -127,10 +147,10 @@ impl Socket for Socket6 {
         register::SOCKET6
     }
     fn tx_buffer(&self) -> u8 {
-        register::socket6::TX_BUFFER
+        register::SOCKET6_BUFFER_TX
     }
     fn rx_buffer(&self) -> u8 {
-        register::socket6::RX_BUFFER
+        register::SOCKET6_BUFFER_RX
     }
 }
 pub struct Socket7 {}
@@ -142,9 +162,9 @@ impl Socket for Socket7 {
         register::SOCKET7
     }
     fn tx_buffer(&self) -> u8 {
-        register::socket7::TX_BUFFER
+        register::SOCKET7_BUFFER_TX
     }
     fn rx_buffer(&self) -> u8 {
-        register::socket7::RX_BUFFER
+        register::SOCKET7_BUFFER_RX
     }
 }
