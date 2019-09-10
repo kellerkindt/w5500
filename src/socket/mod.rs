@@ -37,6 +37,23 @@ pub trait Socket {
         block!(bus.transfer_frame(self.register(), socketn::SOURCE_PORT, true, &mut data))?;
         Ok(())
     }
+    fn has_received<SpiBus: ActiveBus>(
+        &self,
+        bus: &mut SpiBus,
+    ) -> Result<bool, SpiBus::Error> {
+        let mut data = [0u8];
+        block!(bus.transfer_frame(self.register(), socketn::INTERRUPT_MASK, true, &mut data))?;
+        Ok(data[0] & socketn::interrupt_mask::RECEIVE != 0)
+    }
+
+    fn get_packet_address<SpiBus: ActiveBus>(
+        &self,
+        bus: &mut SpiBus,
+    ) -> Result<u16, SpiBus::Error> {
+        let mut data = [0u8; 2];
+        block!(bus.transfer_frame(self.register(), socketn::RX_DATA_POINTER, true, &mut data))?;
+        Ok(BigEndian::read_u16(&data))
+    }
 }
 
 pub type OwnedSockets = (

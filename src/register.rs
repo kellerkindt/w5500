@@ -54,4 +54,13 @@ pub mod socketn {
     }
 
     pub const SOURCE_PORT: u16 = 0x04;
+
+    pub const INTERRUPT_MASK: u16 = 0x2C;
+    pub mod interrupt_mask {
+        pub const RECEIVE: u8 = 0b100;
+    }
+
+    pub const RECEIVED_SIZE: u16 = 0x26;
+
+    pub const RX_DATA_POINTER: u16 = 0x28;
 }
