@@ -1,16 +1,13 @@
 mod inactive_udp_socket;
 mod packet;
 
-use byteorder::{BigEndian, ByteOrder};
-use crate::IpAddress;
 use crate::bus::ActiveBus;
 use crate::network::Network;
-use crate::socket::OwnedSockets;
-use crate::socket::Socket;
+use crate::socket::{Socket, OwnedSockets};
 use crate::udp::inactive_udp_socket::InactiveUdpSocket;
-use crate::w5500::W5500;
 use crate::udp::packet::UdpPacket;
-use register::socketn;
+use crate::w5500::W5500;
+use crate::register::socketn;
 
 pub struct UdpSocket<'a, SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket> {
     bus: SpiBus,
@@ -48,18 +45,6 @@ impl<'a, SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket>
             Ok(None)
         } else {
             Ok(Some(UdpPacket::new(self)?))
-        }
-    }
-
-    fn block_until_receive_size_known(&mut self) -> Result<u16, SpiBus::Error> {
-        loop {
-            let mut sample_0 = [0u8; 2];
-            block!(self.bus.transfer_frame(self.socket.register(), socketn::RECEIVED_SIZE, false, &mut sample_0))?;
-            let mut sample_1 = [0u8; 2];
-            block!(self.bus.transfer_frame(self.socket.register(), socketn::RECEIVED_SIZE, false, &mut sample_1))?;
-            if sample_0 == sample_1 && sample_0[0] >= 8 {
-                break Ok(BigEndian::read_u16(&sample_0));
-            }
         }
     }
 

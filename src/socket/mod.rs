@@ -46,13 +46,27 @@ pub trait Socket {
         Ok(data[0] & socketn::interrupt_mask::RECEIVE != 0)
     }
 
-    fn get_packet_address<SpiBus: ActiveBus>(
+    fn get_rx_read_pointer<SpiBus: ActiveBus>(
         &self,
         bus: &mut SpiBus,
     ) -> Result<u16, SpiBus::Error> {
         let mut data = [0u8; 2];
-        block!(bus.transfer_frame(self.register(), socketn::RX_DATA_POINTER, true, &mut data))?;
+        block!(bus.transfer_frame(self.register(), socketn::RX_DATA_READ_POINTER, true, &mut data))?;
         Ok(BigEndian::read_u16(&data))
+    }
+
+    fn set_rx_read_pointer<SpiBus: ActiveBus>(&self, bus: &mut SpiBus, pointer: u16) -> Result<(), SpiBus::Error> {
+        let mut data = [0u8; 2];
+        BigEndian::write_u16(&mut data, pointer);
+        block!(bus.transfer_frame(self.register(), socketn::RX_DATA_READ_POINTER, true, &mut data))?;
+        Ok(())
+    }
+
+    fn command<SpiBus: ActiveBus>(&self, bus: &mut SpiBus, command: socketn::Command) -> Result<(), SpiBus::Error> {
+        let mut data = [0u8; 2];
+        BigEndian::write_u16(&mut data, command as u16);
+        block!(bus.transfer_frame(self.register(), socketn::COMMAND, true, &mut data))?;
+        Ok(())
     }
 }
 
