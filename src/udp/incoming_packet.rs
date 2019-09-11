@@ -6,7 +6,7 @@ use crate::socket::Socket;
 use crate::IpAddress;
 use crate::register::socketn;
 
-pub struct UdpPacket<UdpSocket> {
+pub struct IncomingPacket<UdpSocket> {
     udp_socket: UdpSocket,
     address: IpAddress,
     remote_port: u16,
@@ -14,7 +14,7 @@ pub struct UdpPacket<UdpSocket> {
     write_pointer: u16,
 }
 
-impl<'a, SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket> UdpPacket<UdpSocket<'a, SpiBus, NetworkImpl, SocketImpl>>
+impl<'a, SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket> IncomingPacket<UdpSocket<'a, SpiBus, NetworkImpl, SocketImpl>>
 {
     pub fn new(mut udp_socket: UdpSocket<'a, SpiBus, NetworkImpl, SocketImpl>) -> Result<Self, SpiBus::Error> {
         let receive_size = udp_socket.socket.get_receive_size(&mut udp_socket.bus)?;
@@ -26,7 +26,7 @@ impl<'a, SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket> UdpPacket<
         let read_pointer = udp_socket.socket.get_rx_read_pointer(&mut udp_socket.bus)?;
         let mut header = [0u8; 8];
         block!(udp_socket.bus.transfer_frame(udp_socket.socket.rx_buffer(), read_pointer, false, &mut header))?;
-        Ok(UdpPacket {
+        Ok(Self {
             udp_socket,
             address: IpAddress::new(header[0], header[1], header[2], header[3]),
             remote_port: BigEndian::read_u16(&header[4..5]),
@@ -43,11 +43,7 @@ impl<'a, SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket> UdpPacket<
         self.address
     }
 
-    pub fn read(&mut self) -> Result<u8, SpiBus::Error> {
-        let mut buffer = [0u8];
-        block!(self.udp_socket.bus.transfer_frame(self.udp_socket.socket.rx_buffer(), self.read_pointer, false, &mut buffer))?;
-        Ok(buffer[0])
-    }
+    // TODO add read_all method
 
     pub fn done(mut self) -> Result<UdpSocket<'a, SpiBus, NetworkImpl, SocketImpl>, SpiBus::Error> {
         self.udp_socket.socket.set_rx_read_pointer(&mut self.udp_socket.bus, self.write_pointer)?;
@@ -57,7 +53,7 @@ impl<'a, SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket> UdpPacket<
 
 }
 
-impl<'a, SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket> Iterator for UdpPacket<UdpSocket<'a, SpiBus, NetworkImpl, SocketImpl>> {
+impl<'a, SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket> Iterator for IncomingPacket<UdpSocket<'a, SpiBus, NetworkImpl, SocketImpl>> {
     type Item = Result<u8, SpiBus::Error>;
     fn next(&mut self) -> Option<Self::Item> {
         if self.read_pointer > self.write_pointer {
@@ -66,6 +62,7 @@ impl<'a, SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket> Iterator f
         let mut buffer = [0u8];
         let result = block!(self.udp_socket.bus.transfer_frame(self.udp_socket.socket.rx_buffer(), self.read_pointer, false, &mut buffer));
         self.read_pointer += 1;
+        // TODO handle looping back?
         match result {
             Ok(_) => Some(Ok(buffer[0])),
             Result::Err(error) => Some(Err(error)),

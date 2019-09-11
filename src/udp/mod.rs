@@ -1,13 +1,16 @@
 mod inactive_udp_socket;
-mod packet;
+mod incoming_packet;
+mod outgoing_packet;
 
 use crate::bus::ActiveBus;
 use crate::network::Network;
 use crate::socket::{Socket, OwnedSockets};
 use crate::udp::inactive_udp_socket::InactiveUdpSocket;
-use crate::udp::packet::UdpPacket;
+use crate::udp::incoming_packet::IncomingPacket;
+use crate::udp::outgoing_packet::OutgoingPacket;
 use crate::w5500::W5500;
 use crate::register::socketn;
+use crate::IpAddress;
 
 pub struct UdpSocket<'a, SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket> {
     bus: SpiBus,
@@ -40,88 +43,18 @@ impl<'a, SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket>
     }
 
     /// Returns a UDP packet if one is available.  Will return `None` if no UDP packets are in the socket's buffer
-    pub fn receive(mut self) -> Result<Option<UdpPacket<Self>>, SpiBus::Error> {
+    pub fn receive(mut self) -> Result<Option<IncomingPacket<Self>>, SpiBus::Error> {
         if !self.socket.has_received(&mut self.bus)? {
             Ok(None)
         } else {
-            Ok(Some(UdpPacket::new(self)?))
+            Ok(Some(IncomingPacket::new(self)?))
         }
     }
 
-//     /// Sends a UDP packet to the specified IP and port, and blocks until it is sent
-//     fn blocking_send(
-//         &mut self,
-//         host: &IpAddress,
-//         host_port: u16,
-//         data: &[u8],
-//     ) -> Result<(), Self::Error> {
-//         let (w5500, UdpSocket(socket)) = self;
-
-//         {
-//             let local_port = w5500.read_u16(socket.at(SocketRegister::LocalPort))?;
-//             let local_port = local_port.to_be_bytes();
-//             let host_port = host_port.to_be_bytes();
-
-//             w5500.write_to(
-//                 socket.at(SocketRegister::LocalPort),
-//                 &[
-//                     local_port[0],
-//                     local_port[1], // local port u16
-//                     0x00,
-//                     0x00,
-//                     0x00,
-//                     0x00,
-//                     0x00,
-//                     0x00, // destination mac
-//                     host.address[0],
-//                     host.address[1],
-//                     host.address[2],
-//                     host.address[3], // target IP
-//                     host_port[0],
-//                     host_port[1], // destination port (5354)
-//                 ],
-//             )?;
-//         }
-
-//         let data_length = data.len() as u16;
-//         {
-//             let data_length = data_length.to_be_bytes();
-
-//             // TODO why write [0x00, 0x00] at TxReadPointer at all?
-//             // TODO Is TxWritePointer not sufficient enough?
-//             w5500.write_to(
-//                 socket.at(SocketRegister::TxReadPointer),
-//                 &[0x00, 0x00, data_length[0], data_length[1]],
-//             );
-//         }
-
-//         w5500.write_to(
-//             socket.tx_register_at(0x00_00),
-//             &data[..data_length as usize],
-//         )?;
-
-//         w5500.write_to(
-//             socket.at(SocketRegister::Command),
-//             &[SocketCommand::Send as u8],
-//         )?;
-
-//         for _ in 0..0xFFFF {
-//             // wait until sent
-//             if w5500.is_interrupt_set(*socket, Interrupt::SendOk)? {
-//                 w5500.reset_interrupt(*socket, Interrupt::SendOk)?;
-//                 break;
-//             }
-//         }
-//         // restore listen state
-//         w5500.write_to(
-//             socket.at(SocketRegister::Mode),
-//             &[
-//                 Protocol::UDP as u8,       // Socket Mode Register
-//                 SocketCommand::Open as u8, // Socket Command Register
-//             ],
-//         )?;
-//         Ok(())
-//     }
+    /// Sends a UDP packet to the specified IP and port, and blocks until it is sent
+    pub fn send(self, host: IpAddress, remote_port: u16) -> Result<OutgoingPacket<Self>, SpiBus::Error> {
+        Ok(OutgoingPacket::new(self, host, remote_port)?)
+    }
 
 
     pub fn deactivate(
