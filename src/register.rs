@@ -68,5 +68,4 @@ pub mod socketn {
     pub const RECEIVED_SIZE: u16 = 0x26;
 
     pub const RX_DATA_READ_POINTER: u16 = 0x28;
-    pub const RX_DATA_WRITE_POINTER: u16 = 0x2A;
 }

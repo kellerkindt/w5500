@@ -9,6 +9,7 @@ pub trait Socket {
     fn register(&self) -> u8;
     fn tx_buffer(&self) -> u8;
     fn rx_buffer(&self) -> u8;
+
     fn set_mode<SpiBus: ActiveBus>(
         &self,
         bus: &mut SpiBus,
@@ -18,6 +19,7 @@ pub trait Socket {
         block!(bus.transfer_frame(self.register(), socketn::MODE, true, &mut mode))?;
         Ok(())
     }
+
     fn reset_interrupt<SpiBus: ActiveBus>(
         &self,
         bus: &mut SpiBus,
@@ -27,6 +29,7 @@ pub trait Socket {
         block!(bus.transfer_frame(self.register(), socketn::INTERRUPT, true, &mut data))?;
         Ok(())
     }
+
     fn set_source_port<SpiBus: ActiveBus>(
         &self,
         bus: &mut SpiBus,
@@ -37,6 +40,7 @@ pub trait Socket {
         block!(bus.transfer_frame(self.register(), socketn::SOURCE_PORT, true, &mut data))?;
         Ok(())
     }
+
     fn has_received<SpiBus: ActiveBus>(
         &self,
         bus: &mut SpiBus,
@@ -67,6 +71,19 @@ pub trait Socket {
         BigEndian::write_u16(&mut data, command as u16);
         block!(bus.transfer_frame(self.register(), socketn::COMMAND, true, &mut data))?;
         Ok(())
+    }
+
+    fn get_receive_size<SpiBus: ActiveBus>(&self, bus: &mut SpiBus) -> Result<u16, SpiBus::Error> {
+        loop {
+            // Section 4.2 of datasheet, Sn_TX_FSR address docs indicate that read must be repeated until two sequential reads are stable
+            let mut sample_0 = [0u8; 2];
+            block!(bus.transfer_frame(self.register(), socketn::RECEIVED_SIZE, false, &mut sample_0))?;
+            let mut sample_1 = [0u8; 2];
+            block!(bus.transfer_frame(self.register(), socketn::RECEIVED_SIZE, false, &mut sample_1))?;
+            if sample_0 == sample_1 && sample_0[0] >= 8 {
+                break Ok(BigEndian::read_u16(&sample_0));
+            }
+        }
     }
 }
 

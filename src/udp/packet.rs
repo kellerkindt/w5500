@@ -17,7 +17,9 @@ pub struct UdpPacket<UdpSocket> {
 impl<'a, SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket> UdpPacket<UdpSocket<'a, SpiBus, NetworkImpl, SocketImpl>>
 {
     pub fn new(mut udp_socket: UdpSocket<'a, SpiBus, NetworkImpl, SocketImpl>) -> Result<Self, SpiBus::Error> {
-        let receive_size = Self::block_until_receive_size_known(&mut udp_socket)?;
+        let receive_size = udp_socket.socket.get_receive_size(&mut udp_socket.bus)?;
+
+        // Packet frame, as described in W5200 docs sectino 5.2.2.1
         // |<-- read_pointer                                read_pointer + received_size -->|
         // |Destination IP Address | Destination Port | Byte Size of DATA | Actual DATA ... |
         // |   --- 4 Bytes ---     |  --- 2 Bytes --- |  --- 2 Bytes ---  |      ....       |
@@ -53,17 +55,6 @@ impl<'a, SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket> UdpPacket<
         Ok(self.udp_socket)
     }
 
-    fn block_until_receive_size_known(udp_socket: &mut UdpSocket<'a, SpiBus, NetworkImpl, SocketImpl>) -> Result<u16, SpiBus::Error> {
-        loop {
-            let mut sample_0 = [0u8; 2];
-            block!(udp_socket.bus.transfer_frame(udp_socket.socket.register(), socketn::RECEIVED_SIZE, false, &mut sample_0))?;
-            let mut sample_1 = [0u8; 2];
-            block!(udp_socket.bus.transfer_frame(udp_socket.socket.register(), socketn::RECEIVED_SIZE, false, &mut sample_1))?;
-            if sample_0 == sample_1 && sample_0[0] >= 8 {
-                break Ok(BigEndian::read_u16(&sample_0));
-            }
-        }
-    }
 }
 
 impl<'a, SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket> Iterator for UdpPacket<UdpSocket<'a, SpiBus, NetworkImpl, SocketImpl>> {
