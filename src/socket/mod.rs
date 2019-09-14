@@ -3,6 +3,7 @@ use byteorder::{BigEndian, ByteOrder};
 use crate::bus::ActiveBus;
 use crate::register;
 use crate::register::socketn;
+use crate::IpAddress;
 
 pub trait Socket {
     fn is_owned_by(&self, sockets: &OwnedSockets) -> bool;
@@ -30,24 +31,79 @@ pub trait Socket {
         Ok(())
     }
 
+    fn has_interrupt<SpiBus: ActiveBus>(
+        &self,
+        bus: &mut SpiBus,
+        code: socketn::Interrupt,
+    ) -> Result<bool, SpiBus::Error> {
+        let mut data = [0u8];
+        BigEndian::write_u16(&mut data, code as u16);
+        block!(bus.transfer_frame(self.register(), socketn::INTERRUPT_MASK, true, &mut data))?;
+        Ok(data[0] & socketn::Interrupt::Receive as u8 != 0)
+    }
+
     fn set_source_port<SpiBus: ActiveBus>(
         &self,
         bus: &mut SpiBus,
         port: u16,
     ) -> Result<(), SpiBus::Error> {
         let mut data = [0u8; 2];
-        BigEndian::write_u16(&mut data[..], port);
+        BigEndian::write_u16(&mut data, port);
         block!(bus.transfer_frame(self.register(), socketn::SOURCE_PORT, true, &mut data))?;
         Ok(())
     }
 
-    fn has_received<SpiBus: ActiveBus>(
+    fn set_destination_ip<SpiBus: ActiveBus>(
         &self,
         bus: &mut SpiBus,
-    ) -> Result<bool, SpiBus::Error> {
-        let mut data = [0u8];
-        block!(bus.transfer_frame(self.register(), socketn::INTERRUPT_MASK, true, &mut data))?;
-        Ok(data[0] & socketn::interrupt_mask::RECEIVE != 0)
+        ip: IpAddress,
+    ) -> Result<(), SpiBus::Error> {
+        let mut data = ip.address;
+        block!(bus.transfer_frame(self.register(), socketn::DESTINATION_IP, true, &mut data))?;
+        Ok(())
+    }
+
+    fn set_destination_port<SpiBus: ActiveBus>(
+        &self,
+        bus: &mut SpiBus,
+        port: u16,
+    ) -> Result<(), SpiBus::Error> {
+        let mut data = [0u8; 2];
+        BigEndian::write_u16(&mut data, port);
+        block!(bus.transfer_frame(self.register(), socketn::DESTINATION_PORT, true, &mut data))?;
+        Ok(())
+    }
+
+    fn set_tx_read_pointer<SpiBus: ActiveBus>(
+        &self,
+        bus: &mut SpiBus,
+        pointer: u16,
+    ) -> Result<(), SpiBus::Error> {
+        let mut data = [0u8; 2];
+        BigEndian::write_u16(&mut data, pointer);
+        block!(bus.transfer_frame(
+            self.register(),
+            socketn::TX_DATA_READ_POINTER,
+            true,
+            &mut data
+        ))?;
+        Ok(())
+    }
+
+    fn set_tx_write_pointer<SpiBus: ActiveBus>(
+        &self,
+        bus: &mut SpiBus,
+        pointer: u16,
+    ) -> Result<(), SpiBus::Error> {
+        let mut data = [0u8; 2];
+        BigEndian::write_u16(&mut data, pointer);
+        block!(bus.transfer_frame(
+            self.register(),
+            socketn::TX_DATA_WRITE_POINTER,
+            true,
+            &mut data
+        ))?;
+        Ok(())
     }
 
     fn get_rx_read_pointer<SpiBus: ActiveBus>(
@@ -55,18 +111,36 @@ pub trait Socket {
         bus: &mut SpiBus,
     ) -> Result<u16, SpiBus::Error> {
         let mut data = [0u8; 2];
-        block!(bus.transfer_frame(self.register(), socketn::RX_DATA_READ_POINTER, true, &mut data))?;
+        block!(bus.transfer_frame(
+            self.register(),
+            socketn::RX_DATA_READ_POINTER,
+            true,
+            &mut data
+        ))?;
         Ok(BigEndian::read_u16(&data))
     }
 
-    fn set_rx_read_pointer<SpiBus: ActiveBus>(&self, bus: &mut SpiBus, pointer: u16) -> Result<(), SpiBus::Error> {
+    fn set_rx_read_pointer<SpiBus: ActiveBus>(
+        &self,
+        bus: &mut SpiBus,
+        pointer: u16,
+    ) -> Result<(), SpiBus::Error> {
         let mut data = [0u8; 2];
         BigEndian::write_u16(&mut data, pointer);
-        block!(bus.transfer_frame(self.register(), socketn::RX_DATA_READ_POINTER, true, &mut data))?;
+        block!(bus.transfer_frame(
+            self.register(),
+            socketn::RX_DATA_READ_POINTER,
+            true,
+            &mut data
+        ))?;
         Ok(())
     }
 
-    fn command<SpiBus: ActiveBus>(&self, bus: &mut SpiBus, command: socketn::Command) -> Result<(), SpiBus::Error> {
+    fn command<SpiBus: ActiveBus>(
+        &self,
+        bus: &mut SpiBus,
+        command: socketn::Command,
+    ) -> Result<(), SpiBus::Error> {
         let mut data = [0u8; 2];
         BigEndian::write_u16(&mut data, command as u16);
         block!(bus.transfer_frame(self.register(), socketn::COMMAND, true, &mut data))?;
@@ -77,9 +151,19 @@ pub trait Socket {
         loop {
             // Section 4.2 of datasheet, Sn_TX_FSR address docs indicate that read must be repeated until two sequential reads are stable
             let mut sample_0 = [0u8; 2];
-            block!(bus.transfer_frame(self.register(), socketn::RECEIVED_SIZE, false, &mut sample_0))?;
+            block!(bus.transfer_frame(
+                self.register(),
+                socketn::RECEIVED_SIZE,
+                false,
+                &mut sample_0
+            ))?;
             let mut sample_1 = [0u8; 2];
-            block!(bus.transfer_frame(self.register(), socketn::RECEIVED_SIZE, false, &mut sample_1))?;
+            block!(bus.transfer_frame(
+                self.register(),
+                socketn::RECEIVED_SIZE,
+                false,
+                &mut sample_1
+            ))?;
             if sample_0 == sample_1 && sample_0[0] >= 8 {
                 break Ok(BigEndian::read_u16(&sample_0));
             }

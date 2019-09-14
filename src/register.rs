@@ -49,23 +49,31 @@ pub mod socketn {
     pub const COMMAND: u16 = 0x01;
     #[repr(u8)]
     pub enum Command {
+        Open = 0x01,
+        Send = 0x20,
         Receive = 0x40,
     }
 
     pub const INTERRUPT: u16 = 0x02;
     #[repr(u8)]
     pub enum Interrupt {
-        SendOk = 0b10000u8,
+        SendOk = 0b010000u8,
+        Receive = 0b00100u8,
     }
 
     pub const SOURCE_PORT: u16 = 0x04;
 
-    pub const INTERRUPT_MASK: u16 = 0x2C;
-    pub mod interrupt_mask {
-        pub const RECEIVE: u8 = 0b100;
-    }
+    pub const DESTINATION_IP: u16 = 0x0C;
+
+    pub const DESTINATION_PORT: u16 = 0x10;
+
+    pub const TX_DATA_READ_POINTER: u16 = 0x22;
+
+    pub const TX_DATA_WRITE_POINTER: u16 = 0x24;
 
     pub const RECEIVED_SIZE: u16 = 0x26;
 
     pub const RX_DATA_READ_POINTER: u16 = 0x28;
+
+    pub const INTERRUPT_MASK: u16 = 0x2C;
 }
