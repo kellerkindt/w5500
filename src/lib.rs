@@ -940,7 +940,7 @@ impl Default for Mode {
 //     }
 // }
 
-mod bus;
+pub mod bus;
 mod inactive_w5500;
 mod network;
 mod register;
@@ -948,3 +948,5 @@ mod socket;
 mod udp;
 pub mod uninitialized_w5500;
 mod w5500;
+
+pub use bus::ActiveFourWire;

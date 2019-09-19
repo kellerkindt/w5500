@@ -14,21 +14,25 @@ pub struct IncomingPacket<UdpSocket> {
     write_pointer: u16,
 }
 
-impl<'a, SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket>
-    IncomingPacket<UdpSocket<'a, SpiBus, NetworkImpl, SocketImpl>>
+impl<SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket>
+    IncomingPacket<UdpSocket<SpiBus, NetworkImpl, SocketImpl>>
 {
     pub fn new(
-        mut udp_socket: UdpSocket<'a, SpiBus, NetworkImpl, SocketImpl>,
+        mut udp_socket: UdpSocket<SpiBus, NetworkImpl, SocketImpl>,
     ) -> Result<Self, SpiBus::Error> {
-        let receive_size = udp_socket.socket.get_receive_size(&mut udp_socket.bus)?;
+        let receive_size = udp_socket
+            .socket
+            .get_receive_size(&mut udp_socket.w5500.bus)?;
 
         // Packet frame, as described in W5200 docs sectino 5.2.2.1
         // |<-- read_pointer                                read_pointer + received_size -->|
         // |Destination IP Address | Destination Port | Byte Size of DATA | Actual DATA ... |
         // |   --- 4 Bytes ---     |  --- 2 Bytes --- |  --- 2 Bytes ---  |      ....       |
-        let read_pointer = udp_socket.socket.get_rx_read_pointer(&mut udp_socket.bus)?;
+        let read_pointer = udp_socket
+            .socket
+            .get_rx_read_pointer(&mut udp_socket.w5500.bus)?;
         let mut header = [0u8; 8];
-        block!(udp_socket.bus.transfer_frame(
+        block!(udp_socket.w5500.bus.transfer_frame(
             udp_socket.socket.rx_buffer(),
             read_pointer,
             false,
@@ -53,19 +57,19 @@ impl<'a, SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket>
 
     // TODO add read_all method
 
-    pub fn done(mut self) -> Result<UdpSocket<'a, SpiBus, NetworkImpl, SocketImpl>, SpiBus::Error> {
+    pub fn done(mut self) -> Result<UdpSocket<SpiBus, NetworkImpl, SocketImpl>, SpiBus::Error> {
         self.udp_socket
             .socket
-            .set_rx_read_pointer(&mut self.udp_socket.bus, self.write_pointer)?;
+            .set_rx_read_pointer(&mut self.udp_socket.w5500.bus, self.write_pointer)?;
         self.udp_socket
             .socket
-            .command(&mut self.udp_socket.bus, socketn::Command::Receive)?;
+            .command(&mut self.udp_socket.w5500.bus, socketn::Command::Receive)?;
         Ok(self.udp_socket)
     }
 }
 
-impl<'a, SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket> Iterator
-    for IncomingPacket<UdpSocket<'a, SpiBus, NetworkImpl, SocketImpl>>
+impl<SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket> Iterator
+    for IncomingPacket<UdpSocket<SpiBus, NetworkImpl, SocketImpl>>
 {
     type Item = Result<u8, SpiBus::Error>;
     fn next(&mut self) -> Option<Self::Item> {
@@ -73,7 +77,7 @@ impl<'a, SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket> Iterator
             return None;
         }
         let mut buffer = [0u8];
-        let result = block!(self.udp_socket.bus.transfer_frame(
+        let result = block!(self.udp_socket.w5500.bus.transfer_frame(
             self.udp_socket.socket.rx_buffer(),
             self.read_pointer,
             false,

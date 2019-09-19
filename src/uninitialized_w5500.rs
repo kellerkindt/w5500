@@ -4,6 +4,7 @@ use bus::{ActiveBus, ActiveFourWire, ActiveThreeWire};
 use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::spi::FullDuplex;
 use register;
+use socket::OwnedSockets;
 use socket::{Socket0, Socket1, Socket2, Socket3, Socket4, Socket5, Socket6, Socket7};
 use w5500::W5500;
 
@@ -25,7 +26,7 @@ impl<SpiBus: ActiveBus> UninitializedW5500<SpiBus> {
         self,
         mac: MacAddress,
         mode_options: Mode,
-    ) -> Result<W5500<SpiBus, Dhcp>, InitializeError<SpiBus::Error>> {
+    ) -> Result<(W5500<SpiBus, Dhcp>, OwnedSockets), InitializeError<SpiBus::Error>> {
         let network = Dhcp::new(mac);
         self.initialize_with_network(network, mode_options)
     }
@@ -35,7 +36,7 @@ impl<SpiBus: ActiveBus> UninitializedW5500<SpiBus> {
         mac: MacAddress,
         ip: IpAddress,
         mode_options: Mode,
-    ) -> Result<W5500<SpiBus, Manual>, InitializeError<SpiBus::Error>> {
+    ) -> Result<(W5500<SpiBus, Manual>, OwnedSockets), InitializeError<SpiBus::Error>> {
         let mut gateway = ip;
         gateway.address[3] = 1;
         let subnet = IpAddress::new(255, 255, 255, 0);
@@ -49,7 +50,7 @@ impl<SpiBus: ActiveBus> UninitializedW5500<SpiBus> {
         gateway: IpAddress,
         subnet: IpAddress,
         mode_options: Mode,
-    ) -> Result<W5500<SpiBus, Manual>, InitializeError<SpiBus::Error>> {
+    ) -> Result<(W5500<SpiBus, Manual>, OwnedSockets), InitializeError<SpiBus::Error>> {
         let network = Manual::new(mac, ip, gateway, subnet);
         self.initialize_with_network(network, mode_options)
     }
@@ -58,7 +59,7 @@ impl<SpiBus: ActiveBus> UninitializedW5500<SpiBus> {
         mut self,
         mut network: NetworkImpl,
         mode_options: Mode,
-    ) -> Result<W5500<SpiBus, NetworkImpl>, InitializeError<SpiBus::Error>> {
+    ) -> Result<(W5500<SpiBus, NetworkImpl>, OwnedSockets), InitializeError<SpiBus::Error>> {
         self.assert_chip_version(0x4)?;
         self.set_mode(mode_options)
             .map_err(|e| InitializeError::SpiError(e))?;
@@ -75,7 +76,7 @@ impl<SpiBus: ActiveBus> UninitializedW5500<SpiBus> {
             Socket6 {},
             Socket7 {},
         );
-        Ok(W5500::new(self.bus, network, sockets))
+        Ok((W5500::new(self.bus, network), sockets))
     }
 
     fn assert_chip_version(

@@ -6,7 +6,6 @@ use crate::register::socketn;
 use crate::IpAddress;
 
 pub trait Socket {
-    fn is_owned_by(&self, sockets: &OwnedSockets) -> bool;
     fn register(&self) -> u8;
     fn tx_buffer(&self) -> u8;
     fn rx_buffer(&self) -> u8;
@@ -181,22 +180,9 @@ pub type OwnedSockets = (
     Socket6,
     Socket7,
 );
-pub type Sockets<'a> = (
-    &'a mut Socket0,
-    &'a mut Socket1,
-    &'a mut Socket2,
-    &'a mut Socket3,
-    &'a mut Socket4,
-    &'a mut Socket5,
-    &'a mut Socket6,
-    &'a mut Socket7,
-);
 
 pub struct Socket0 {}
 impl Socket for Socket0 {
-    fn is_owned_by(&self, sockets: &OwnedSockets) -> bool {
-        self as *const _ == &sockets.0 as *const _
-    }
     fn register(&self) -> u8 {
         register::SOCKET0
     }
@@ -209,9 +195,6 @@ impl Socket for Socket0 {
 }
 pub struct Socket1 {}
 impl Socket for Socket1 {
-    fn is_owned_by(&self, sockets: &OwnedSockets) -> bool {
-        self as *const _ == &sockets.1 as *const _
-    }
     fn register(&self) -> u8 {
         register::SOCKET1
     }
@@ -224,9 +207,6 @@ impl Socket for Socket1 {
 }
 pub struct Socket2 {}
 impl Socket for Socket2 {
-    fn is_owned_by(&self, sockets: &OwnedSockets) -> bool {
-        self as *const _ == &sockets.2 as *const _
-    }
     fn register(&self) -> u8 {
         register::SOCKET2
     }
@@ -239,9 +219,6 @@ impl Socket for Socket2 {
 }
 pub struct Socket3 {}
 impl Socket for Socket3 {
-    fn is_owned_by(&self, sockets: &OwnedSockets) -> bool {
-        self as *const _ == &sockets.3 as *const _
-    }
     fn register(&self) -> u8 {
         register::SOCKET3
     }
@@ -254,9 +231,6 @@ impl Socket for Socket3 {
 }
 pub struct Socket4 {}
 impl Socket for Socket4 {
-    fn is_owned_by(&self, sockets: &OwnedSockets) -> bool {
-        self as *const _ == &sockets.4 as *const _
-    }
     fn register(&self) -> u8 {
         register::SOCKET4
     }
@@ -269,9 +243,6 @@ impl Socket for Socket4 {
 }
 pub struct Socket5 {}
 impl Socket for Socket5 {
-    fn is_owned_by(&self, sockets: &OwnedSockets) -> bool {
-        self as *const _ == &sockets.5 as *const _
-    }
     fn register(&self) -> u8 {
         register::SOCKET5
     }
@@ -284,9 +255,6 @@ impl Socket for Socket5 {
 }
 pub struct Socket6 {}
 impl Socket for Socket6 {
-    fn is_owned_by(&self, sockets: &OwnedSockets) -> bool {
-        self as *const _ == &sockets.6 as *const _
-    }
     fn register(&self) -> u8 {
         register::SOCKET6
     }
@@ -299,9 +267,6 @@ impl Socket for Socket6 {
 }
 pub struct Socket7 {}
 impl Socket for Socket7 {
-    fn is_owned_by(&self, sockets: &OwnedSockets) -> bool {
-        self as *const _ == &sockets.7 as *const _
-    }
     fn register(&self) -> u8 {
         register::SOCKET7
     }

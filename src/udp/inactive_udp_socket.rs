@@ -2,32 +2,24 @@ use crate::bus::ActiveBus;
 use crate::network::Network;
 use crate::socket::Socket;
 use crate::udp::UdpSocket;
-use crate::w5500::ForeignSocketError;
 use crate::w5500::W5500;
 
-pub struct InactiveUdpSocket<'a, SocketImpl: Socket> {
-    socket: &'a mut SocketImpl,
+pub struct InactiveUdpSocket<SocketImpl: Socket> {
+    socket: SocketImpl,
 }
 
-impl<'a, SocketImpl: Socket> InactiveUdpSocket<'a, SocketImpl> {
-    pub fn new(socket: &'a mut SocketImpl) -> Self {
+impl<SocketImpl: Socket> InactiveUdpSocket<SocketImpl> {
+    pub fn new(socket: SocketImpl) -> Self {
         InactiveUdpSocket { socket }
     }
 
     pub fn activate<SpiBus: ActiveBus, NetworkImpl: Network>(
         self,
         w5500: W5500<SpiBus, NetworkImpl>,
-    ) -> Result<UdpSocket<'a, SpiBus, NetworkImpl, SocketImpl>, ForeignSocketError> {
-        let (bus, network, sockets) = w5500.release();
-        if self.socket.is_owned_by(&sockets) {
-            Ok(UdpSocket {
-                bus,
-                network,
-                sockets,
-                socket: self.socket,
-            })
-        } else {
-            Err(ForeignSocketError {})
+    ) -> UdpSocket<SpiBus, NetworkImpl, SocketImpl> {
+        UdpSocket {
+            w5500,
+            socket: self.socket,
         }
     }
 }
