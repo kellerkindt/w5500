@@ -12,6 +12,7 @@ pub struct UninitializedW5500<SpiBus: ActiveBus> {
     bus: SpiBus,
 }
 
+#[repr(u8)]
 pub enum InitializeError<SpiError> {
     SpiError(SpiError),
     ChipNotConnected,

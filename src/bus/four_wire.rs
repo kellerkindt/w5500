@@ -50,14 +50,14 @@ impl<Spi: FullDuplex<u8>, ChipSelect: OutputPin> ActiveBus for ActiveFourWire<Sp
         BigEndian::write_u16(&mut address_phase, address);
 
         self.cs
-            .set_high()
+            .set_low()
             .map_err(|e| FourWireError::ChipSelectError(e))?;
         block!(Self::transfer_bytes(&mut self.spi, &mut address_phase)
             .and_then(|_| Self::transfer_byte(&mut self.spi, &mut control_phase))
             .and_then(|_| Self::transfer_bytes(&mut self.spi, data_phase)))
         .map_err(|e| FourWireError::SpiError(e))?;
         self.cs
-            .set_low()
+            .set_high()
             .map_err(|e| FourWireError::ChipSelectError(e))?;
 
         Ok(data_phase)
@@ -69,6 +69,7 @@ impl<Spi: FullDuplex<u8>, ChipSelect: OutputPin> ActiveFourWire<Spi, ChipSelect>
     }
 }
 
+#[repr(u8)]
 pub enum FourWireError<SpiError, ChipSelectError> {
     SpiError(SpiError),
     ChipSelectError(ChipSelectError),
