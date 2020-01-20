@@ -168,6 +168,17 @@ pub trait Socket {
             }
         }
     }
+
+    fn dump_register<SpiBus: ActiveBus>(&self, bus: &mut SpiBus) -> Result<[u8; 0x30], SpiBus::Error> {
+        let mut register = [0u8; 0x30];
+        block!(bus.transfer_frame(
+            self.register(),
+            0u16,
+            false,
+            &mut register
+        ))?;
+        Ok(register)
+    }
 }
 
 pub type OwnedSockets = (

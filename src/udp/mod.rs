@@ -34,6 +34,10 @@ impl<SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket>
         Ok(UdpSocket { w5500, socket })
     }
 
+    pub fn dump_register(&mut self) -> Result<[u8; 0x30], SpiBus::Error> {
+        Ok(self.socket.dump_register(&mut self.w5500.bus)?)
+    }
+
     /// Returns a UDP packet if one is available.  Will return `None` if no UDP packets are in the socket's buffer
     pub fn receive(mut self) -> Result<Option<IncomingPacket<Self>>, SpiBus::Error> {
         if !self
