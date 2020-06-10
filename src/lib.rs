@@ -1,5 +1,4 @@
 #![no_std]
-#![allow(unused)]
 #![deny(intra_doc_link_resolution_failure)]
 
 extern crate byteorder;
@@ -18,8 +17,11 @@ const COMMAND_READ: u8 = 0x00 << 2;
 const COMMAND_WRITE: u8 = 0x01 << 2;
 
 const VARIABLE_DATA_LENGTH: u8 = 0b_00;
+#[allow(unused)]
 const FIXED_DATA_LENGTH_1_BYTE: u8 = 0b_01;
+#[allow(unused)]
 const FIXED_DATA_LENGTH_2_BYTES: u8 = 0b_10;
+#[allow(unused)]
 const FIXED_DATA_LENGTH_4_BYTES: u8 = 0b_11;
 
 /// IP Address struct.  Represents an IP address as a u8 array of length 4.  Can be instantiated with `IpAddress::new`
@@ -158,7 +160,7 @@ impl<ChipSelectError, ChipSelect: OutputPin<Error = ChipSelectError>> W5500<Chip
 
     /// Returns the requested socket if it is not already used.
     pub fn take_socket(&mut self, socket: Socket) -> Option<UninitializedSocket> {
-        let mask = (0x01 << socket.number());
+        let mask = 0x01 << socket.number();
         if self.sockets & mask == mask {
             self.sockets &= !mask;
             Some(UninitializedSocket(socket))
@@ -206,19 +208,19 @@ impl<
         let mut value = 0x00;
 
         if let OnWakeOnLan::InvokeInterrupt = wol {
-            value |= (1 << 5);
+            value |= 1 << 5;
         }
 
         if let OnPingRequest::Ignore = ping {
-            value |= (1 << 4);
+            value |= 1 << 4;
         }
 
         if let ConnectionType::PPoE = mode {
-            value |= (1 << 3);
+            value |= 1 << 3;
         }
 
         if let ArpResponses::DropAfterUse = arp {
-            value |= (1 << 1);
+            value |= 1 << 1;
         }
 
         self.write_to(Register::CommonRegister(0x00_00_u16), &[value])
@@ -588,7 +590,7 @@ impl<ChipSelect: OutputPin, Spi: FullDuplex<u8>> Udp
             w5500.write_to(
                 socket.at(SocketRegister::TxReadPointer),
                 &[0x00, 0x00, data_length[0], data_length[1]],
-            );
+            )?;
         }
 
         w5500.write_to(
