@@ -1,5 +1,6 @@
 #![no_std]
 #![allow(unused)]
+#![deny(intra_doc_link_resolution_failure)]
 
 extern crate byteorder;
 extern crate embedded_hal as hal;
@@ -265,9 +266,14 @@ impl<
         Ok(ip)
     }
 
-    /// This is unsafe because it cannot set taken sockets back to be uninitialized
-    /// It assumes, none of the old sockets will used anymore. Otherwise that socket
-    /// will have undefined behavior.
+    /// # Safety
+    ///
+    /// This is unsafe because it cannot set taken [`Sockets`] back to be uninitialized
+    /// It assumes, none of the old sockets will used beyond this call. Because the
+    /// state of the [`Sockets`] is no longer in sync with the W5500, their usage might
+    /// result in undefined behavior.
+    ///
+    /// [`Sockets`]: Socket
     pub unsafe fn reset(&mut self) -> Result<(), TransferError<SpiError, ChipSelectError>> {
         self.write_to(
             Register::CommonRegister(0x00_00_u16),
