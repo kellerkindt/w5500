@@ -1,17 +1,13 @@
 #![no_std]
 #![deny(intra_doc_link_resolution_failure)]
 
-extern crate byteorder;
-extern crate embedded_hal as hal;
-
 #[macro_use(block)]
 extern crate nb;
 
-use hal::digital::v2::OutputPin;
-use hal::spi::FullDuplex;
-
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
+use embedded_hal::digital::v2::OutputPin;
+use embedded_hal::spi::FullDuplex;
 
 const COMMAND_READ: u8 = 0x00 << 2;
 const COMMAND_WRITE: u8 = 0x01 << 2;
