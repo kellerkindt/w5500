@@ -122,15 +122,13 @@ pub struct UdpSocket(Socket);
 
 /// The first level of instantiating communication with the W5500.  It can not communicate by itself, but calling
 /// `activate` will return an `ActiveW5500` which can.
-pub struct W5500<'a, ChipSelect: OutputPin> {
-    chip_select: &'a mut ChipSelect,
+pub struct W5500<ChipSelect: OutputPin> {
+    chip_select: ChipSelect,
     sockets: u8, // each bit represents whether the corresponding socket is available for take
 }
 
-impl<'b, 'a: 'b, ChipSelectError, ChipSelect: OutputPin<Error = ChipSelectError>>
-    W5500<'a, ChipSelect>
-{
-    fn new(chip_select: &'a mut ChipSelect) -> Self {
+impl<ChipSelectError, ChipSelect: OutputPin<Error = ChipSelectError>> W5500<ChipSelect> {
+    fn new(chip_select: ChipSelect) -> Self {
         W5500 {
             chip_select,
             sockets: 0xFF,
@@ -139,8 +137,8 @@ impl<'b, 'a: 'b, ChipSelectError, ChipSelect: OutputPin<Error = ChipSelectError>
 
     /// Primary method for instantiating.  Briefly activates the W5500, and sets it up with the specified configuration
     pub fn with_initialisation<'c, Spi: FullDuplex<u8>>(
-        chip_select: &'a mut ChipSelect,
-        spi: &'c mut Spi,
+        chip_select: ChipSelect,
+        spi: &mut Spi,
         wol: OnWakeOnLan,
         ping: OnPingRequest,
         mode: ConnectionType,
@@ -169,19 +167,19 @@ impl<'b, 'a: 'b, ChipSelectError, ChipSelect: OutputPin<Error = ChipSelectError>
     }
 
     /// Creates a new `ActiveW5500` with the provided `FullDuplex` implementation
-    pub fn activate<'c, Spi: FullDuplex<u8>>(
-        &'b mut self,
-        spi: &'c mut Spi,
-    ) -> Result<ActiveW5500<'b, 'a, 'c, ChipSelect, Spi>, TransferError<Spi::Error, ChipSelectError>>
+    pub fn activate<'a, 'b, Spi: FullDuplex<u8>>(
+        &'a mut self,
+        spi: &'b mut Spi,
+    ) -> Result<ActiveW5500<'a, 'b, ChipSelect, Spi>, TransferError<Spi::Error, ChipSelectError>>
     {
         Ok(ActiveW5500(self, spi))
     }
 }
 
 /// Struct that can communicate with the W5500 chip, configuring it and reading/writing to the registers on a low level
-pub struct ActiveW5500<'a, 'b: 'a, 'c, ChipSelect: OutputPin, Spi: FullDuplex<u8>>(
-    &'a mut W5500<'b, ChipSelect>,
-    &'c mut Spi,
+pub struct ActiveW5500<'a, 'b, ChipSelect: OutputPin, Spi: FullDuplex<u8>>(
+    &'a mut W5500<ChipSelect>,
+    &'b mut Spi,
 );
 
 impl<
@@ -189,7 +187,7 @@ impl<
         ChipSelect: OutputPin<Error = ChipSelectError>,
         SpiError,
         Spi: FullDuplex<u8, Error = SpiError>,
-    > ActiveW5500<'_, '_, '_, ChipSelect, Spi>
+    > ActiveW5500<'_, '_, ChipSelect, Spi>
 {
     /// Returns the requested socket if it is not already used
     pub fn take_socket(&mut self, socket: Socket) -> Option<UninitializedSocket> {
@@ -441,7 +439,7 @@ pub trait IntoUdpSocket<SpiError> {
 
 impl<ChipSelect: OutputPin, Spi: FullDuplex<u8>> IntoUdpSocket<UninitializedSocket>
     for (
-        &mut ActiveW5500<'_, '_, '_, ChipSelect, Spi>,
+        &mut ActiveW5500<'_, '_, ChipSelect, Spi>,
         UninitializedSocket,
     )
 {
@@ -484,7 +482,7 @@ pub trait Udp {
 }
 
 impl<ChipSelect: OutputPin, Spi: FullDuplex<u8>> Udp
-    for (&mut ActiveW5500<'_, '_, '_, ChipSelect, Spi>, &UdpSocket)
+    for (&mut ActiveW5500<'_, '_, ChipSelect, Spi>, &UdpSocket)
 {
     type Error = TransferError<Spi::Error, ChipSelect::Error>;
 
