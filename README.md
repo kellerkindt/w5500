@@ -65,14 +65,14 @@ of the SPI implementation.  It must be set up to work as the W5500 chip requires
     active.set_subnet(IpAddress::new(255, 255, 255, 0)).unwrap();
     active.set_gateway(IpAddress::new(192, 168, 0, 1)).unwrap();
 
-    let socket0: UninitializedSocket = w5500.take_socket(Socket::Socket0).unwrap();
-    let udp_server_socket = (&mut w5500, socket0).try_into_udp_server_socket(1234).unwrap();
+    let socket0: UninitializedSocket = active.take_socket(Socket::Socket0).unwrap();
+    let udp_server_socket = (&mut active, socket0).try_into_udp_server_socket(1234).unwrap();
 
     let mut buffer = [0u8; 256];
     let response = [104, 101, 108, 108, 111, 10];// "hello" as ASCII
     loop {
-        if let Ok(Some((ip, port, len))) = udp_server_socket.receive(&mut buffer[..]) {
-            udp_server_socket.blocking_send(ip, port, response[..]).unwrap();
+        if let Ok(Some((ip, port, len))) = (&mut active, udp_server_socket).receive(&mut buffer[..]) {
+            (&mut active, udp_server_socket).blocking_send(ip, port, response[..]).unwrap();
         }
     }
 ```
@@ -87,4 +87,3 @@ In no particular order, things to do to improve this driver.
 * Make reset safe by requiring that all sockets be returned to the pool first
 * Support a 3-wire SPI bus
 * Sane defaults for IP/Gateway/Subnet
-* Improve documentation
