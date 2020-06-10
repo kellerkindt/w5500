@@ -101,8 +101,8 @@ pub enum OnPingRequest {
     Ignore,
 }
 
-/// Use [TransmissionMode::PPoE] when talking
-/// to an ADSL modem. Otherwise use [TransmissionMode::Ethernet]
+/// Use [`ConnectionType::PPoE`] when talking
+/// to an ADSL modem. Otherwise use [`ConnectionType::Ethernet`]
 #[derive(Copy, Clone, PartialOrd, PartialEq)]
 pub enum ConnectionType {
     PPoE,
@@ -273,7 +273,7 @@ impl<
     /// state of the [`Sockets`] is no longer in sync with the W5500, their usage might
     /// result in undefined behavior.
     ///
-    /// [`Sockets`]: Socket
+    /// [`Sockets`]: crate::Socket
     pub unsafe fn reset(&mut self) -> Result<(), TransferError<SpiError, ChipSelectError>> {
         self.write_to(
             Register::CommonRegister(0x00_00_u16),
