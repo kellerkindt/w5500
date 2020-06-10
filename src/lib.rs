@@ -350,7 +350,7 @@ impl<
             .map_err(|error| -> TransferError<SpiError, ChipSelectError> {
                 TransferError::ChipSelectError(error)
             })?;
-        result.map_err(|error| TransferError::SpiError(error))
+        result.map_err(TransferError::SpiError)
     }
 
     /// Reads enough bytes over SPI to fill the `target` u8 slice
@@ -410,7 +410,7 @@ impl<
             .map_err(|error| -> TransferError<SpiError, ChipSelectError> {
                 TransferError::ChipSelectError(error)
             })?;
-        result.map_err(|error| TransferError::SpiError(error))
+        result.map_err(TransferError::SpiError)
     }
 
     /// Write a slice of u8 bytes over SPI
