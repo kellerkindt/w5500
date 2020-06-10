@@ -135,7 +135,7 @@ impl<ChipSelectError, ChipSelect: OutputPin<Error = ChipSelectError>> W5500<Chip
     }
 
     /// Primary method for instantiating.  Briefly activates the W5500, and sets it up with the specified configuration
-    pub fn with_initialisation<'c, Spi: FullDuplex<u8>>(
+    pub fn with_initialisation<Spi: FullDuplex<u8>>(
         chip_select: ChipSelect,
         spi: &mut Spi,
         wol: OnWakeOnLan,
