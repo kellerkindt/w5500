@@ -20,7 +20,8 @@ const FIXED_DATA_LENGTH_2_BYTES: u8 = 0b_10;
 #[allow(unused)]
 const FIXED_DATA_LENGTH_4_BYTES: u8 = 0b_11;
 
-/// IP Address struct.  Represents an IP address as a u8 array of length 4.  Can be instantiated with `IpAddress::new`
+/// IP Address struct.  Represents an IP address as a u8 array of length 4.
+/// Can be instantiated with [`IpAddress::new`]
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug)]
 pub struct IpAddress {
     pub address: [u8; 4],
@@ -46,7 +47,8 @@ impl ::core::fmt::Display for IpAddress {
     }
 }
 
-/// MAC address struct.  Represents a MAC address as a u8 array of length 6. Can be instantiated with `MacAddress::new`
+/// MAC address struct.  Represents a MAC address as a u8 array of length 6.
+/// Can be instantiated with [`MacAddress::new`]
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug)]
 pub struct MacAddress {
     pub address: [u8; 6],
@@ -77,22 +79,23 @@ impl ::core::fmt::Display for MacAddress {
     }
 }
 
-/// Error enum that represents the union between SPI hardware errors and digital IO pin errors.  Returned as an Error
-/// type by many W5500 that talk to the chip
+/// Error enum that represents the union between SPI hardware errors and digital IO pin errors.
+/// Returned as an Error type by many [`ActiveW5500`] operations that talk to the chip
 #[derive(Copy, Clone, Debug)]
 pub enum TransferError<SpiError, ChipSelectError> {
     SpiError(SpiError),
     ChipSelectError(ChipSelectError),
 }
 
-/// Settings for wake on LAN.  Allows the W5500 to optionally emit an interrupt upon receiving a packet
+/// Settings for wake on LAN.  Allows the W5500 to optionally emit an interrupt upon receiving a
+/// WOL magic packet.
 #[derive(Copy, Clone, PartialOrd, PartialEq)]
 pub enum OnWakeOnLan {
     InvokeInterrupt,
     Ignore,
 }
 
-/// Settings for ping.  Allows the W5500 to respond to or ignore network ping requests
+/// Settings for ping.  Allows the W5500 to respond to or ignore network ping requests.
 #[derive(Copy, Clone, PartialOrd, PartialEq)]
 pub enum OnPingRequest {
     Respond,
@@ -113,17 +116,21 @@ pub enum ArpResponses {
     DropAfterUse,
 }
 
-/// Represents a socket that has not yet been initialized for a particular protocol
+/// Represents a [`Socket`] that has not yet been initialized for a particular protocol
 pub struct UninitializedSocket(Socket);
 
-/// Represents a socket that has been initialized to use the UDP protocol
+/// Represents a [`Socket`] that has been initialized to use the UDP protocol
 pub struct UdpSocket(Socket);
 
-/// The first level of instantiating communication with the W5500.  It can not communicate by itself, but calling
-/// `activate` will return an `ActiveW5500` which can.
+/// The first level of instantiating communication with the W5500 device. This type is not used
+/// for communication, but to keep track of the state of the device. Calling [`W5500::activate`]
+/// will return an [`ActiveW5500`] which can be used to communicate with the device. This
+/// allows the SPI-Bus to be used for other devices while not being activated without loosing
+/// the state.
 pub struct W5500<ChipSelect: OutputPin> {
     chip_select: ChipSelect,
-    sockets: u8, // each bit represents whether the corresponding socket is available for take
+    /// each bit represents whether the corresponding socket is available for take
+    sockets: u8,
 }
 
 impl<ChipSelectError, ChipSelect: OutputPin<Error = ChipSelectError>> W5500<ChipSelect> {
@@ -134,7 +141,8 @@ impl<ChipSelectError, ChipSelect: OutputPin<Error = ChipSelectError>> W5500<Chip
         }
     }
 
-    /// Primary method for instantiating.  Briefly activates the W5500, and sets it up with the specified configuration
+    /// Creates a new instance and initializes the device accordingly to the parameters.
+    /// To do so, it briefly activates the [`W5500`], to set it up with the specified configuration.
     pub fn with_initialisation<Spi: FullDuplex<u8>>(
         chip_select: ChipSelect,
         spi: &mut Spi,
@@ -147,6 +155,8 @@ impl<ChipSelectError, ChipSelect: OutputPin<Error = ChipSelectError>> W5500<Chip
         {
             let mut w5500_active = w5500.activate(spi)?;
             unsafe {
+                // this is safe, since the w5500 instance hast just been created and no sockets
+                // are given away or were initialized
                 w5500_active.reset()?;
             }
             w5500_active.update_operation_mode(wol, ping, mode, arp)?;
@@ -154,7 +164,7 @@ impl<ChipSelectError, ChipSelect: OutputPin<Error = ChipSelectError>> W5500<Chip
         Ok(w5500)
     }
 
-    /// Returns the requested socket if it is not already used.
+    /// Returns the requested socket if it is not already taken.
     pub fn take_socket(&mut self, socket: Socket) -> Option<UninitializedSocket> {
         let mask = 0x01 << socket.number();
         if self.sockets & mask == mask {
@@ -165,7 +175,8 @@ impl<ChipSelectError, ChipSelect: OutputPin<Error = ChipSelectError>> W5500<Chip
         }
     }
 
-    /// Creates a new `ActiveW5500` with the provided `FullDuplex` implementation
+    /// Returns a [`ActiveW5500`] which can be used to modify the device and to communicate
+    /// with other ethernet devices within the connected LAN.
     pub fn activate<'a, 'b, Spi: FullDuplex<u8>>(
         &'a mut self,
         spi: &'b mut Spi,
@@ -175,7 +186,11 @@ impl<ChipSelectError, ChipSelect: OutputPin<Error = ChipSelectError>> W5500<Chip
     }
 }
 
-/// Struct that can communicate with the W5500 chip, configuring it and reading/writing to the registers on a low level
+/// This - by concept meant to be a temporary - instance allows to directly communicate with
+/// the w5500 device. The reference to the [`W5500`] provides the chip-select [`OutputPin`]
+/// as well as its current state. The given SPI interface is borrowed for as long as this
+/// instance lives to communicate with the W5500 chip. Drop this instance to re-use the
+/// SPI bus for communication with another device.
 pub struct ActiveW5500<'a, 'b, ChipSelect: OutputPin, Spi: FullDuplex<u8>>(
     &'a mut W5500<ChipSelect>,
     &'b mut Spi,
@@ -188,12 +203,12 @@ impl<
         Spi: FullDuplex<u8, Error = SpiError>,
     > ActiveW5500<'_, '_, ChipSelect, Spi>
 {
-    /// Returns the requested socket if it is not already used
+    /// Returns the requested socket if it is not already taken. See [`W5500::take_socket`]
     pub fn take_socket(&mut self, socket: Socket) -> Option<UninitializedSocket> {
         self.0.take_socket(socket)
     }
 
-    /// Set up basic configuration of the W5500 chip
+    /// Set up the basic configuration of the W5500 chip
     pub fn update_operation_mode(
         &mut self,
         wol: OnWakeOnLan,
@@ -222,7 +237,7 @@ impl<
         self.write_to(Register::CommonRegister(0x00_00_u16), &[value])
     }
 
-    /// Sets the IP address of the network gateway (router)
+    /// Sets the IP address of the network gateway (your router's address)
     pub fn set_gateway(
         &mut self,
         gateway: IpAddress,
@@ -230,7 +245,7 @@ impl<
         self.write_to(Register::CommonRegister(0x00_01_u16), &gateway.address)
     }
 
-    /// Sets the subnet on the network
+    /// Sets the subnet on the network (for example 255.255.255.0 for /24 subnets)
     pub fn set_subnet(
         &mut self,
         subnet: IpAddress,
@@ -238,7 +253,20 @@ impl<
         self.write_to(Register::CommonRegister(0x00_05_u16), &subnet.address)
     }
 
-    /// Sets the MAC address of the W5500 device on the network
+    /// Sets the MAC address of the W5500 device on the network.
+    /// Consider using freely available private/locally administered mac addresses that match the
+    /// following hex pattern:
+    ///
+    /// ```code
+    ///  x2-xx-xx-xx-xx-xx
+    ///  x6-xx-xx-xx-xx-xx
+    ///  xA-xx-xx-xx-xx-xx
+    ///  xE-xx-xx-xx-xx-xx
+    /// ```
+    ///
+    /// "Universally administered and locally administered addresses are distinguished by setting
+    /// the second-least-significant bit of the first octet of the address" [Wikipedia](https://en.wikipedia.org/wiki/MAC_address#Universal_vs._local)
+    ///
     pub fn set_mac(
         &mut self,
         mac: MacAddress,
@@ -246,7 +274,8 @@ impl<
         self.write_to(Register::CommonRegister(0x00_09_u16), &mac.address)
     }
 
-    /// Sets the IP address of the W5500 device on network.  Must be within the range permitted by the gateway
+    /// Sets the IP address of the W5500 device.  Must be within the range and permitted by the
+    /// gateway or the device will not be accessible.
     pub fn set_ip(
         &mut self,
         ip: IpAddress,
@@ -254,7 +283,7 @@ impl<
         self.write_to(Register::CommonRegister(0x00_0F_u16), &ip.address)
     }
 
-    /// Reads 4 bytesfrom any register location and returns the value as an IP address
+    /// Reads the 4 bytes from any ip register and returns the value as an [`IpAddress`]
     pub fn read_ip(
         &mut self,
         register: Register,
@@ -303,7 +332,7 @@ impl<
         self.write_to(socket.at(SocketRegister::Interrupt), &[interrupt as u8])
     }
 
-    /// Reads one byte from any register address as a u8
+    /// Reads one byte from the given [`Register`] as a u8
     fn read_u8(
         &mut self,
         register: Register,
@@ -313,7 +342,7 @@ impl<
         Ok(buffer[0])
     }
 
-    /// Reads two bytes from any register address and returns as a u16
+    /// Reads two bytes from the given [`Register`] as a u16
     fn read_u16(
         &mut self,
         register: Register,
@@ -323,7 +352,7 @@ impl<
         Ok(BigEndian::read_u16(&buffer))
     }
 
-    /// Reads enough bytes from any register address to fill the `target` u8 slice
+    /// Reads enough bytes from the given [`Register`] address onward to fill the `target` u8 slice
     fn read_from(
         &mut self,
         register: Register,
@@ -357,13 +386,15 @@ impl<
         Ok(())
     }
 
-    /// Reads a single byte over SPI by writing a zero and reading the response
+    /// Reads a single byte over SPI
     fn read(&mut self) -> Result<u8, SpiError> {
+        // SPI is in read/write sync, for every byte one wants to read, a byte needs
+        // to be written
         block!(self.1.send(0x00))?;
         block!(self.1.read())
     }
 
-    /// Write a single u8 byte to any register address
+    /// Write a single u8 byte to the given [`Register`]
     fn write_u8(
         &mut self,
         register: Register,
@@ -372,7 +403,7 @@ impl<
         self.write_to(register, &[value])
     }
 
-    /// Write a u16 as two bytes o any register address
+    /// Write a u16 as two bytes o the given [`Register`]
     fn write_u16(
         &mut self,
         register: Register,
@@ -383,7 +414,7 @@ impl<
         self.write_to(register, &data)
     }
 
-    /// Write a slice of u8 bytes to any register address
+    /// Write a slice of u8 bytes to the given [`Register`]
     fn write_to(
         &mut self,
         register: Register,
@@ -420,6 +451,8 @@ impl<
     /// Write a single byte over SPI
     fn write(&mut self, byte: u8) -> Result<(), SpiError> {
         block!(self.1.send(byte))?;
+        // SPI is in read/write sync, for every byte one wants to write, a byte needs
+        // to be read
         block!(self.1.read())?;
         Ok(())
     }
@@ -468,7 +501,7 @@ impl<ChipSelect: OutputPin, Spi: FullDuplex<u8>> IntoUdpSocket<UninitializedSock
     }
 }
 
-/// UDP trait that can send and receive UDP packets
+/// UDP trait that defines send and receive methods for UDP packets
 pub trait Udp {
     type Error;
 
@@ -490,7 +523,8 @@ impl<ChipSelect: OutputPin, Spi: FullDuplex<u8>> Udp
 {
     type Error = TransferError<Spi::Error, ChipSelect::Error>;
 
-    /// Returns a UDP packet if one is available.  Will return `None` if no UDP packets are in the socket's buffer
+    /// Returns a UDP packet if one is available.  Will return `None` if no UDP packets are in the
+    /// socket's buffer
     fn receive(
         &mut self,
         destination: &mut [u8],
@@ -542,7 +576,7 @@ impl<ChipSelect: OutputPin, Spi: FullDuplex<u8>> Udp
         }
     }
 
-    /// Sends a UDP packet to the specified IP and port, and blocks until it is sent
+    /// Sends a UDP packet to the specified IP and port, and blocks until it is fully sent
     fn blocking_send(
         &mut self,
         host: &IpAddress,
