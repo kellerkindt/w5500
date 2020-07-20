@@ -22,7 +22,7 @@ const FIXED_DATA_LENGTH_4_BYTES: u8 = 0b_11;
 
 /// IP Address struct.  Represents an IP address as a u8 array of length 4.
 /// Can be instantiated with [`IpAddress::new`]
-#[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Default, Debug)]
 pub struct IpAddress {
     pub address: [u8; 4],
 }
