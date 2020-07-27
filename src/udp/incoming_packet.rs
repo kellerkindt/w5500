@@ -32,12 +32,12 @@ impl<SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket>
             .socket
             .get_rx_read_pointer(&mut udp_socket.w5500.bus)?;
         let mut header = [0u8; 8];
-        block!(udp_socket.w5500.bus.transfer_frame(
+        udp_socket.w5500.bus.transfer_frame(
             udp_socket.socket.rx_buffer(),
             read_pointer,
             false,
             &mut header
-        ))?;
+        )?;
         Ok(Self {
             udp_socket,
             address: IpAddress::new(header[0], header[1], header[2], header[3]),
@@ -77,12 +77,12 @@ impl<SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket> Iterator
             return None;
         }
         let mut buffer = [0u8];
-        let result = block!(self.udp_socket.w5500.bus.transfer_frame(
+        let result = self.udp_socket.w5500.bus.transfer_frame(
             self.udp_socket.socket.rx_buffer(),
             self.read_pointer,
             false,
             &mut buffer
-        ));
+        );
         self.read_pointer += 1;
         // TODO handle looping back?
         match result {

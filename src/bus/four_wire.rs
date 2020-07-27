@@ -40,7 +40,7 @@ impl<Spi: FullDuplex<u8>, ChipSelect: OutputPin> ActiveBus for ActiveFourWire<Sp
         address: u16,
         is_write: bool,
         data: &'a mut [u8],
-    ) -> Result<&'a mut [u8], nb::Error<Self::Error>> {
+    ) -> Result<&'a mut [u8], Self::Error> {
         let mut control_phase = block << 3;
         if is_write {
             control_phase |= WRITE_MODE_MASK;
@@ -52,9 +52,9 @@ impl<Spi: FullDuplex<u8>, ChipSelect: OutputPin> ActiveBus for ActiveFourWire<Sp
         self.cs
             .set_low()
             .map_err(|e| FourWireError::ChipSelectError(e))?;
-        block!(Self::transfer_bytes(&mut self.spi, &mut address_phase)
+        Self::transfer_bytes(&mut self.spi, &mut address_phase)
             .and_then(|_| Self::transfer_byte(&mut self.spi, &mut control_phase))
-            .and_then(|_| Self::transfer_bytes(&mut self.spi, data_phase)))
+            .and_then(|_| Self::transfer_bytes(&mut self.spi, data_phase))
         .map_err(|e| FourWireError::SpiError(e))?;
         self.cs
             .set_high()

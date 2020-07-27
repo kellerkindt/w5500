@@ -26,9 +26,9 @@ impl<SpiBus: ActiveBus, NetworkImpl: Network> W5500<SpiBus, NetworkImpl> {
     fn clear_mode(&mut self) -> Result<(), SpiBus::Error> {
         // reset bit
         let mut mode = [0b10000000];
-        block!(self
+        self
             .bus
-            .transfer_frame(register::COMMON, register::common::MODE, true, &mut mode))?;
+            .transfer_frame(register::COMMON, register::common::MODE, true, &mut mode)?;
         Ok(())
     }
 

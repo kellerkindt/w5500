@@ -16,7 +16,7 @@ pub trait Socket {
         mode: socketn::Protocol,
     ) -> Result<(), SpiBus::Error> {
         let mut mode = [mode as u8];
-        block!(bus.transfer_frame(self.register(), socketn::MODE, true, &mut mode))?;
+        bus.transfer_frame(self.register(), socketn::MODE, true, &mut mode)?;
         Ok(())
     }
 
@@ -26,7 +26,7 @@ pub trait Socket {
         code: socketn::Interrupt,
     ) -> Result<(), SpiBus::Error> {
         let mut data = [code as u8];
-        block!(bus.transfer_frame(self.register(), socketn::INTERRUPT, true, &mut data))?;
+        bus.transfer_frame(self.register(), socketn::INTERRUPT, true, &mut data)?;
         Ok(())
     }
 
@@ -37,7 +37,7 @@ pub trait Socket {
     ) -> Result<bool, SpiBus::Error> {
         let mut data = [0u8];
         BigEndian::write_u16(&mut data, code as u16);
-        block!(bus.transfer_frame(self.register(), socketn::INTERRUPT_MASK, true, &mut data))?;
+        bus.transfer_frame(self.register(), socketn::INTERRUPT_MASK, true, &mut data)?;
         Ok(data[0] & socketn::Interrupt::Receive as u8 != 0)
     }
 
@@ -48,7 +48,7 @@ pub trait Socket {
     ) -> Result<(), SpiBus::Error> {
         let mut data = [0u8; 2];
         BigEndian::write_u16(&mut data, port);
-        block!(bus.transfer_frame(self.register(), socketn::SOURCE_PORT, true, &mut data))?;
+        bus.transfer_frame(self.register(), socketn::SOURCE_PORT, true, &mut data)?;
         Ok(())
     }
 
@@ -58,7 +58,7 @@ pub trait Socket {
         ip: IpAddress,
     ) -> Result<(), SpiBus::Error> {
         let mut data = ip.address;
-        block!(bus.transfer_frame(self.register(), socketn::DESTINATION_IP, true, &mut data))?;
+        bus.transfer_frame(self.register(), socketn::DESTINATION_IP, true, &mut data)?;
         Ok(())
     }
 
@@ -69,7 +69,7 @@ pub trait Socket {
     ) -> Result<(), SpiBus::Error> {
         let mut data = [0u8; 2];
         BigEndian::write_u16(&mut data, port);
-        block!(bus.transfer_frame(self.register(), socketn::DESTINATION_PORT, true, &mut data))?;
+        bus.transfer_frame(self.register(), socketn::DESTINATION_PORT, true, &mut data)?;
         Ok(())
     }
 
@@ -80,12 +80,12 @@ pub trait Socket {
     ) -> Result<(), SpiBus::Error> {
         let mut data = [0u8; 2];
         BigEndian::write_u16(&mut data, pointer);
-        block!(bus.transfer_frame(
+        bus.transfer_frame(
             self.register(),
             socketn::TX_DATA_READ_POINTER,
             true,
             &mut data
-        ))?;
+        )?;
         Ok(())
     }
 
@@ -96,12 +96,12 @@ pub trait Socket {
     ) -> Result<(), SpiBus::Error> {
         let mut data = [0u8; 2];
         BigEndian::write_u16(&mut data, pointer);
-        block!(bus.transfer_frame(
+        bus.transfer_frame(
             self.register(),
             socketn::TX_DATA_WRITE_POINTER,
             true,
             &mut data
-        ))?;
+        )?;
         Ok(())
     }
 
@@ -110,12 +110,12 @@ pub trait Socket {
         bus: &mut SpiBus,
     ) -> Result<u16, SpiBus::Error> {
         let mut data = [0u8; 2];
-        block!(bus.transfer_frame(
+        bus.transfer_frame(
             self.register(),
             socketn::RX_DATA_READ_POINTER,
             true,
             &mut data
-        ))?;
+        )?;
         Ok(BigEndian::read_u16(&data))
     }
 
@@ -126,12 +126,12 @@ pub trait Socket {
     ) -> Result<(), SpiBus::Error> {
         let mut data = [0u8; 2];
         BigEndian::write_u16(&mut data, pointer);
-        block!(bus.transfer_frame(
+        bus.transfer_frame(
             self.register(),
             socketn::RX_DATA_READ_POINTER,
             true,
             &mut data
-        ))?;
+        )?;
         Ok(())
     }
 
@@ -142,7 +142,7 @@ pub trait Socket {
     ) -> Result<(), SpiBus::Error> {
         let mut data = [0u8; 2];
         BigEndian::write_u16(&mut data, command as u16);
-        block!(bus.transfer_frame(self.register(), socketn::COMMAND, true, &mut data))?;
+        bus.transfer_frame(self.register(), socketn::COMMAND, true, &mut data)?;
         Ok(())
     }
 
@@ -150,19 +150,19 @@ pub trait Socket {
         loop {
             // Section 4.2 of datasheet, Sn_TX_FSR address docs indicate that read must be repeated until two sequential reads are stable
             let mut sample_0 = [0u8; 2];
-            block!(bus.transfer_frame(
+            bus.transfer_frame(
                 self.register(),
                 socketn::RECEIVED_SIZE,
                 false,
                 &mut sample_0
-            ))?;
+            )?;
             let mut sample_1 = [0u8; 2];
-            block!(bus.transfer_frame(
+            bus.transfer_frame(
                 self.register(),
                 socketn::RECEIVED_SIZE,
                 false,
                 &mut sample_1
-            ))?;
+            )?;
             if sample_0 == sample_1 && sample_0[0] >= 8 {
                 break Ok(BigEndian::read_u16(&sample_0));
             }
@@ -171,12 +171,12 @@ pub trait Socket {
 
     fn dump_register<SpiBus: ActiveBus>(&self, bus: &mut SpiBus) -> [u8; 0x30] {
         let mut register = [0u8; 0x30];
-        block!(bus.transfer_frame(
+        bus.transfer_frame(
             self.register(),
             0u16,
             false,
             &mut register
-        ));
+        );
         register
     }
 }

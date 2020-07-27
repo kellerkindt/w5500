@@ -49,7 +49,7 @@ impl<Spi: FullDuplex<u8>> ActiveBus for ActiveThreeWire<Spi> {
         mut address: u16,
         is_write: bool,
         data: &'a mut [u8],
-    ) -> Result<&'a mut [u8], nb::Error<Self::Error>> {
+    ) -> Result<&'a mut [u8], Self::Error> {
         let mut control_phase = block << 3;
         if is_write {
             control_phase |= WRITE_MODE_MASK;
@@ -71,12 +71,12 @@ impl<Spi: FullDuplex<u8>> ActiveBus for ActiveThreeWire<Spi> {
 
             let mut address_phase = [0u8; 2];
             BigEndian::write_u16(&mut address_phase, address);
-            block!(Self::transfer_bytes(&mut self.spi, &mut address_phase)
+            Self::transfer_bytes(&mut self.spi, &mut address_phase)
                 .and_then(|_| Self::transfer_byte(&mut self.spi, &mut control_phase))
                 .and_then(|_| Self::transfer_bytes(
                     &mut self.spi,
                     &mut data_phase[..last_length_written as usize]
-                )))?;
+                ))?;
 
             address += last_length_written;
             data_phase = &mut data_phase[last_length_written as usize..];

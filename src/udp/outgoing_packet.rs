@@ -34,12 +34,12 @@ impl<SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket>
     }
 
     pub fn write(&mut self, mut data: &mut [u8]) -> Result<(), SpiBus::Error> {
-        block!(self.udp_socket.w5500.bus.transfer_frame(
+        self.udp_socket.w5500.bus.transfer_frame(
             self.udp_socket.socket.tx_buffer(),
             self.data_length,
             true,
             &mut data
-        ))?;
+        )?;
         self.data_length += data.len() as u16;
         Ok(())
     }

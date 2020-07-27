@@ -30,37 +30,37 @@ pub trait Network {
     ) -> Result<(), SpiBus::Error> {
         if settings.gateway != current.gateway {
             let mut address = settings.gateway.address;
-            block!(bus.transfer_frame(
+            bus.transfer_frame(
                 register::COMMON,
                 register::common::GATEWAY,
                 true,
                 &mut address
-            ))?;
+            )?;
             current.gateway = settings.gateway;
         }
         if settings.subnet != current.subnet {
             let mut address = settings.subnet.address;
-            block!(bus.transfer_frame(
+            bus.transfer_frame(
                 register::COMMON,
                 register::common::SUBNET_MASK,
                 true,
                 &mut address
-            ))?;
+            )?;
             current.subnet = settings.subnet;
         }
         if settings.mac != current.mac {
             let mut address = settings.mac.address;
-            block!(bus.transfer_frame(
+            bus.transfer_frame(
                 register::COMMON,
                 register::common::MAC,
                 true,
                 &mut address
-            ))?;
+            )?;
             current.mac = settings.mac;
         }
         if settings.ip != current.ip {
             let mut address = settings.ip.address;
-            block!(bus.transfer_frame(register::COMMON, register::common::IP, true, &mut address))?;
+            bus.transfer_frame(register::COMMON, register::common::IP, true, &mut address)?;
             current.ip = settings.ip;
         }
         Ok(())

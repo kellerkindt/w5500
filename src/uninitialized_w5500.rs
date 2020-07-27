@@ -85,12 +85,12 @@ impl<SpiBus: ActiveBus> UninitializedW5500<SpiBus> {
         expected_version: u8,
     ) -> Result<(), InitializeError<SpiBus::Error>> {
         let mut version = [0];
-        block!(self.bus.transfer_frame(
+        self.bus.transfer_frame(
             register::COMMON,
             register::common::VERSION,
             false,
             &mut version
-        ))
+        )
         .map_err(|e| InitializeError::SpiError(e))?;
         if version[0] != expected_version {
             Err(InitializeError::ChipNotConnected)
@@ -105,9 +105,9 @@ impl<SpiBus: ActiveBus> UninitializedW5500<SpiBus> {
         mode[0] |= mode_options.on_ping_request as u8;
         mode[0] |= mode_options.connection_type as u8;
         mode[0] |= mode_options.arp_responses as u8;
-        block!(self
+        self
             .bus
-            .transfer_frame(register::COMMON, register::common::MODE, true, &mut mode))?;
+            .transfer_frame(register::COMMON, register::common::MODE, true, &mut mode)?;
         Ok(())
     }
 }

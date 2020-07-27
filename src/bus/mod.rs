@@ -1,5 +1,4 @@
 use embedded_hal::spi::FullDuplex;
-use nb::Result;
 
 mod four_wire;
 mod three_wire;
@@ -36,7 +35,7 @@ pub trait ActiveBus {
         spi: &mut Spi,
         byte: &'a mut u8,
     ) -> Result<&'a mut u8, Spi::Error> {
-        *byte = spi.send(*byte).and_then(|_| spi.read())?;
+        *byte = block!(spi.send(*byte)).and_then(|_| block!(spi.read()))?;
         Ok(byte)
     }
 }
