@@ -4,6 +4,9 @@
 #[macro_use(block)]
 extern crate nb;
 
+pub mod net;
+pub use net::{Ipv4Addr, MacAddress};
+
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
 use embedded_hal::digital::v2::OutputPin;
@@ -19,65 +22,6 @@ const FIXED_DATA_LENGTH_1_BYTE: u8 = 0b_01;
 const FIXED_DATA_LENGTH_2_BYTES: u8 = 0b_10;
 #[allow(unused)]
 const FIXED_DATA_LENGTH_4_BYTES: u8 = 0b_11;
-
-/// IP Address struct.  Represents an IP address as a u8 array of length 4.
-/// Can be instantiated with [`IpAddress::new`]
-#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Default, Debug)]
-pub struct IpAddress {
-    pub address: [u8; 4],
-}
-
-impl IpAddress {
-    /// Instantiate a new IP address with u8s for each address fragment
-    pub fn new(a0: u8, a1: u8, a2: u8, a3: u8) -> IpAddress {
-        IpAddress {
-            address: [a0, a1, a2, a3],
-        }
-    }
-}
-
-impl ::core::fmt::Display for IpAddress {
-    /// String formatter for IP addresses, useful for debugging output
-    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-        write!(
-            f,
-            "{}.{}.{}.{}",
-            self.address[0], self.address[1], self.address[2], self.address[3],
-        )
-    }
-}
-
-/// MAC address struct.  Represents a MAC address as a u8 array of length 6.
-/// Can be instantiated with [`MacAddress::new`]
-#[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug)]
-pub struct MacAddress {
-    pub address: [u8; 6],
-}
-
-impl MacAddress {
-    /// Instantiate a new MAC address with u8s for each address fragment
-    pub fn new(a0: u8, a1: u8, a2: u8, a3: u8, a4: u8, a5: u8) -> MacAddress {
-        MacAddress {
-            address: [a0, a1, a2, a3, a4, a5],
-        }
-    }
-}
-
-impl ::core::fmt::Display for MacAddress {
-    /// String formatter for MAC addresses, useful for debugging output
-    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-        write!(
-            f,
-            "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
-            self.address[0],
-            self.address[1],
-            self.address[2],
-            self.address[3],
-            self.address[4],
-            self.address[5],
-        )
-    }
-}
 
 /// Error enum that represents the union between SPI hardware errors and digital IO pin errors.
 /// Returned as an Error type by many [`ActiveW5500`] operations that talk to the chip
@@ -240,17 +184,17 @@ impl<
     /// Sets the IP address of the network gateway (your router's address)
     pub fn set_gateway(
         &mut self,
-        gateway: IpAddress,
+        gateway: Ipv4Addr,
     ) -> Result<(), TransferError<SpiError, ChipSelectError>> {
-        self.write_to(Register::CommonRegister(0x00_01_u16), &gateway.address)
+        self.write_to(Register::CommonRegister(0x00_01_u16), &gateway.octets)
     }
 
     /// Sets the subnet on the network (for example 255.255.255.0 for /24 subnets)
     pub fn set_subnet(
         &mut self,
-        subnet: IpAddress,
+        subnet: Ipv4Addr,
     ) -> Result<(), TransferError<SpiError, ChipSelectError>> {
-        self.write_to(Register::CommonRegister(0x00_05_u16), &subnet.address)
+        self.write_to(Register::CommonRegister(0x00_05_u16), &subnet.octets)
     }
 
     /// Sets the MAC address of the W5500 device on the network.
@@ -271,25 +215,22 @@ impl<
         &mut self,
         mac: MacAddress,
     ) -> Result<(), TransferError<SpiError, ChipSelectError>> {
-        self.write_to(Register::CommonRegister(0x00_09_u16), &mac.address)
+        self.write_to(Register::CommonRegister(0x00_09_u16), &mac.octets)
     }
 
     /// Sets the IP address of the W5500 device.  Must be within the range and permitted by the
     /// gateway or the device will not be accessible.
-    pub fn set_ip(
-        &mut self,
-        ip: IpAddress,
-    ) -> Result<(), TransferError<SpiError, ChipSelectError>> {
-        self.write_to(Register::CommonRegister(0x00_0F_u16), &ip.address)
+    pub fn set_ip(&mut self, ip: Ipv4Addr) -> Result<(), TransferError<SpiError, ChipSelectError>> {
+        self.write_to(Register::CommonRegister(0x00_0F_u16), &ip.octets)
     }
 
-    /// Reads the 4 bytes from any ip register and returns the value as an [`IpAddress`]
+    /// Reads the 4 bytes from any ip register and returns the value as an [`Ipv4Addr`]
     pub fn read_ip(
         &mut self,
         register: Register,
-    ) -> Result<IpAddress, TransferError<SpiError, ChipSelectError>> {
-        let mut ip = IpAddress::default();
-        self.read_from(register, &mut ip.address)?;
+    ) -> Result<Ipv4Addr, TransferError<SpiError, ChipSelectError>> {
+        let mut ip = Ipv4Addr::default();
+        self.read_from(register, &mut ip.octets)?;
         Ok(ip)
     }
 
@@ -508,11 +449,11 @@ pub trait Udp {
     fn receive(
         &mut self,
         target_buffer: &mut [u8],
-    ) -> Result<Option<(IpAddress, u16, usize)>, Self::Error>;
+    ) -> Result<Option<(Ipv4Addr, u16, usize)>, Self::Error>;
 
     fn blocking_send(
         &mut self,
-        host: &IpAddress,
+        host: &Ipv4Addr,
         host_port: u16,
         data: &[u8],
     ) -> Result<(), Self::Error>;
@@ -528,7 +469,7 @@ impl<ChipSelect: OutputPin, Spi: FullDuplex<u8>> Udp
     fn receive(
         &mut self,
         destination: &mut [u8],
-    ) -> Result<Option<(IpAddress, u16, usize)>, Self::Error> {
+    ) -> Result<Option<(Ipv4Addr, u16, usize)>, Self::Error> {
         let (w5500, UdpSocket(socket)) = self;
 
         if w5500.read_u8(socket.at(SocketRegister::InterruptMask))? & 0x04 == 0 {
@@ -579,7 +520,7 @@ impl<ChipSelect: OutputPin, Spi: FullDuplex<u8>> Udp
     /// Sends a UDP packet to the specified IP and port, and blocks until it is fully sent
     fn blocking_send(
         &mut self,
-        host: &IpAddress,
+        host: &Ipv4Addr,
         host_port: u16,
         data: &[u8],
     ) -> Result<(), Self::Error> {
@@ -601,10 +542,10 @@ impl<ChipSelect: OutputPin, Spi: FullDuplex<u8>> Udp
                     0x00,
                     0x00,
                     0x00, // destination mac
-                    host.address[0],
-                    host.address[1],
-                    host.address[2],
-                    host.address[3], // target IP
+                    host.octets[0],
+                    host.octets[1],
+                    host.octets[2],
+                    host.octets[3], // target IP
                     host_port[0],
                     host_port[1], // destination port (5354)
                 ],
