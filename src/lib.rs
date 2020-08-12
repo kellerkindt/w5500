@@ -60,6 +60,127 @@ pub enum ArpResponses {
     DropAfterUse,
 }
 
+/// PHY operation mode.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[repr(u8)]
+pub enum OperationMode {
+    /// 10BT half-duplex. Auto-negotiation disabled.
+    HalfDuplex10bt = 0b000,
+    /// 10BT full-duplex. Auto-negotiation disabled.
+    FullDuplex10bt = 0b001,
+    /// 100BT half-duplex. Auto-negotiation disabled.
+    HalfDuplex100bt = 0b010,
+    /// 100BT full-duplex. Auto-negotiation disabled.
+    FullDuplex100bt = 0b011,
+    /// 100BT half-duplex. Auto-negotiation enabled.
+    HalfDuplex100btAuto = 0b100,
+    /// Power down mode.
+    PowerDown = 0b110,
+    /// All capable. Auto-negotiation enabled.
+    Auto = 0b111,
+}
+
+impl From<OperationMode> for u8 {
+    fn from(val: OperationMode) -> u8 {
+        val as u8
+    }
+}
+
+impl Default for OperationMode {
+    fn default() -> OperationMode {
+        OperationMode::Auto
+    }
+}
+
+/// PHY speed status.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[repr(u8)]
+pub enum SpeedStatus {
+    /// 10Mbps based.
+    Mbps10 = 0,
+    /// 100Mbps based.
+    Mbps100 = 1,
+}
+
+/// PHY duplex status.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[repr(u8)]
+pub enum DuplexStatus {
+    /// Half duplex.
+    HalfDuplex = 0,
+    /// Full duplex.
+    FullDuplex = 1,
+}
+
+/// PHY configuration register.
+///
+/// Used for:
+/// * PHY reset.
+/// * PHY operation modes.
+/// * PHY status.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct PhyCfg(u8);
+
+impl PhyCfg {
+    // Link status bit position.
+    const LNK_POS: u8 = 0;
+    // Speed status bit position.
+    const SPD_POS: u8 = 1;
+    // Duplex status bit position.
+    const DPX_POS: u8 = 2;
+    // Operation mode bit position.
+    const OPMDC_POS: u8 = 3;
+    // Configure PHY opeartion mode bit position.
+    // const OPMD_POS: u8 = 6;
+    // Reset bit position.
+    // const RST_POS: u8 = 7;
+
+    /// PHY link status.
+    ///
+    /// `true` if the link is up, `false` if the link is down.
+    pub fn link_up(&self) -> bool {
+        self.0 & (1 << PhyCfg::LNK_POS) != 0
+    }
+
+    /// PHY speed status.
+    pub fn speed(&self) -> SpeedStatus {
+        if self.0 & (1 << PhyCfg::SPD_POS) == 0 {
+            SpeedStatus::Mbps10
+        } else {
+            SpeedStatus::Mbps100
+        }
+    }
+
+    /// PHY duplex status.
+    pub fn duplex(&self) -> DuplexStatus {
+        if self.0 & (1 << PhyCfg::DPX_POS) == 0 {
+            DuplexStatus::HalfDuplex
+        } else {
+            DuplexStatus::FullDuplex
+        }
+    }
+
+    /// PHY operation mode.
+    pub fn operation_mode(&self) -> OperationMode {
+        match (self.0 >> PhyCfg::OPMDC_POS) & 0b111u8 {
+            0b000 => OperationMode::HalfDuplex10bt,
+            0b001 => OperationMode::FullDuplex10bt,
+            0b010 => OperationMode::HalfDuplex100bt,
+            0b011 => OperationMode::FullDuplex100bt,
+            0b100 => OperationMode::HalfDuplex100btAuto,
+            0b110 => OperationMode::PowerDown,
+            0b111 => OperationMode::Auto,
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl core::convert::From<u8> for PhyCfg {
+    fn from(val: u8) -> Self {
+        PhyCfg(val)
+    }
+}
+
 /// Represents a [`Socket`] that has not yet been initialized for a particular protocol
 pub struct UninitializedSocket(Socket);
 
@@ -150,6 +271,11 @@ impl<
     /// Returns the requested socket if it is not already taken. See [`W5500::take_socket`]
     pub fn take_socket(&mut self, socket: Socket) -> Option<UninitializedSocket> {
         self.0.take_socket(socket)
+    }
+
+    /// Read the PHY configuration register (PHYCFGR).
+    pub fn phy_cfg(&mut self) -> Result<PhyCfg, TransferError<SpiError, ChipSelectError>> {
+        Ok(self.read_u8(Register::CommonRegister(0x00_2E_u16))?.into())
     }
 
     /// Set up the basic configuration of the W5500 chip
