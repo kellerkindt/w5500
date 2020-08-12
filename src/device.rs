@@ -62,6 +62,13 @@ impl<SpiBus: ActiveBus, NetworkImpl: Network> Device<SpiBus, NetworkImpl> {
         None
     }
 
+    pub fn phy_config(&mut self) -> Result<register::common::PhyConfig, SpiBus::Error> {
+        let mut phy = [0u8];
+        self.bus
+            .read_frame(register::COMMON, register::common::PHY_CONFIG, &mut phy)?;
+        Ok(phy[0].into())
+    }
+
     pub fn into_interface(self) -> Interface<SpiBus, NetworkImpl> {
         self.into()
     }
