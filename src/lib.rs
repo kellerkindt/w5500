@@ -1,16 +1,20 @@
 #![no_std]
 #![deny(intra_doc_link_resolution_failure)]
 
-#[macro_use(block)]
-extern crate nb;
+use bit_field::BitField;
 
+mod nal;
 pub mod net;
-pub use net::{Ipv4Addr, MacAddress};
+pub use nal::Interface;
 
-use byteorder::BigEndian;
-use byteorder::ByteOrder;
+pub use embedded_nal::Ipv4Addr;
+pub use net::MacAddress;
+
+use embedded_hal::blocking::spi::{Transfer, Write};
 use embedded_hal::digital::v2::OutputPin;
-use embedded_hal::spi::FullDuplex;
+
+use core::convert::TryFrom;
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 const COMMAND_READ: u8 = 0x00 << 2;
 const COMMAND_WRITE: u8 = 0x01 << 2;
@@ -26,9 +30,22 @@ const FIXED_DATA_LENGTH_4_BYTES: u8 = 0b_11;
 /// Error enum that represents the union between SPI hardware errors and digital IO pin errors.
 /// Returned as an Error type by many [`ActiveW5500`] operations that talk to the chip
 #[derive(Copy, Clone, Debug)]
-pub enum TransferError<SpiError, ChipSelectError> {
-    SpiError(SpiError),
-    ChipSelectError(ChipSelectError),
+pub enum Error<SpiError, ChipSelectError> {
+    Spi(SpiError),
+    ChipSelect(ChipSelectError),
+    Exhausted,
+    NotReady,
+    Unsupported,
+}
+
+enum SocketState {
+    //Closed = 0x00,
+    Init = 0x13,
+    //Listen = 0x14,
+    Established = 0x17,
+    //CloseWait = 0x1c,
+    //Udp = 0x22,
+    //MacRaw = 0x42,
 }
 
 /// Settings for wake on LAN.  Allows the W5500 to optionally emit an interrupt upon receiving a
@@ -181,111 +198,86 @@ impl core::convert::From<u8> for PhyCfg {
     }
 }
 
-/// Represents a [`Socket`] that has not yet been initialized for a particular protocol
-pub struct UninitializedSocket(Socket);
-
-/// Represents a [`Socket`] that has been initialized to use the UDP protocol
-pub struct UdpSocket(Socket);
+pub struct TcpSocket(Socket);
 
 /// The first level of instantiating communication with the W5500 device. This type is not used
 /// for communication, but to keep track of the state of the device. Calling [`W5500::activate`]
 /// will return an [`ActiveW5500`] which can be used to communicate with the device. This
 /// allows the SPI-Bus to be used for other devices while not being activated without loosing
 /// the state.
-pub struct W5500<ChipSelect: OutputPin> {
-    chip_select: ChipSelect,
+pub struct W5500<CS: OutputPin, SPI: Transfer<u8> + Write<u8>> {
+    chip_select: CS,
+    spi: SPI,
     /// each bit represents whether the corresponding socket is available for take
     sockets: u8,
+
+    ephemeral_port: u16,
 }
 
-impl<ChipSelectError, ChipSelect: OutputPin<Error = ChipSelectError>> W5500<ChipSelect> {
-    fn new(chip_select: ChipSelect) -> Self {
-        W5500 {
-            chip_select,
-            sockets: 0xFF,
-        }
+impl<CSE, SPIE, CS, SPI> W5500<CS, SPI>
+where
+    SPI: Transfer<u8, Error = SPIE> + Write<u8, Error = SPIE>,
+    CS: OutputPin<Error = CSE>,
+{
+    fn get_ephemeral_port(&mut self) -> u16 {
+        let current_port = self.ephemeral_port.clone();
+        let (next, wrap) = self.ephemeral_port.overflowing_add(1);
+        self.ephemeral_port = if wrap { 49152 } else { next };
+
+        current_port
     }
 
     /// Creates a new instance and initializes the device accordingly to the parameters.
-    /// To do so, it briefly activates the [`W5500`], to set it up with the specified configuration.
-    pub fn with_initialisation<Spi: FullDuplex<u8>>(
-        chip_select: ChipSelect,
-        spi: &mut Spi,
+    pub fn new(
+        spi: SPI,
+        cs: CS,
         wol: OnWakeOnLan,
         ping: OnPingRequest,
         mode: ConnectionType,
         arp: ArpResponses,
-    ) -> Result<Self, TransferError<Spi::Error, ChipSelectError>> {
-        let mut w5500 = Self::new(chip_select);
-        {
-            let mut w5500_active = w5500.activate(spi)?;
-            unsafe {
-                // this is safe, since the w5500 instance hast just been created and no sockets
-                // are given away or were initialized
-                w5500_active.reset()?;
-            }
-            w5500_active.update_operation_mode(wol, ping, mode, arp)?;
-        }
+    ) -> Result<Self, Error<SPIE, CSE>> {
+        let mut w5500 = W5500 {
+            chip_select: cs,
+            spi,
+            sockets: 0xFF,
+            ephemeral_port: 49152,
+        };
+
+        w5500.reset()?;
+        w5500.set_operation_mode(wol, ping, mode, arp)?;
+
         Ok(w5500)
     }
 
-    /// Returns the requested socket if it is not already taken.
-    pub fn take_socket(&mut self, socket: Socket) -> Option<UninitializedSocket> {
-        let mask = 0x01 << socket.number();
-        if self.sockets & mask == mask {
-            self.sockets &= !mask;
-            Some(UninitializedSocket(socket))
-        } else {
-            None
+    /// Attempt to take a socket for use.
+    fn take_socket(&mut self) -> Option<Socket> {
+        for index in 0..8 {
+            if self.sockets.get_bit(index) {
+                self.sockets.set_bit(index, false);
+                return Some(Socket::try_from(index as u8).unwrap());
+            }
         }
+
+        None
     }
 
-    /// Returns a [`ActiveW5500`] which can be used to modify the device and to communicate
-    /// with other ethernet devices within the connected LAN.
-    pub fn activate<'a, 'b, Spi: FullDuplex<u8>>(
-        &'a mut self,
-        spi: &'b mut Spi,
-    ) -> Result<ActiveW5500<'a, 'b, ChipSelect, Spi>, TransferError<Spi::Error, ChipSelectError>>
-    {
-        Ok(ActiveW5500(self, spi))
-    }
-}
-
-/// This - by concept meant to be a temporary - instance allows to directly communicate with
-/// the w5500 device. The reference to the [`W5500`] provides the chip-select [`OutputPin`]
-/// as well as its current state. The given SPI interface is borrowed for as long as this
-/// instance lives to communicate with the W5500 chip. Drop this instance to re-use the
-/// SPI bus for communication with another device.
-pub struct ActiveW5500<'a, 'b, ChipSelect: OutputPin, Spi: FullDuplex<u8>>(
-    &'a mut W5500<ChipSelect>,
-    &'b mut Spi,
-);
-
-impl<
-        ChipSelectError,
-        ChipSelect: OutputPin<Error = ChipSelectError>,
-        SpiError,
-        Spi: FullDuplex<u8, Error = SpiError>,
-    > ActiveW5500<'_, '_, ChipSelect, Spi>
-{
-    /// Returns the requested socket if it is not already taken. See [`W5500::take_socket`]
-    pub fn take_socket(&mut self, socket: Socket) -> Option<UninitializedSocket> {
-        self.0.take_socket(socket)
+    fn return_socket(&mut self, socket: Socket) {
+        self.sockets.set_bit(socket as usize, true);
     }
 
     /// Read the PHY configuration register (PHYCFGR).
-    pub fn phy_cfg(&mut self) -> Result<PhyCfg, TransferError<SpiError, ChipSelectError>> {
+    pub fn get_phy_cfg(&mut self) -> Result<PhyCfg, Error<SPIE, CSE>> {
         Ok(self.read_u8(Register::CommonRegister(0x00_2E_u16))?.into())
     }
 
     /// Set up the basic configuration of the W5500 chip
-    pub fn update_operation_mode(
+    fn set_operation_mode(
         &mut self,
         wol: OnWakeOnLan,
         ping: OnPingRequest,
         mode: ConnectionType,
         arp: ArpResponses,
-    ) -> Result<(), TransferError<SpiError, ChipSelectError>> {
+    ) -> Result<(), Error<SPIE, CSE>> {
         let mut value = 0x00;
 
         if let OnWakeOnLan::InvokeInterrupt = wol {
@@ -304,23 +296,17 @@ impl<
             value |= 1 << 1;
         }
 
-        self.write_to(Register::CommonRegister(0x00_00_u16), &[value])
+        self.write(Register::CommonRegister(0x00_00_u16), &[value])
     }
 
     /// Sets the IP address of the network gateway (your router's address)
-    pub fn set_gateway(
-        &mut self,
-        gateway: Ipv4Addr,
-    ) -> Result<(), TransferError<SpiError, ChipSelectError>> {
-        self.write_to(Register::CommonRegister(0x00_01_u16), &gateway.octets)
+    pub fn set_gateway(&mut self, gateway: Ipv4Addr) -> Result<(), Error<SPIE, CSE>> {
+        self.write(Register::CommonRegister(0x00_01_u16), &gateway.octets())
     }
 
     /// Sets the subnet on the network (for example 255.255.255.0 for /24 subnets)
-    pub fn set_subnet(
-        &mut self,
-        subnet: Ipv4Addr,
-    ) -> Result<(), TransferError<SpiError, ChipSelectError>> {
-        self.write_to(Register::CommonRegister(0x00_05_u16), &subnet.octets)
+    pub fn set_subnet(&mut self, subnet: Ipv4Addr) -> Result<(), Error<SPIE, CSE>> {
+        self.write(Register::CommonRegister(0x00_05_u16), &subnet.octets())
     }
 
     /// Sets the MAC address of the W5500 device on the network.
@@ -337,57 +323,36 @@ impl<
     /// "Universally administered and locally administered addresses are distinguished by setting
     /// the second-least-significant bit of the first octet of the address" [Wikipedia](https://en.wikipedia.org/wiki/MAC_address#Universal_vs._local)
     ///
-    pub fn set_mac(
-        &mut self,
-        mac: MacAddress,
-    ) -> Result<(), TransferError<SpiError, ChipSelectError>> {
-        self.write_to(Register::CommonRegister(0x00_09_u16), &mac.octets)
+    pub fn set_mac(&mut self, mac: MacAddress) -> Result<(), Error<SPIE, CSE>> {
+        self.write(Register::CommonRegister(0x00_09_u16), &mac.octets)
     }
 
     /// Sets the IP address of the W5500 device.  Must be within the range and permitted by the
     /// gateway or the device will not be accessible.
-    pub fn set_ip(&mut self, ip: Ipv4Addr) -> Result<(), TransferError<SpiError, ChipSelectError>> {
-        self.write_to(Register::CommonRegister(0x00_0F_u16), &ip.octets)
+    pub fn set_ip(&mut self, ip: Ipv4Addr) -> Result<(), Error<SPIE, CSE>> {
+        self.write(Register::CommonRegister(0x00_0F_u16), &ip.octets())
     }
 
-    /// Reads the 4 bytes from any ip register and returns the value as an [`Ipv4Addr`]
-    pub fn read_ip(
-        &mut self,
-        register: Register,
-    ) -> Result<Ipv4Addr, TransferError<SpiError, ChipSelectError>> {
-        let mut ip = Ipv4Addr::default();
-        self.read_from(register, &mut ip.octets)?;
-        Ok(ip)
-    }
-
-    /// # Safety
-    ///
-    /// This is unsafe because it cannot set taken [`Sockets`] back to be uninitialized
-    /// It assumes, none of the old sockets will used beyond this call. Because the
-    /// state of the [`Sockets`] is no longer in sync with the W5500, their usage might
-    /// result in undefined behavior.
-    ///
-    /// [`Sockets`]: crate::Socket
-    pub unsafe fn reset(&mut self) -> Result<(), TransferError<SpiError, ChipSelectError>> {
-        self.write_to(
+    fn reset(&mut self) -> Result<(), Error<SPIE, CSE>> {
+        self.write(
             Register::CommonRegister(0x00_00_u16),
             &[
                 0b1000_0000, // Mode Register (force reset)
             ],
         )?;
-        self.0.sockets = 0xFF;
+        self.sockets = 0xFF;
         Ok(())
     }
 
     /// TODO document
-    fn is_interrupt_set(
+    fn interrupt_is_set(
         &mut self,
         socket: Socket,
         interrupt: Interrupt,
-    ) -> Result<bool, TransferError<SpiError, ChipSelectError>> {
+    ) -> Result<bool, Error<SPIE, CSE>> {
         let mut state = [0u8; 1];
-        self.read_from(socket.at(SocketRegister::Interrupt), &mut state)?;
-        Ok(state[0] & interrupt as u8 != 0)
+        self.read(socket.at(SocketRegister::Interrupt), &mut state)?;
+        Ok(state[0] & (interrupt as u8) != 0)
     }
 
     /// TODO document
@@ -395,326 +360,254 @@ impl<
         &mut self,
         socket: Socket,
         interrupt: Interrupt,
-    ) -> Result<(), TransferError<SpiError, ChipSelectError>> {
-        self.write_to(socket.at(SocketRegister::Interrupt), &[interrupt as u8])
+    ) -> Result<(), Error<SPIE, CSE>> {
+        self.write(socket.at(SocketRegister::Interrupt), &[interrupt as u8])
     }
 
     /// Reads one byte from the given [`Register`] as a u8
-    fn read_u8(
-        &mut self,
-        register: Register,
-    ) -> Result<u8, TransferError<SpiError, ChipSelectError>> {
+    fn read_u8(&mut self, register: Register) -> Result<u8, Error<SPIE, CSE>> {
         let mut buffer = [0u8; 1];
-        self.read_from(register, &mut buffer)?;
+        self.read(register, &mut buffer)?;
         Ok(buffer[0])
     }
 
     /// Reads two bytes from the given [`Register`] as a u16
-    fn read_u16(
-        &mut self,
-        register: Register,
-    ) -> Result<u16, TransferError<SpiError, ChipSelectError>> {
+    fn read_u16(&mut self, register: Register) -> Result<u16, Error<SPIE, CSE>> {
         let mut buffer = [0u8; 2];
-        self.read_from(register, &mut buffer)?;
-        Ok(BigEndian::read_u16(&buffer))
-    }
-
-    /// Reads enough bytes from the given [`Register`] address onward to fill the `target` u8 slice
-    fn read_from(
-        &mut self,
-        register: Register,
-        target: &mut [u8],
-    ) -> Result<(), TransferError<SpiError, ChipSelectError>> {
-        self.chip_select()
-            .map_err(|error| -> TransferError<SpiError, ChipSelectError> {
-                TransferError::ChipSelectError(error)
-            })?;
-        let mut request = [
-            0_u8,
-            0_u8,
-            register.control_byte() | COMMAND_READ | VARIABLE_DATA_LENGTH,
-        ];
-        BigEndian::write_u16(&mut request[..2], register.address());
-        let result = self
-            .write_bytes(&request)
-            .and_then(|_| self.read_bytes(target));
-        self.chip_deselect()
-            .map_err(|error| -> TransferError<SpiError, ChipSelectError> {
-                TransferError::ChipSelectError(error)
-            })?;
-        result.map_err(TransferError::SpiError)
-    }
-
-    /// Reads enough bytes over SPI to fill the `target` u8 slice
-    fn read_bytes(&mut self, bytes: &mut [u8]) -> Result<(), SpiError> {
-        for byte in bytes {
-            *byte = self.read()?;
-        }
-        Ok(())
-    }
-
-    /// Reads a single byte over SPI
-    fn read(&mut self) -> Result<u8, SpiError> {
-        // SPI is in read/write sync, for every byte one wants to read, a byte needs
-        // to be written
-        block!(self.1.send(0x00))?;
-        block!(self.1.read())
+        self.read(register, &mut buffer)?;
+        Ok(u16::from_be_bytes(buffer))
     }
 
     /// Write a single u8 byte to the given [`Register`]
-    fn write_u8(
-        &mut self,
-        register: Register,
-        value: u8,
-    ) -> Result<(), TransferError<SpiError, ChipSelectError>> {
-        self.write_to(register, &[value])
+    fn write_u8(&mut self, register: Register, value: u8) -> Result<(), Error<SPIE, CSE>> {
+        self.write(register, &[value])
     }
 
     /// Write a u16 as two bytes o the given [`Register`]
-    fn write_u16(
-        &mut self,
-        register: Register,
-        value: u16,
-    ) -> Result<(), TransferError<SpiError, ChipSelectError>> {
-        let mut data = [0u8; 2];
-        BigEndian::write_u16(&mut data, value);
-        self.write_to(register, &data)
+    fn write_u16(&mut self, register: Register, value: u16) -> Result<(), Error<SPIE, CSE>> {
+        self.write(register, &value.to_be_bytes())
+    }
+
+    /// Reads enough bytes from the given [`Register`] address onward to fill the `target` u8 slice
+    fn read(&mut self, register: Register, target: &mut [u8]) -> Result<(), Error<SPIE, CSE>> {
+        self.chip_select
+            .set_low()
+            .map_err(|e| Error::<SPIE, CSE>::ChipSelect(e))?;
+
+        // Write the address phase
+        let address = register.address();
+        self.spi
+            .write(&address.to_be_bytes())
+            .map_err(|e| Error::Spi::<SPIE, CSE>(e))?;
+
+        // Write the control byte
+        let control = register.control_byte() | COMMAND_READ | VARIABLE_DATA_LENGTH;
+        self.spi
+            .write(&[control])
+            .map_err(|e| Error::<SPIE, CSE>::Spi(e))?;
+
+        // Transact the data.
+        self.spi
+            .transfer(target)
+            .map_err(|e| Error::<SPIE, CSE>::Spi(e))?;
+
+        self.chip_select
+            .set_high()
+            .map_err(|e| Error::<SPIE, CSE>::ChipSelect(e))?;
+
+        Ok(())
     }
 
     /// Write a slice of u8 bytes to the given [`Register`]
-    fn write_to(
-        &mut self,
-        register: Register,
-        data: &[u8],
-    ) -> Result<(), TransferError<SpiError, ChipSelectError>> {
-        self.chip_select()
-            .map_err(|error| -> TransferError<SpiError, ChipSelectError> {
-                TransferError::ChipSelectError(error)
-            })?;
-        let mut request = [
-            0_u8,
-            0_u8,
-            register.control_byte() | COMMAND_WRITE | VARIABLE_DATA_LENGTH,
-        ];
-        BigEndian::write_u16(&mut request[..2], register.address());
-        let result = self
-            .write_bytes(&request)
-            .and_then(|_| self.write_bytes(data));
-        self.chip_deselect()
-            .map_err(|error| -> TransferError<SpiError, ChipSelectError> {
-                TransferError::ChipSelectError(error)
-            })?;
-        result.map_err(TransferError::SpiError)
-    }
+    fn write(&mut self, register: Register, data: &[u8]) -> Result<(), Error<SPIE, CSE>> {
+        self.chip_select
+            .set_low()
+            .map_err(|e| Error::<SPIE, CSE>::ChipSelect(e))?;
 
-    /// Write a slice of u8 bytes over SPI
-    fn write_bytes(&mut self, bytes: &[u8]) -> Result<(), SpiError> {
-        for b in bytes {
-            self.write(*b)?;
-        }
+        // Write the address phase
+        let address = register.address();
+        self.spi
+            .write(&address.to_be_bytes())
+            .map_err(|e| Error::Spi::<SPIE, CSE>(e))?;
+
+        // Write the control byte
+        let control = register.control_byte() | COMMAND_WRITE | VARIABLE_DATA_LENGTH;
+        self.spi
+            .write(&[control])
+            .map_err(|e| Error::<SPIE, CSE>::Spi(e))?;
+
+        // Write the data.
+        self.spi
+            .write(&data)
+            .map_err(|e| Error::<SPIE, CSE>::Spi(e))?;
+
+        self.chip_select
+            .set_high()
+            .map_err(|e| Error::<SPIE, CSE>::ChipSelect(e))?;
+
         Ok(())
     }
 
-    /// Write a single byte over SPI
-    fn write(&mut self, byte: u8) -> Result<(), SpiError> {
-        block!(self.1.send(byte))?;
-        // SPI is in read/write sync, for every byte one wants to write, a byte needs
-        // to be read
-        block!(self.1.read())?;
-        Ok(())
-    }
+    pub fn open_tcp(&mut self) -> Result<TcpSocket, Error<SPIE, CSE>> {
+        let socket = self.take_socket().ok_or(Error::<SPIE, CSE>::Exhausted)?;
 
-    /// Begin a SPI frame by setting the CS signal to low
-    fn chip_select(&mut self) -> Result<(), ChipSelectError> {
-        self.0.chip_select.set_low()
-    }
+        self.write_u8(socket.at(SocketRegister::Mode), Protocol::TCP as u8)
+            .or_else(|e| {
+                self.return_socket(socket);
+                Err(e)
+            })?;
 
-    /// End a SPI frame by setting the CS signal to high
-    fn chip_deselect(&mut self) -> Result<(), ChipSelectError> {
-        self.0.chip_select.set_high()
-    }
-}
+        // Open the socket.
+        self.write_u8(
+            socket.at(SocketRegister::Command),
+            SocketCommand::Open as u8,
+        )
+        .or_else(|e| {
+            self.return_socket(socket);
+            Err(e)
+        })?;
 
-pub trait IntoUdpSocket<SpiError> {
-    fn try_into_udp_server_socket(self, port: u16) -> Result<UdpSocket, SpiError>
-    where
-        Self: Sized;
-}
-
-impl<ChipSelect: OutputPin, Spi: FullDuplex<u8>> IntoUdpSocket<UninitializedSocket>
-    for (
-        &mut ActiveW5500<'_, '_, ChipSelect, Spi>,
-        UninitializedSocket,
-    )
-{
-    /// Initialize a socket to operate in UDP mode
-    fn try_into_udp_server_socket(self, port: u16) -> Result<UdpSocket, UninitializedSocket> {
-        let socket = (self.1).0;
-        (|| {
-            self.0.reset_interrupt(socket, Interrupt::SendOk)?;
-
-            self.0
-                .write_u16(socket.at(SocketRegister::LocalPort), port)?;
-            self.0.write_to(
-                socket.at(SocketRegister::Mode),
-                &[
-                    Protocol::UDP as u8,       // Socket Mode Register
-                    SocketCommand::Open as u8, // Socket Command Register
-                ],
-            )?;
-            Ok(UdpSocket(socket))
-        })()
-        .map_err(|_: TransferError<Spi::Error, ChipSelect::Error>| UninitializedSocket(socket))
-    }
-}
-
-/// UDP trait that defines send and receive methods for UDP packets
-pub trait Udp {
-    type Error;
-
-    fn receive(
-        &mut self,
-        target_buffer: &mut [u8],
-    ) -> Result<Option<(Ipv4Addr, u16, usize)>, Self::Error>;
-
-    fn blocking_send(
-        &mut self,
-        host: &Ipv4Addr,
-        host_port: u16,
-        data: &[u8],
-    ) -> Result<(), Self::Error>;
-}
-
-impl<ChipSelect: OutputPin, Spi: FullDuplex<u8>> Udp
-    for (&mut ActiveW5500<'_, '_, ChipSelect, Spi>, &UdpSocket)
-{
-    type Error = TransferError<Spi::Error, ChipSelect::Error>;
-
-    /// Returns a UDP packet if one is available.  Will return `None` if no UDP packets are in the
-    /// socket's buffer
-    fn receive(
-        &mut self,
-        destination: &mut [u8],
-    ) -> Result<Option<(Ipv4Addr, u16, usize)>, Self::Error> {
-        let (w5500, UdpSocket(socket)) = self;
-
-        if w5500.read_u8(socket.at(SocketRegister::InterruptMask))? & 0x04 == 0 {
-            return Ok(None);
+        // Wait for the socket to enter the INIT state.
+        loop {
+            let status = self
+                .read_u8(socket.at(SocketRegister::Status))
+                .or_else(|e| {
+                    self.return_socket(socket);
+                    Err(e)
+                })?;
+            if status == SocketState::Init as u8 {
+                break;
+            }
         }
 
-        let receive_size = loop {
-            let s0 = w5500.read_u16(socket.at(SocketRegister::RxReceivedSize))?;
-            let s1 = w5500.read_u16(socket.at(SocketRegister::RxReceivedSize))?;
+        Ok(TcpSocket(socket))
+    }
+
+    pub fn connect_tcp(
+        &mut self,
+        socket: TcpSocket,
+        remote: Ipv4Addr,
+        port: u16,
+    ) -> Result<TcpSocket, Error<SPIE, CSE>> {
+        // Set our local port to some ephemeral port.
+        let local_port = self.get_ephemeral_port();
+        self.write_u16(socket.0.at(SocketRegister::LocalPort), local_port)?;
+
+        // Write the report port and IP
+        self.write(socket.0.at(SocketRegister::DestinationIp), &remote.octets())?;
+
+        self.write_u16(socket.0.at(SocketRegister::DestinationPort), port)?;
+
+        // Connect the socket.
+        self.write_u8(
+            socket.0.at(SocketRegister::Command),
+            SocketCommand::Connect as u8,
+        )?;
+
+        // Wait for the socket to connect.
+        // TODO: Detect disconnection events here as well.
+        while self.is_connected(&socket)? == false {}
+
+        Ok(socket)
+    }
+
+    pub fn is_connected(&mut self, socket: &TcpSocket) -> Result<bool, Error<SPIE, CSE>> {
+        // Read the status register to ensure the connection is established.
+        let status = self.read_u8(socket.0.at(SocketRegister::Status))?;
+        Ok(status == SocketState::Established as u8)
+    }
+
+    pub fn send(&mut self, socket: &TcpSocket, data: &[u8]) -> Result<usize, Error<SPIE, CSE>> {
+        if self.is_connected(&socket)? == false {
+            return Err(Error::<SPIE, CSE>::NotReady);
+        }
+
+        let max_size = self.read_u16(socket.0.at(SocketRegister::TxFreeSize))? as usize;
+
+        let write_data = if data.len() < max_size {
+            data
+        } else {
+            &data[..max_size]
+        };
+
+        // Append the data to the write buffer.
+        let write_pointer = self.read_u16(socket.0.at(SocketRegister::TxWritePointer))?;
+        self.write(socket.0.tx_register_at(write_pointer), write_data)?;
+
+        // Update the writer pointer.
+        self.write_u16(
+            socket.0.at(SocketRegister::TxWritePointer),
+            write_pointer.wrapping_add(write_data.len() as u16),
+        )?;
+
+        // Send the data.
+        self.write_u8(
+            socket.0.at(SocketRegister::Command),
+            SocketCommand::Send as u8,
+        )?;
+
+        // Wait until the send command completes.
+        while self.interrupt_is_set(socket.0, Interrupt::SendOk)? == false {}
+        self.reset_interrupt(socket.0, Interrupt::SendOk)?;
+
+        Ok(write_data.len())
+    }
+
+    pub fn recv(&mut self, socket: &TcpSocket, data: &mut [u8]) -> Result<usize, Error<SPIE, CSE>> {
+        if self.is_connected(&socket)? == false {
+            return Err(Error::<SPIE, CSE>::NotReady);
+        }
+
+        // Check if we've received data.
+        if self.interrupt_is_set(socket.0, Interrupt::Received)? == false {
+            return Ok(0);
+        }
+
+        let rx_size = loop {
+            let s0 = self.read_u16(socket.0.at(SocketRegister::RxReceivedSize))?;
+            let s1 = self.read_u16(socket.0.at(SocketRegister::RxReceivedSize))?;
             if s0 == s1 {
                 break s0 as usize;
             }
         };
-        if receive_size >= 8 {
-            let read_pointer = w5500.read_u16(socket.at(SocketRegister::RxReadPointer))?;
 
-            // |<-- read_pointer                                read_pointer + received_size -->|
-            // |Destination IP Address | Destination Port | Byte Size of DATA | Actual DATA ... |
-            // |   --- 4 Bytes ---     |  --- 2 Bytes --- |  --- 2 Bytes ---  |      ....       |
-
-            let ip = w5500.read_ip(socket.rx_register_at(read_pointer))?;
-            let port = w5500.read_u16(socket.rx_register_at(read_pointer + 4))?;
-            let data_length = destination
-                .len()
-                .min(w5500.read_u16(socket.rx_register_at(read_pointer + 6))? as usize);
-
-            w5500.read_from(
-                socket.rx_register_at(read_pointer + 8),
-                &mut destination[..data_length],
-            )?;
-
-            // reset
-            w5500.write_u16(
-                socket.at(SocketRegister::RxReadPointer),
-                read_pointer + receive_size as u16,
-            )?;
-            w5500.write_u8(
-                socket.at(SocketRegister::Command),
-                SocketCommand::Recv as u8,
-            )?;
-
-            Ok(Some((ip, port, data_length)))
+        let read_buffer = if rx_size > data.len() {
+            data
         } else {
-            Ok(None)
-        }
+            &mut data[..rx_size]
+        };
+
+        // Read from the RX ring buffer.
+        let read_pointer = self.read_u16(socket.0.at(SocketRegister::RxReadPointer))?;
+        self.read(socket.0.rx_register_at(read_pointer), read_buffer)?;
+        self.write_u16(
+            socket.0.at(SocketRegister::RxReadPointer),
+            read_pointer.wrapping_add(read_buffer.len() as u16),
+        )?;
+
+        // Register the reception as complete.
+        self.write_u8(
+            socket.0.at(SocketRegister::Command),
+            SocketCommand::Recv as u8,
+        )?;
+        self.reset_interrupt(socket.0, Interrupt::Received)?;
+
+        Ok(read_buffer.len())
     }
 
-    /// Sends a UDP packet to the specified IP and port, and blocks until it is fully sent
-    fn blocking_send(
-        &mut self,
-        host: &Ipv4Addr,
-        host_port: u16,
-        data: &[u8],
-    ) -> Result<(), Self::Error> {
-        let (w5500, UdpSocket(socket)) = self;
+    pub fn disconnect(&mut self, socket: &TcpSocket) -> Result<(), Error<SPIE, CSE>> {
+        self.write_u8(
+            socket.0.at(SocketRegister::Command),
+            SocketCommand::Disconnect as u8,
+        )
+    }
 
-        {
-            let local_port = w5500.read_u16(socket.at(SocketRegister::LocalPort))?;
-            let local_port = local_port.to_be_bytes();
-            let host_port = host_port.to_be_bytes();
-
-            w5500.write_to(
-                socket.at(SocketRegister::LocalPort),
-                &[
-                    local_port[0],
-                    local_port[1], // local port u16
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00, // destination mac
-                    host.octets[0],
-                    host.octets[1],
-                    host.octets[2],
-                    host.octets[3], // target IP
-                    host_port[0],
-                    host_port[1], // destination port (5354)
-                ],
-            )?;
-        }
-
-        let data_length = data.len() as u16;
-        {
-            let data_length = data_length.to_be_bytes();
-
-            // TODO why write [0x00, 0x00] at TxReadPointer at all?
-            // TODO Is TxWritePointer not sufficient enough?
-            w5500.write_to(
-                socket.at(SocketRegister::TxReadPointer),
-                &[0x00, 0x00, data_length[0], data_length[1]],
-            )?;
-        }
-
-        w5500.write_to(
-            socket.tx_register_at(0x00_00),
-            &data[..data_length as usize],
+    pub fn close(&mut self, socket: TcpSocket) -> Result<(), Error<SPIE, CSE>> {
+        self.write_u8(
+            socket.0.at(SocketRegister::Command),
+            SocketCommand::Close as u8,
         )?;
-
-        w5500.write_to(
-            socket.at(SocketRegister::Command),
-            &[SocketCommand::Send as u8],
-        )?;
-
-        for _ in 0..0xFFFF {
-            // wait until sent
-            if w5500.is_interrupt_set(*socket, Interrupt::SendOk)? {
-                w5500.reset_interrupt(*socket, Interrupt::SendOk)?;
-                break;
-            }
-        }
-        // restore listen state
-        w5500.write_to(
-            socket.at(SocketRegister::Mode),
-            &[
-                Protocol::UDP as u8,       // Socket Mode Register
-                SocketCommand::Open as u8, // Socket Command Register
-            ],
-        )?;
+        self.return_socket(socket.0);
         Ok(())
     }
 }
@@ -786,72 +679,59 @@ pub enum SocketCommand {
 }
 
 /// Identifiers for each socket on the W5500
-#[derive(Copy, Clone, PartialEq, PartialOrd, Debug)]
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug, IntoPrimitive, TryFromPrimitive)]
+#[repr(u8)]
 pub enum Socket {
-    Socket0,
-    Socket1,
-    Socket2,
-    Socket3,
-    Socket4,
-    Socket5,
-    Socket6,
-    Socket7,
+    Zero = 0,
+    One = 1,
+    Two = 2,
+    Three = 3,
+    Four = 4,
+    Five = 5,
+    Six = 6,
+    Seven = 7,
 }
 
 impl Socket {
-    /// Gets the number of any given socket
-    pub fn number(self) -> usize {
-        match self {
-            Socket::Socket0 => 0,
-            Socket::Socket1 => 1,
-            Socket::Socket2 => 2,
-            Socket::Socket3 => 3,
-            Socket::Socket4 => 4,
-            Socket::Socket5 => 5,
-            Socket::Socket6 => 6,
-            Socket::Socket7 => 7,
-        }
-    }
-
     /// Returns the register address for a socket instance's TX
     fn tx_register_at(self, address: u16) -> Register {
         match self {
-            Socket::Socket0 => Register::Socket0TxBuffer(address),
-            Socket::Socket1 => Register::Socket1TxBuffer(address),
-            Socket::Socket2 => Register::Socket2TxBuffer(address),
-            Socket::Socket3 => Register::Socket3TxBuffer(address),
-            Socket::Socket4 => Register::Socket4TxBuffer(address),
-            Socket::Socket5 => Register::Socket5TxBuffer(address),
-            Socket::Socket6 => Register::Socket6TxBuffer(address),
-            Socket::Socket7 => Register::Socket7TxBuffer(address),
+            Socket::Zero => Register::Socket0TxBuffer(address),
+            Socket::One => Register::Socket1TxBuffer(address),
+            Socket::Two => Register::Socket2TxBuffer(address),
+            Socket::Three => Register::Socket3TxBuffer(address),
+            Socket::Four => Register::Socket4TxBuffer(address),
+            Socket::Five => Register::Socket5TxBuffer(address),
+            Socket::Six => Register::Socket6TxBuffer(address),
+            Socket::Seven => Register::Socket7TxBuffer(address),
         }
     }
 
     /// Returns the register address for a socket instance's RX
     fn rx_register_at(self, address: u16) -> Register {
         match self {
-            Socket::Socket0 => Register::Socket0RxBuffer(address),
-            Socket::Socket1 => Register::Socket1RxBuffer(address),
-            Socket::Socket2 => Register::Socket2RxBuffer(address),
-            Socket::Socket3 => Register::Socket3RxBuffer(address),
-            Socket::Socket4 => Register::Socket4RxBuffer(address),
-            Socket::Socket5 => Register::Socket5RxBuffer(address),
-            Socket::Socket6 => Register::Socket6RxBuffer(address),
-            Socket::Socket7 => Register::Socket7RxBuffer(address),
+            Socket::Zero => Register::Socket0RxBuffer(address),
+            Socket::One => Register::Socket1RxBuffer(address),
+            Socket::Two => Register::Socket2RxBuffer(address),
+            Socket::Three => Register::Socket3RxBuffer(address),
+            Socket::Four => Register::Socket4RxBuffer(address),
+            Socket::Five => Register::Socket5RxBuffer(address),
+            Socket::Six => Register::Socket6RxBuffer(address),
+            Socket::Seven => Register::Socket7RxBuffer(address),
         }
     }
 
     /// Returns the register address for a socket instance's register
     fn register_at(self, address: u16) -> Register {
         match self {
-            Socket::Socket0 => Register::Socket0Register(address),
-            Socket::Socket1 => Register::Socket1Register(address),
-            Socket::Socket2 => Register::Socket2Register(address),
-            Socket::Socket3 => Register::Socket3Register(address),
-            Socket::Socket4 => Register::Socket4Register(address),
-            Socket::Socket5 => Register::Socket5Register(address),
-            Socket::Socket6 => Register::Socket6Register(address),
-            Socket::Socket7 => Register::Socket7Register(address),
+            Socket::Zero => Register::Socket0Register(address),
+            Socket::One => Register::Socket1Register(address),
+            Socket::Two => Register::Socket2Register(address),
+            Socket::Three => Register::Socket3Register(address),
+            Socket::Four => Register::Socket4Register(address),
+            Socket::Five => Register::Socket5Register(address),
+            Socket::Six => Register::Socket6Register(address),
+            Socket::Seven => Register::Socket7Register(address),
         }
     }
 
