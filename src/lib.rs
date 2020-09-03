@@ -38,14 +38,16 @@ pub enum Error<SpiError, ChipSelectError> {
     Unsupported,
 }
 
+#[derive(TryFromPrimitive)]
+#[repr(u8)]
 enum SocketState {
-    //Closed = 0x00,
+    Closed = 0x00,
     Init = 0x13,
-    //Listen = 0x14,
+    Listen = 0x14,
     Established = 0x17,
-    //CloseWait = 0x1c,
-    //Udp = 0x22,
-    //MacRaw = 0x42,
+    CloseWait = 0x1c,
+    Udp = 0x22,
+    MacRaw = 0x42,
 }
 
 /// Settings for wake on LAN.  Allows the W5500 to optionally emit an interrupt upon receiving a
@@ -489,6 +491,13 @@ where
         remote: Ipv4Addr,
         port: u16,
     ) -> Result<TcpSocket, Error<SPIE, CSE>> {
+        // Ensure the socket is open before we attempt to connect it.
+        let state = self.read_u8(socket.0.at(SocketRegister::Status))?;
+        match SocketState::try_from(state) {
+            Ok(SocketState::Init) => {}
+            _ => return Err(Error::NotReady),
+        }
+
         // Set our local port to some ephemeral port.
         let local_port = self.get_ephemeral_port();
         self.write_u16(socket.0.at(SocketRegister::LocalPort), local_port)?;
@@ -504,11 +513,28 @@ where
             SocketCommand::Connect as u8,
         )?;
 
-        // Wait for the socket to connect.
-        // TODO: Detect disconnection events here as well.
-        while self.is_connected(&socket)? == false {}
+        // Wait for the socket to connect or encounter an error.
+        loop {
+            match SocketState::try_from(self.read_u8(socket.0.at(SocketRegister::Status))?) {
+                Ok(SocketState::Established) => return Ok(socket),
 
-        Ok(socket)
+                // The socket is closed if a timeout (ARP or SYN-ACK) or if the TCP socket receives
+                // a RST packet. In this case, the client will need to re-attempt to connect.
+
+                // TODO: Due to limitations of the embedded-nal, we currently still return the
+                // socket (since we cannot inform the user of the connection failure). The returned
+                // socket will not actually be connected.
+                Ok(SocketState::Closed) => {
+                    // For now, always return an open socket so that the user can re-connect with
+                    // it in the future.
+                    self.close(socket)?;
+                    return self.open_tcp();
+                }
+                // The socket is still in some transient state. Wait for it to connect or for the
+                // connection to fail.
+                _ => {}
+            }
+        }
     }
 
     pub fn is_connected(&mut self, socket: &TcpSocket) -> Result<bool, Error<SPIE, CSE>> {
