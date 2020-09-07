@@ -3,7 +3,7 @@ use embedded_hal::blocking::spi::{Transfer, Write};
 use embedded_hal::digital::v2::OutputPin;
 
 pub struct Interface<CS: OutputPin, SPI: Transfer<u8> + Write<u8>> {
-    w5500: core::cell::RefCell<W5500<CS, SPI>>,
+    pub w5500: core::cell::RefCell<W5500<CS, SPI>>,
 }
 
 impl<CSE, SPIE, CS, SPI> Interface<CS, SPI>

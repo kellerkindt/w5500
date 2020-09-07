@@ -329,6 +329,18 @@ where
         self.write(Register::CommonRegister(0x00_09_u16), &mac.octets)
     }
 
+    pub fn get_mac(&mut self) -> Result<MacAddress, Error<SPIE, CSE>> {
+        let mut octets: [u8; 6] = [0; 6];
+        self.read(Register::CommonRegister(0x00_09_u16), &mut octets)?;
+        Ok(MacAddress::from_bytes(octets))
+    }
+
+    pub fn get_ip(&mut self) -> Result<Ipv4Addr, Error<SPIE, CSE>> {
+        let mut octets: [u8; 4] = [0; 4];
+        self.read(Register::CommonRegister(0x00_0F_u16), &mut octets)?;
+        Ok(Ipv4Addr::new(octets[0], octets[1], octets[2], octets[3]))
+    }
+
     /// Sets the IP address of the W5500 device.  Must be within the range and permitted by the
     /// gateway or the device will not be accessible.
     pub fn set_ip(&mut self, ip: Ipv4Addr) -> Result<(), Error<SPIE, CSE>> {
