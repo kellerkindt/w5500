@@ -505,10 +505,13 @@ where
     ) -> Result<TcpSocket, Error<SPIE, CSE>> {
         // Ensure the socket is open before we attempt to connect it.
         let state = self.read_u8(socket.0.at(SocketRegister::Status))?;
-        match SocketState::try_from(state) {
-            Ok(SocketState::Init) => {}
-            _ => return Err(Error::NotReady),
-        }
+        let socket = match SocketState::try_from(state) {
+            Ok(SocketState::Init) => socket,
+            _ => {
+                self.close(socket)?;
+                self.open_tcp()?
+            }
+        };
 
         // Set our local port to some ephemeral port.
         let local_port = self.get_ephemeral_port();
