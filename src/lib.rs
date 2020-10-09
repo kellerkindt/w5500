@@ -354,6 +354,10 @@ where
                 0b1000_0000, // Mode Register (force reset)
             ],
         )?;
+
+        // Wait for the RST bit to de-assert to indicate software reset complete.
+        while self.read_u8(Register::CommonRegister(0x0000_u16))?.get_bit(7) {};
+
         self.sockets = 0xFF;
         Ok(())
     }
