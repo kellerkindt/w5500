@@ -52,11 +52,13 @@ pub mod socketn {
         Open = 0x01,
         Send = 0x20,
         Receive = 0x40,
+        Close = 0x10,
     }
 
     pub const INTERRUPT: u16 = 0x02;
     #[repr(u8)]
     pub enum Interrupt {
+        All = 0b11111111u8,
         SendOk = 0b010000u8,
         Receive = 0b00100u8,
     }

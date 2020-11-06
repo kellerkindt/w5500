@@ -6,7 +6,7 @@ use crate::udp::UdpSocket;
 use crate::IpAddress;
 
 pub struct OutgoingPacket<UdpSocket> {
-    udp_socket: UdpSocket,
+    pub udp_socket: UdpSocket,
     data_length: u16,
 }
 

@@ -26,7 +26,8 @@ impl<SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket>
         mut w5500: W5500<SpiBus, NetworkImpl>,
         socket: SocketImpl,
     ) -> Result<Self, SpiBus::Error> {
-        socket.reset_interrupt(&mut w5500.bus, socketn::Interrupt::SendOk)?;
+        socket.command(&mut w5500.bus, socketn::Command::Close)?;
+        socket.reset_interrupt(&mut w5500.bus, socketn::Interrupt::All)?;
         socket.set_source_port(&mut w5500.bus, port)?;
         socket.set_mode(&mut w5500.bus, socketn::Protocol::Udp)?;
         socket.command(&mut w5500.bus, socketn::Command::Open)?;

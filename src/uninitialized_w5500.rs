@@ -62,6 +62,17 @@ impl<SpiBus: ActiveBus> UninitializedW5500<SpiBus> {
         mode_options: Mode,
     ) -> Result<(W5500<SpiBus, NetworkImpl>, OwnedSockets), InitializeError<SpiBus::Error>> {
         self.assert_chip_version(0x4)?;
+
+        // RESET
+        /*
+        let mut mode = [0b10000000];
+        self
+            .bus
+            .transfer_frame(register::COMMON, register::common::MODE, true, &mut mode)
+            .map_err(|e| InitializeError::SpiError(e))?;
+        */
+
+
         self.set_mode(mode_options)
             .map_err(|e| InitializeError::SpiError(e))?;
         network
