@@ -18,6 +18,7 @@ impl<SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket>
         host: IpAddress,
         port: u16,
     ) -> Result<Self, SpiBus::Error> {
+        // TODO set interrupt mask to SendOk&Timeout
         udp_socket
             .socket
             .set_destination_ip(&mut udp_socket.w5500.bus, host)?;
@@ -52,6 +53,8 @@ impl<SpiBus: ActiveBus, NetworkImpl: Network, SocketImpl: Socket>
             .socket
             .command(&mut self.udp_socket.w5500.bus, socketn::Command::Send)?;
         loop {
+            // TODO wait until TX pointers match first
+            // TODO check for Timeout interrupt
             // wait until send is complete
             if self
                 .udp_socket
