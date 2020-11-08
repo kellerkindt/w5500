@@ -60,6 +60,7 @@ pub mod socketn {
     pub enum Interrupt {
         All = 0b11111111u8,
         SendOk = 0b010000u8,
+        Timeout = 0b01000u8,
         Receive = 0b00100u8,
     }
 

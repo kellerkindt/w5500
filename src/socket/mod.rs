@@ -36,9 +36,8 @@ pub trait Socket {
         code: socketn::Interrupt,
     ) -> Result<bool, SpiBus::Error> {
         let mut data = [0u8];
-        BigEndian::write_u16(&mut data, code as u16);
-        bus.transfer_frame(self.register(), socketn::INTERRUPT_MASK, true, &mut data)?;
-        Ok(data[0] & socketn::Interrupt::Receive as u8 != 0)
+        bus.transfer_frame(self.register(), socketn::INTERRUPT, false, &mut data)?;
+        Ok(data[0] & code as u8 != 0)
     }
 
     fn set_source_port<SpiBus: ActiveBus>(
@@ -73,6 +72,20 @@ pub trait Socket {
         Ok(())
     }
 
+    fn get_tx_read_pointer<SpiBus: ActiveBus>(
+        &self,
+        bus: &mut SpiBus,
+    ) -> Result<u16, SpiBus::Error> {
+        let mut data = [0u8; 2];
+        bus.transfer_frame(
+            self.register(),
+            socketn::TX_DATA_READ_POINTER,
+            false,
+            &mut data
+        )?;
+        Ok(BigEndian::read_u16(&data))
+    }
+
     fn set_tx_read_pointer<SpiBus: ActiveBus>(
         &self,
         bus: &mut SpiBus,
@@ -87,6 +100,20 @@ pub trait Socket {
             &mut data
         )?;
         Ok(())
+    }
+
+    fn get_tx_write_pointer<SpiBus: ActiveBus>(
+        &self,
+        bus: &mut SpiBus,
+    ) -> Result<u16, SpiBus::Error> {
+        let mut data = [0u8; 2];
+        bus.transfer_frame(
+            self.register(),
+            socketn::TX_DATA_WRITE_POINTER,
+            false,
+            &mut data
+        )?;
+        Ok(BigEndian::read_u16(&data))
     }
 
     fn set_tx_write_pointer<SpiBus: ActiveBus>(
@@ -113,7 +140,7 @@ pub trait Socket {
         bus.transfer_frame(
             self.register(),
             socketn::RX_DATA_READ_POINTER,
-            true,
+            false,
             &mut data
         )?;
         Ok(BigEndian::read_u16(&data))
@@ -135,13 +162,27 @@ pub trait Socket {
         Ok(())
     }
 
+    fn set_interrupt_mask<SpiBus: ActiveBus>(
+        &self,
+        bus: &mut SpiBus,
+        mask: u8,
+    ) -> Result<(), SpiBus::Error> {
+        let mut data = [mask];
+        bus.transfer_frame(
+            self.register(),
+            socketn::INTERRUPT_MASK,
+            true,
+            &mut data
+        )?;
+        Ok(())
+    }
+
     fn command<SpiBus: ActiveBus>(
         &self,
         bus: &mut SpiBus,
         command: socketn::Command,
     ) -> Result<(), SpiBus::Error> {
-        let mut data = [0u8; 2];
-        BigEndian::write_u16(&mut data, command as u16);
+        let mut data = [command as u8];
         bus.transfer_frame(self.register(), socketn::COMMAND, true, &mut data)?;
         Ok(())
     }
