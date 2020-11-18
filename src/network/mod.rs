@@ -5,14 +5,25 @@ pub use self::dhcp::Dhcp;
 pub use self::manual::Manual;
 use crate::bus::ActiveBus;
 use crate::register;
-use crate::{IpAddress, MacAddress};
+use crate::MacAddress;
+use embedded_nal::Ipv4Addr;
 
-#[derive(Default)]
 pub struct NetworkSettings {
     mac: MacAddress,
-    ip: IpAddress,
-    gateway: IpAddress,
-    subnet: IpAddress,
+    ip: Ipv4Addr,
+    gateway: Ipv4Addr,
+    subnet: Ipv4Addr,
+}
+
+impl Default for NetworkSettings {
+    fn default() -> Self {
+        Self {
+            mac: MacAddress::default(),
+            ip: Ipv4Addr::unspecified(),
+            gateway: Ipv4Addr::unspecified(),
+            subnet: Ipv4Addr::unspecified(),
+        }
+    }
 }
 
 pub trait Network {
@@ -29,38 +40,23 @@ pub trait Network {
         settings: &NetworkSettings,
     ) -> Result<(), SpiBus::Error> {
         if settings.gateway != current.gateway {
-            let mut address = settings.gateway.address;
-            bus.transfer_frame(
-                register::COMMON,
-                register::common::GATEWAY,
-                true,
-                &mut address
-            )?;
+            let address = settings.gateway.octets();
+            bus.write_frame(register::COMMON, register::common::GATEWAY, &address)?;
             current.gateway = settings.gateway;
         }
         if settings.subnet != current.subnet {
-            let mut address = settings.subnet.address;
-            bus.transfer_frame(
-                register::COMMON,
-                register::common::SUBNET_MASK,
-                true,
-                &mut address
-            )?;
+            let address = settings.subnet.octets();
+            bus.write_frame(register::COMMON, register::common::SUBNET_MASK, &address)?;
             current.subnet = settings.subnet;
         }
         if settings.mac != current.mac {
             let mut address = settings.mac.address;
-            bus.transfer_frame(
-                register::COMMON,
-                register::common::MAC,
-                true,
-                &mut address
-            )?;
+            bus.write_frame(register::COMMON, register::common::MAC, &mut address)?;
             current.mac = settings.mac;
         }
         if settings.ip != current.ip {
-            let mut address = settings.ip.address;
-            bus.transfer_frame(register::COMMON, register::common::IP, true, &mut address)?;
+            let mut address = settings.ip.octets();
+            bus.write_frame(register::COMMON, register::common::IP, &mut address)?;
             current.ip = settings.ip;
         }
         Ok(())

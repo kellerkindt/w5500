@@ -1,4 +1,4 @@
-use byteorder::{BigEndian, ByteOrder};
+use core::fmt;
 use embedded_hal::spi::FullDuplex;
 
 use crate::bus::{ActiveBus, Bus};
@@ -30,7 +30,7 @@ pub struct ActiveThreeWire<Spi: FullDuplex<u8>> {
 }
 
 impl<Spi: FullDuplex<u8>> ActiveBus for ActiveThreeWire<Spi> {
-    type Error = Spi::Error;
+    type Error = ThreeWireError<Spi::Error>;
 
     /// Transfers a frame with an arbitrary data length in FDM
     ///
@@ -43,17 +43,13 @@ impl<Spi: FullDuplex<u8>> ActiveBus for ActiveThreeWire<Spi> {
     /// (address 23) 0xF0 0xAB 0x83 0xB2
     /// (address 27) 44 2C
     /// (address 29) AA
-    fn transfer_frame<'a>(
+    fn read_frame(
         &mut self,
         block: u8,
         mut address: u16,
-        is_write: bool,
-        data: &'a mut [u8],
-    ) -> Result<&'a mut [u8], Self::Error> {
+        data: &mut [u8],
+    ) -> Result<(), Self::Error> {
         let mut control_phase = block << 3;
-        if is_write {
-            control_phase |= WRITE_MODE_MASK;
-        }
 
         let mut data_phase = &mut data[..];
         let mut last_length_written: u16;
@@ -69,19 +65,51 @@ impl<Spi: FullDuplex<u8>> ActiveBus for ActiveThreeWire<Spi> {
                 last_length_written = 1;
             }
 
-            let mut address_phase = [0u8; 2];
-            BigEndian::write_u16(&mut address_phase, address);
-            Self::transfer_bytes(&mut self.spi, &mut address_phase)
-                .and_then(|_| Self::transfer_byte(&mut self.spi, &mut control_phase))
-                .and_then(|_| Self::transfer_bytes(
-                    &mut self.spi,
-                    &mut data_phase[..last_length_written as usize]
-                ))?;
+            let address_phase = address.to_be_bytes();
+            Self::write_bytes(&mut self.spi, &address_phase)
+                .and_then(|_| Self::transfer_byte(&mut self.spi, control_phase))
+                .and_then(|_| {
+                    Self::read_bytes(
+                        &mut self.spi,
+                        &mut data_phase[..last_length_written as usize],
+                    )
+                })
+                .map_err(|e| ThreeWireError::SpiError(e))?;
 
             address += last_length_written;
             data_phase = &mut data_phase[last_length_written as usize..];
         }
-        Ok(data_phase)
+        Ok(())
+    }
+    fn write_frame(&mut self, block: u8, mut address: u16, data: &[u8]) -> Result<(), Self::Error> {
+        let mut control_phase = block << 3 | WRITE_MODE_MASK;
+
+        let mut data_phase = &data[..];
+        let mut last_length_written: u16;
+        while data_phase.len() > 0 {
+            if data_phase.len() >= 4 {
+                control_phase |= FIXED_DATA_LENGTH_MODE_4;
+                last_length_written = 4;
+            } else if data_phase.len() >= 2 {
+                control_phase |= FIXED_DATA_LENGTH_MODE_2;
+                last_length_written = 2;
+            } else {
+                control_phase |= FIXED_DATA_LENGTH_MODE_1;
+                last_length_written = 1;
+            }
+
+            let address_phase = address.to_be_bytes();
+            Self::write_bytes(&mut self.spi, &address_phase)
+                .and_then(|_| Self::transfer_byte(&mut self.spi, control_phase))
+                .and_then(|_| {
+                    Self::write_bytes(&mut self.spi, &data_phase[..last_length_written as usize])
+                })
+                .map_err(|e| ThreeWireError::SpiError(e))?;
+
+            address += last_length_written;
+            data_phase = &data_phase[last_length_written as usize..];
+        }
+        Ok(())
     }
 }
 
@@ -90,3 +118,19 @@ impl<Spi: FullDuplex<u8>> ActiveThreeWire<Spi> {
         (ThreeWire::new(), self.spi)
     }
 }
+
+pub enum ThreeWireError<SpiError> {
+    SpiError(SpiError),
+}
+impl<SpiError> fmt::Debug for ThreeWireError<SpiError> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "ThreeWireError::{}",
+            match self {
+                Self::SpiError(_) => "SpiError",
+            }
+        )
+    }
+}
+// TODO impl From and remove map_errs

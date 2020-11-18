@@ -45,6 +45,7 @@ pub mod socketn {
     #[repr(u8)]
     pub enum Protocol {
         Udp = 0b10u8,
+        Closed = 0u8,
     }
     pub const COMMAND: u16 = 0x01;
     #[repr(u8)]

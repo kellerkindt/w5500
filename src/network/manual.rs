@@ -1,7 +1,8 @@
 use crate::bus::ActiveBus;
 use crate::network::Network;
 use crate::network::NetworkSettings;
-use crate::{IpAddress, MacAddress};
+use crate::MacAddress;
+use embedded_nal::Ipv4Addr;
 
 pub struct Manual {
     is_setup: bool,
@@ -10,7 +11,7 @@ pub struct Manual {
 }
 
 impl Manual {
-    pub fn new(mac: MacAddress, ip: IpAddress, gateway: IpAddress, subnet: IpAddress) -> Self {
+    pub fn new(mac: MacAddress, ip: Ipv4Addr, gateway: Ipv4Addr, subnet: Ipv4Addr) -> Self {
         Self {
             is_setup: false,
             settings: NetworkSettings {

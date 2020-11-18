@@ -1,43 +1,68 @@
 use crate::inactive_w5500::InactiveW5500;
 use crate::uninitialized_w5500::UninitializedW5500;
+use bit_field::BitArray;
 use bus::{ActiveBus, ActiveFourWire, ActiveThreeWire, FourWire, ThreeWire};
 use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::spi::FullDuplex;
 use network::Network;
 use register;
 use socket::Socket;
-use udp::UdpSocket;
 
 pub struct W5500<SpiBus: ActiveBus, NetworkImpl: Network> {
     pub bus: SpiBus,
     network: NetworkImpl,
+    sockets: [u8; 1],
+}
+
+pub enum ResetError<E> {
+    SocketsNotReleased,
+    Other(E),
+}
+
+impl<E> From<E> for ResetError<E> {
+    fn from(error: E) -> ResetError<E> {
+        ResetError::Other(error)
+    }
 }
 
 impl<SpiBus: ActiveBus, NetworkImpl: Network> W5500<SpiBus, NetworkImpl> {
     pub fn new(bus: SpiBus, network: NetworkImpl) -> Self {
-        W5500 { bus, network }
+        W5500 {
+            bus,
+            network,
+            sockets: [0b11111111],
+        }
     }
 
-    pub fn reset(mut self) -> Result<UninitializedW5500<SpiBus>, SpiBus::Error> {
-        self.clear_mode()?;
-        Ok(UninitializedW5500::new(self.bus))
+    pub fn reset(mut self) -> Result<UninitializedW5500<SpiBus>, ResetError<SpiBus::Error>> {
+        if self.sockets != [0b11111111] {
+            Err(ResetError::SocketsNotReleased)
+        } else {
+            self.clear_mode()?;
+            Ok(UninitializedW5500::new(self.bus))
+        }
     }
 
     fn clear_mode(&mut self) -> Result<(), SpiBus::Error> {
         // reset bit
         let mut mode = [0b10000000];
-        self
-            .bus
-            .transfer_frame(register::COMMON, register::common::MODE, true, &mut mode)?;
+        self.bus
+            .write_frame(register::COMMON, register::common::MODE, &mut mode)?;
         Ok(())
     }
 
-    pub fn open_udp_socket<SocketImpl: Socket>(
-        self,
-        port: u16,
-        socket: SocketImpl,
-    ) -> Result<UdpSocket<SpiBus, NetworkImpl, SocketImpl>, SpiBus::Error> {
-        UdpSocket::new(port, self, socket)
+    pub fn take_socket(&mut self) -> Option<Socket> {
+        for index in 0..8 {
+            if self.sockets.get_bit(index) {
+                self.sockets.set_bit(index, false);
+                return Some(Socket::new(index as u8));
+            }
+        }
+        None
+    }
+
+    pub fn release_socket(&mut self, socket: Socket) -> () {
+        self.sockets.set_bit(socket.index.into(), true);
     }
 
     pub fn release(self) -> (SpiBus, NetworkImpl) {

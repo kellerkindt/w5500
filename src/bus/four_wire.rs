@@ -1,4 +1,4 @@
-use byteorder::{BigEndian, ByteOrder};
+use core::fmt;
 use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::spi::FullDuplex;
 
@@ -34,33 +34,39 @@ pub struct ActiveFourWire<Spi: FullDuplex<u8>, ChipSelect: OutputPin> {
 
 impl<Spi: FullDuplex<u8>, ChipSelect: OutputPin> ActiveBus for ActiveFourWire<Spi, ChipSelect> {
     type Error = FourWireError<Spi::Error, ChipSelect::Error>;
-    fn transfer_frame<'a>(
-        &mut self,
-        block: u8,
-        address: u16,
-        is_write: bool,
-        data: &'a mut [u8],
-    ) -> Result<&'a mut [u8], Self::Error> {
-        let mut control_phase = block << 3;
-        if is_write {
-            control_phase |= WRITE_MODE_MASK;
-        }
+    fn read_frame(&mut self, block: u8, address: u16, data: &mut [u8]) -> Result<(), Self::Error> {
+        let address_phase = address.to_be_bytes();
+        let control_phase = block << 3;
         let data_phase = data;
-        let mut address_phase = [0u8; 2];
-        BigEndian::write_u16(&mut address_phase, address);
-
         self.cs
             .set_low()
             .map_err(|e| FourWireError::ChipSelectError(e))?;
-        Self::transfer_bytes(&mut self.spi, &mut address_phase)
-            .and_then(|_| Self::transfer_byte(&mut self.spi, &mut control_phase))
-            .and_then(|_| Self::transfer_bytes(&mut self.spi, data_phase))
-        .map_err(|e| FourWireError::SpiError(e))?;
+        Self::write_bytes(&mut self.spi, &address_phase)
+            .and_then(|_| Self::transfer_byte(&mut self.spi, control_phase))
+            .and_then(|_| Self::read_bytes(&mut self.spi, data_phase))
+            .map_err(|e| FourWireError::SpiError(e))?;
         self.cs
             .set_high()
             .map_err(|e| FourWireError::ChipSelectError(e))?;
 
-        Ok(data_phase)
+        Ok(())
+    }
+    fn write_frame(&mut self, block: u8, address: u16, data: &[u8]) -> Result<(), Self::Error> {
+        let address_phase = address.to_be_bytes();
+        let control_phase = block << 3 | WRITE_MODE_MASK;
+        let data_phase = data;
+        self.cs
+            .set_low()
+            .map_err(|e| FourWireError::ChipSelectError(e))?;
+        Self::write_bytes(&mut self.spi, &address_phase)
+            .and_then(|_| Self::transfer_byte(&mut self.spi, control_phase))
+            .and_then(|_| Self::write_bytes(&mut self.spi, data_phase))
+            .map_err(|e| FourWireError::SpiError(e))?;
+        self.cs
+            .set_high()
+            .map_err(|e| FourWireError::ChipSelectError(e))?;
+
+        Ok(())
     }
 }
 impl<Spi: FullDuplex<u8>, ChipSelect: OutputPin> ActiveFourWire<Spi, ChipSelect> {
@@ -74,3 +80,17 @@ pub enum FourWireError<SpiError, ChipSelectError> {
     SpiError(SpiError),
     ChipSelectError(ChipSelectError),
 }
+
+impl<SpiError, ChipSelectError> fmt::Debug for FourWireError<SpiError, ChipSelectError> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "FourWireError::{}",
+            match self {
+                Self::SpiError(_) => "SpiError",
+                Self::ChipSelectError(_) => "ChipSelectError",
+            }
+        )
+    }
+}
+// TODO impl From and remove map_errs

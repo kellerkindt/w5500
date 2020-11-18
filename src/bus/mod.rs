@@ -1,3 +1,4 @@
+use core::fmt::Debug;
 use embedded_hal::spi::FullDuplex;
 
 mod four_wire;
@@ -11,31 +12,27 @@ pub use self::three_wire::ThreeWire;
 pub trait Bus {}
 
 pub trait ActiveBus {
-    type Error;
+    type Error: Debug;
 
-    fn transfer_frame<'a>(
-        &mut self,
-        block: u8,
-        address: u16,
-        is_write: bool,
-        data: &'a mut [u8],
-    ) -> Result<&'a mut [u8], Self::Error>;
+    fn read_frame(&mut self, block: u8, address: u16, data: &mut [u8]) -> Result<(), Self::Error>;
 
-    fn transfer_bytes<'a, Spi: FullDuplex<u8>>(
-        spi: &mut Spi,
-        bytes: &'a mut [u8],
-    ) -> Result<&'a mut [u8], Spi::Error> {
+    fn write_frame(&mut self, block: u8, address: u16, data: &[u8]) -> Result<(), Self::Error>;
+
+    fn read_bytes<Spi: FullDuplex<u8>>(spi: &mut Spi, bytes: &mut [u8]) -> Result<(), Spi::Error> {
         for byte in bytes.iter_mut() {
-            Self::transfer_byte(spi, byte)?;
+            *byte = Self::transfer_byte(spi, *byte)?;
         }
-        Ok(bytes)
+        Ok(())
     }
 
-    fn transfer_byte<'a, Spi: FullDuplex<u8>>(
-        spi: &mut Spi,
-        byte: &'a mut u8,
-    ) -> Result<&'a mut u8, Spi::Error> {
-        *byte = block!(spi.send(*byte)).and_then(|_| block!(spi.read()))?;
-        Ok(byte)
+    fn write_bytes<Spi: FullDuplex<u8>>(spi: &mut Spi, bytes: &[u8]) -> Result<(), Spi::Error> {
+        for byte in bytes.iter() {
+            Self::transfer_byte(spi, *byte)?;
+        }
+        Ok(())
+    }
+
+    fn transfer_byte<Spi: FullDuplex<u8>>(spi: &mut Spi, byte: u8) -> Result<u8, Spi::Error> {
+        block!(spi.send(byte)).and_then(|_| block!(spi.read()))
     }
 }
