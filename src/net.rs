@@ -10,80 +10,6 @@
 //! [RFC 2832]: https://github.com/rust-lang/rfcs/pull/2832
 #![deny(unsafe_code, missing_docs, warnings)]
 
-/// Ipv4Addr address struct.  Can be instantiated with `Ipv4Addr::new`.
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash, Default)]
-pub struct Ipv4Addr {
-    /// Octets of the Ipv4Addr address.
-    pub octets: [u8; 4],
-}
-
-impl Ipv4Addr {
-    /// Creates a new IPv4 address from four eight-bit octets.
-    ///
-    /// The result will represent the IP address `a`.`b`.`c`.`d`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use w5500::net::Ipv4Addr;
-    ///
-    /// let addr = Ipv4Addr::new(127, 0, 0, 1);
-    /// ```
-    #[allow(clippy::many_single_char_names)]
-    pub const fn new(a: u8, b: u8, c: u8, d: u8) -> Ipv4Addr {
-        Ipv4Addr {
-            octets: [a, b, c, d],
-        }
-    }
-
-    /// An IPv4 address with the address pointing to localhost: 127.0.0.1.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use w5500::net::Ipv4Addr;
-    ///
-    /// let addr = Ipv4Addr::LOCALHOST;
-    /// assert_eq!(addr, Ipv4Addr::new(127, 0, 0, 1));
-    /// ```
-    pub const LOCALHOST: Self = Ipv4Addr::new(127, 0, 0, 1);
-
-    /// An IPv4 address representing an unspecified address: 0.0.0.0
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use w5500::net::Ipv4Addr;
-    ///
-    /// let addr = Ipv4Addr::UNSPECIFIED;
-    /// assert_eq!(addr, Ipv4Addr::new(0, 0, 0, 0));
-    /// ```
-    pub const UNSPECIFIED: Self = Ipv4Addr::new(0, 0, 0, 0);
-
-    /// An IPv4 address representing the broadcast address: 255.255.255.255
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use w5500::net::Ipv4Addr;
-    ///
-    /// let addr = Ipv4Addr::BROADCAST;
-    /// assert_eq!(addr, Ipv4Addr::new(255, 255, 255, 255));
-    /// ```
-    pub const BROADCAST: Self = Ipv4Addr::new(255, 255, 255, 255);
-}
-
-impl ::core::fmt::Display for Ipv4Addr {
-    /// String formatter for Ipv4Addr addresses.
-    fn fmt(&self, fmt: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-        write!(
-            fmt,
-            "{}.{}.{}.{}",
-            self.octets[0], self.octets[1], self.octets[2], self.octets[3],
-        )
-    }
-}
-
 /// MAC address struct.  Can be instantiated with `MacAddress::new`.
 ///
 /// This is an EUI-48 MAC address (previously called MAC-48).
@@ -111,6 +37,11 @@ impl MacAddress {
         MacAddress {
             octets: [a, b, c, d, e, f],
         }
+    }
+
+    /// Creates a new EUI-48 MAC address from six eight-bit octets.
+    pub const fn from_bytes(octets: [u8; 6]) -> MacAddress {
+        MacAddress { octets }
     }
 
     /// An EUI-48 MAC address representing an unspecified address:
