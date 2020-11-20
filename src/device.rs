@@ -1,5 +1,5 @@
-use crate::inactive_w5500::InactiveW5500;
-use crate::uninitialized_w5500::UninitializedW5500;
+use crate::inactive_device::InactiveDevice;
+use crate::uninitialized_device::UninitializedDevice;
 use bit_field::BitArray;
 use bus::{ActiveBus, ActiveFourWire, ActiveThreeWire, FourWire, ThreeWire};
 use embedded_hal::digital::v2::OutputPin;
@@ -7,8 +7,9 @@ use embedded_hal::spi::FullDuplex;
 use network::Network;
 use register;
 use socket::Socket;
+use interface::Interface;
 
-pub struct W5500<SpiBus: ActiveBus, NetworkImpl: Network> {
+pub struct Device<SpiBus: ActiveBus, NetworkImpl: Network> {
     pub bus: SpiBus,
     network: NetworkImpl,
     sockets: [u8; 1],
@@ -25,29 +26,28 @@ impl<E> From<E> for ResetError<E> {
     }
 }
 
-impl<SpiBus: ActiveBus, NetworkImpl: Network> W5500<SpiBus, NetworkImpl> {
+impl<SpiBus: ActiveBus, NetworkImpl: Network> Device<SpiBus, NetworkImpl> {
     pub fn new(bus: SpiBus, network: NetworkImpl) -> Self {
-        W5500 {
+        Device {
             bus,
             network,
             sockets: [0b11111111],
         }
     }
 
-    pub fn reset(mut self) -> Result<UninitializedW5500<SpiBus>, ResetError<SpiBus::Error>> {
+    pub fn reset(mut self) -> Result<UninitializedDevice<SpiBus>, ResetError<SpiBus::Error>> {
         if self.sockets != [0b11111111] {
             Err(ResetError::SocketsNotReleased)
         } else {
             self.clear_mode()?;
-            Ok(UninitializedW5500::new(self.bus))
+            Ok(UninitializedDevice::new(self.bus))
         }
     }
 
     fn clear_mode(&mut self) -> Result<(), SpiBus::Error> {
         // reset bit
         let mut mode = [0b10000000];
-        self.bus
-            .write_frame(register::COMMON, register::common::MODE, &mut mode)?;
+        self.bus.write_frame(register::COMMON, register::common::MODE, &mut mode)?;
         Ok(())
     }
 
@@ -61,6 +61,10 @@ impl<SpiBus: ActiveBus, NetworkImpl: Network> W5500<SpiBus, NetworkImpl> {
         None
     }
 
+    pub fn into_interface(self) -> Interface<SpiBus, NetworkImpl> {
+        self.into()
+    }
+
     pub fn release_socket(&mut self, socket: Socket) -> () {
         self.sockets.set_bit(socket.index.into(), true);
     }
@@ -71,17 +75,17 @@ impl<SpiBus: ActiveBus, NetworkImpl: Network> W5500<SpiBus, NetworkImpl> {
 }
 
 impl<Spi: FullDuplex<u8>, ChipSelect: OutputPin, NetworkImpl: Network>
-    W5500<ActiveFourWire<Spi, ChipSelect>, NetworkImpl>
+    Device<ActiveFourWire<Spi, ChipSelect>, NetworkImpl>
 {
-    pub fn deactivate(self) -> (InactiveW5500<FourWire<ChipSelect>, NetworkImpl>, Spi) {
+    pub fn deactivate(self) -> (InactiveDevice<FourWire<ChipSelect>, NetworkImpl>, Spi) {
         let (bus, spi) = self.bus.deactivate();
-        (InactiveW5500::new(bus, self.network), spi)
+        (InactiveDevice::new(bus, self.network), spi)
     }
 }
 
-impl<Spi: FullDuplex<u8>, NetworkImpl: Network> W5500<ActiveThreeWire<Spi>, NetworkImpl> {
-    pub fn deactivate(self) -> (InactiveW5500<ThreeWire, NetworkImpl>, Spi) {
+impl<Spi: FullDuplex<u8>, NetworkImpl: Network> Device<ActiveThreeWire<Spi>, NetworkImpl> {
+    pub fn deactivate(self) -> (InactiveDevice<ThreeWire, NetworkImpl>, Spi) {
         let (bus, spi) = self.bus.deactivate();
-        (InactiveW5500::new(bus, self.network), spi)
+        (InactiveDevice::new(bus, self.network), spi)
     }
 }

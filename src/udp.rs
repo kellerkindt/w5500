@@ -2,7 +2,7 @@ use crate::bus::ActiveBus;
 use crate::network::Network;
 use crate::register::socketn;
 use crate::socket::Socket;
-use crate::w5500::W5500;
+use crate::interface::Interface;
 use core::fmt::Debug;
 use embedded_nal::{nb, IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, UdpServer, UdpClient};
 
@@ -191,19 +191,20 @@ impl<E: Debug> From<NbError<E>> for nb::Error<E> {
 }
 
 
-impl<SpiBus, NetworkImpl> UdpClient for W5500<SpiBus, NetworkImpl>
+impl<SpiBus, NetworkImpl> UdpClient for Interface<SpiBus, NetworkImpl>
 where
     SpiBus: ActiveBus,
     NetworkImpl: Network,
 {
     type UdpSocket = UdpSocket;
     type Error = UdpSocketError<SpiBus::Error>;
-    fn connect(&mut self, remote: SocketAddr) -> Result<Self::UdpSocket, Self::Error> {
+    fn connect(&self, remote: SocketAddr) -> Result<Self::UdpSocket, Self::Error> {
+        let mut device = self.device.borrow_mut();
         if let SocketAddr::V4(remote) = remote {
-            if let Some(socket) = self.take_socket() {
+            if let Some(socket) = device.take_socket() {
                 // TODO find a random port
-                let mut udp_socket = UdpSocket::new(&mut self.bus, socket, 4000)?;
-                udp_socket.set_destination(&mut self.bus, remote)?;
+                let mut udp_socket = UdpSocket::new(&mut device.bus, socket, 4000)?;
+                udp_socket.set_destination(&mut device.bus, remote)?;
                 Ok(udp_socket)
             } else {
                 Err(Self::Error::NoMoreSockets)
@@ -212,44 +213,46 @@ where
             Err(Self::Error::UnsupportedAddress)
         }
     }
-    fn send(&mut self, socket: &mut Self::UdpSocket, buffer: &[u8]) -> nb::Result<(), Self::Error> {
-        socket.send(&mut self.bus, buffer)?;
+    fn send(&self, socket: &mut Self::UdpSocket, buffer: &[u8]) -> nb::Result<(), Self::Error> {
+        socket.send(&mut self.device.borrow_mut().bus, buffer)?;
         Ok(())
     }
     fn receive(
-        &mut self,
+        &self,
         socket: &mut Self::UdpSocket,
         buffer: &mut [u8],
     ) -> nb::Result<(usize, SocketAddr), Self::Error> {
-        Ok(socket.receive(&mut self.bus, buffer)?)
+        Ok(socket.receive(&mut self.device.borrow_mut().bus, buffer)?)
     }
-    fn close(&mut self, socket: Self::UdpSocket) -> Result<(), Self::Error> {
-        socket.close(&mut self.bus)?;
-        self.release_socket(socket.socket);
+    fn close(&self, socket: Self::UdpSocket) -> Result<(), Self::Error> {
+        let mut device = self.device.borrow_mut();
+        socket.close(&mut device.bus)?;
+        device.release_socket(socket.socket);
         Ok(())
     }
 }
 
-impl<SpiBus, NetworkImpl> UdpServer for W5500<SpiBus, NetworkImpl>
+impl<SpiBus, NetworkImpl> UdpServer for Interface<SpiBus, NetworkImpl>
 where
     SpiBus: ActiveBus,
     NetworkImpl: Network,
 {
-    fn bind(&mut self, local_port: u16) -> Result<Self::UdpSocket, Self::Error> {
-        if let Some(socket) = self.take_socket() {
-            Ok(UdpSocket::new(&mut self.bus, socket, local_port)?)
+    fn bind(&self, local_port: u16) -> Result<Self::UdpSocket, Self::Error> {
+        let mut device = self.device.borrow_mut();
+        if let Some(socket) = device.take_socket() {
+            Ok(UdpSocket::new(&mut device.bus, socket, local_port)?)
         } else {
             Err(Self::Error::NoMoreSockets)
         }
     }
     fn send_to(
-        &mut self,
+        &self,
         socket: &mut Self::UdpSocket,
         remote: SocketAddr,
         buffer: &[u8],
     ) -> nb::Result<(), Self::Error> {
         if let SocketAddr::V4(remote) = remote {
-            socket.send_to(&mut self.bus, remote, buffer)?;
+            socket.send_to(&mut self.device.borrow_mut().bus, remote, buffer)?;
             Ok(())
         } else {
             Err(nb::Error::Other(Self::Error::UnsupportedAddress))

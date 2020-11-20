@@ -74,12 +74,14 @@ impl Default for Mode {
 }
 
 pub mod bus;
-mod inactive_w5500;
+mod inactive_device;
 mod network;
 pub mod register;
 mod socket;
 mod udp;
-pub mod uninitialized_w5500;
-mod w5500;
+pub mod uninitialized_device;
+mod device;
+pub mod interface;
 
 pub use bus::ActiveFourWire;
+pub use interface::Interface;

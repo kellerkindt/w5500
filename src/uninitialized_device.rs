@@ -5,9 +5,9 @@ use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::spi::FullDuplex;
 use embedded_nal::Ipv4Addr;
 use register;
-use w5500::W5500;
+use device::Device;
 
-pub struct UninitializedW5500<SpiBus: ActiveBus> {
+pub struct UninitializedDevice<SpiBus: ActiveBus> {
     bus: SpiBus,
 }
 
@@ -18,16 +18,16 @@ pub enum InitializeError<SpiError> {
 }
 // TODO add From impl and remove map_errs
 
-impl<SpiBus: ActiveBus> UninitializedW5500<SpiBus> {
-    pub fn new(bus: SpiBus) -> UninitializedW5500<SpiBus> {
-        UninitializedW5500 { bus: bus }
+impl<SpiBus: ActiveBus> UninitializedDevice<SpiBus> {
+    pub fn new(bus: SpiBus) -> UninitializedDevice<SpiBus> {
+        UninitializedDevice { bus: bus }
     }
 
     pub fn initialize(
         self,
         mac: MacAddress,
         mode_options: Mode,
-    ) -> Result<W5500<SpiBus, Dhcp>, InitializeError<SpiBus::Error>> {
+    ) -> Result<Device<SpiBus, Dhcp>, InitializeError<SpiBus::Error>> {
         let network = Dhcp::new(mac);
         self.initialize_with_network(network, mode_options)
     }
@@ -37,7 +37,7 @@ impl<SpiBus: ActiveBus> UninitializedW5500<SpiBus> {
         mac: MacAddress,
         ip: Ipv4Addr,
         mode_options: Mode,
-    ) -> Result<W5500<SpiBus, Manual>, InitializeError<SpiBus::Error>> {
+    ) -> Result<Device<SpiBus, Manual>, InitializeError<SpiBus::Error>> {
         let mut ip_bytes = ip.octets();
         ip_bytes[3] = 1;
         let gateway = Ipv4Addr::from(ip_bytes);
@@ -52,7 +52,7 @@ impl<SpiBus: ActiveBus> UninitializedW5500<SpiBus> {
         gateway: Ipv4Addr,
         subnet: Ipv4Addr,
         mode_options: Mode,
-    ) -> Result<W5500<SpiBus, Manual>, InitializeError<SpiBus::Error>> {
+    ) -> Result<Device<SpiBus, Manual>, InitializeError<SpiBus::Error>> {
         let network = Manual::new(mac, ip, gateway, subnet);
         self.initialize_with_network(network, mode_options)
     }
@@ -61,7 +61,7 @@ impl<SpiBus: ActiveBus> UninitializedW5500<SpiBus> {
         mut self,
         mut network: NetworkImpl,
         mode_options: Mode,
-    ) -> Result<W5500<SpiBus, NetworkImpl>, InitializeError<SpiBus::Error>> {
+    ) -> Result<Device<SpiBus, NetworkImpl>, InitializeError<SpiBus::Error>> {
         self.assert_chip_version(0x4)?;
 
         // RESET
@@ -75,7 +75,7 @@ impl<SpiBus: ActiveBus> UninitializedW5500<SpiBus> {
         network
             .refresh(&mut self.bus)
             .map_err(|e| InitializeError::SpiError(e))?;
-        Ok(W5500::new(self.bus, network))
+        Ok(Device::new(self.bus, network))
     }
 
     fn assert_chip_version(
@@ -106,7 +106,7 @@ impl<SpiBus: ActiveBus> UninitializedW5500<SpiBus> {
 }
 
 impl<Spi: FullDuplex<u8>, ChipSelect: OutputPin>
-    UninitializedW5500<ActiveFourWire<Spi, ChipSelect>>
+    UninitializedDevice<ActiveFourWire<Spi, ChipSelect>>
 {
     pub fn deactivate(self) -> (Spi, ChipSelect) {
         let (bus, spi) = self.bus.deactivate();
@@ -114,7 +114,7 @@ impl<Spi: FullDuplex<u8>, ChipSelect: OutputPin>
     }
 }
 
-impl<Spi: FullDuplex<u8>> UninitializedW5500<ActiveThreeWire<Spi>> {
+impl<Spi: FullDuplex<u8>> UninitializedDevice<ActiveThreeWire<Spi>> {
     pub fn deactivate(self) -> Spi {
         self.bus.deactivate().1
     }
