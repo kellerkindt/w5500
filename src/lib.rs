@@ -18,7 +18,9 @@ pub struct MacAddress {
 
 impl MacAddress {
     pub fn new(n0: u8, n1: u8, n2: u8, n3: u8, n4: u8, n5: u8) -> Self {
-        MacAddress { address: [n0, n1, n2, n3, n4, n5] }
+        MacAddress {
+            address: [n0, n1, n2, n3, n4, n5],
+        }
     }
 }
 
@@ -74,14 +76,14 @@ impl Default for Mode {
 }
 
 pub mod bus;
+mod device;
 mod inactive_device;
+pub mod interface;
 mod network;
 pub mod register;
 mod socket;
 mod udp;
 pub mod uninitialized_device;
-mod device;
-pub mod interface;
 
 pub use bus::ActiveFourWire;
 pub use interface::Interface;

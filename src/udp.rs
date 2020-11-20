@@ -1,10 +1,10 @@
 use crate::bus::ActiveBus;
+use crate::interface::Interface;
 use crate::network::Network;
 use crate::register::socketn;
 use crate::socket::Socket;
-use crate::interface::Interface;
 use core::fmt::Debug;
-use embedded_nal::{nb, IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, UdpServer, UdpClient};
+use embedded_nal::{nb, IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, UdpClient, UdpServer};
 
 pub struct UdpSocket {
     socket: Socket,
@@ -56,26 +56,15 @@ impl UdpSocket {
             .and_then(|_| self.socket.command(bus, socketn::Command::Send))?;
 
         loop {
-            if self
-                .socket
-                .get_tx_read_pointer(bus)?
-                == self
-                    .socket
-                    .get_tx_write_pointer(bus)?
-            {
-                if self
-                    .socket
-                    .has_interrupt(bus, socketn::Interrupt::SendOk)?
-                {
-                    self.socket
-                        .reset_interrupt(bus, socketn::Interrupt::All)?;
+            if self.socket.get_tx_read_pointer(bus)? == self.socket.get_tx_write_pointer(bus)? {
+                if self.socket.has_interrupt(bus, socketn::Interrupt::SendOk)? {
+                    self.socket.reset_interrupt(bus, socketn::Interrupt::All)?;
                     return Ok(());
                 } else if self
                     .socket
                     .has_interrupt(bus, socketn::Interrupt::Timeout)?
                 {
-                    self.socket
-                        .reset_interrupt(bus, socketn::Interrupt::All)?;
+                    self.socket.reset_interrupt(bus, socketn::Interrupt::All)?;
                     return Err(NbError::Other(UdpSocketError::WriteTimeout));
                 }
             }
@@ -112,9 +101,7 @@ impl UdpSocket {
          */
         // TODO loop until RX received size stops changing, or it's larger than
         // receive_buffer.len()
-        let read_pointer = self
-            .socket
-            .get_rx_read_pointer(bus)?;
+        let read_pointer = self.socket.get_rx_read_pointer(bus)?;
         let mut header = [0u8; 8];
         bus.read_frame(self.socket.rx_buffer(), read_pointer, &mut header)?;
         let remote = SocketAddr::new(
@@ -130,9 +117,7 @@ impl UdpSocket {
             &mut receive_buffer[0..packet_size],
         )?;
 
-        let tx_write_pointer = self
-            .socket
-            .get_tx_write_pointer(bus)?;
+        let tx_write_pointer = self.socket.get_tx_write_pointer(bus)?;
         self.socket
             .set_rx_read_pointer(bus, tx_write_pointer)
             .and_then(|_| self.socket.command(bus, socketn::Command::Receive))?;
@@ -189,7 +174,6 @@ impl<E: Debug> From<NbError<E>> for nb::Error<E> {
         }
     }
 }
-
 
 impl<SpiBus, NetworkImpl> UdpClient for Interface<SpiBus, NetworkImpl>
 where

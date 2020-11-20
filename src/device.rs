@@ -4,10 +4,10 @@ use bit_field::BitArray;
 use bus::{ActiveBus, ActiveFourWire, ActiveThreeWire, FourWire, ThreeWire};
 use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::spi::FullDuplex;
+use interface::Interface;
 use network::Network;
 use register;
 use socket::Socket;
-use interface::Interface;
 
 pub struct Device<SpiBus: ActiveBus, NetworkImpl: Network> {
     pub bus: SpiBus,
@@ -47,7 +47,8 @@ impl<SpiBus: ActiveBus, NetworkImpl: Network> Device<SpiBus, NetworkImpl> {
     fn clear_mode(&mut self) -> Result<(), SpiBus::Error> {
         // reset bit
         let mut mode = [0b10000000];
-        self.bus.write_frame(register::COMMON, register::common::MODE, &mut mode)?;
+        self.bus
+            .write_frame(register::COMMON, register::common::MODE, &mut mode)?;
         Ok(())
     }
 
