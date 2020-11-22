@@ -20,7 +20,7 @@ pub enum InitializeError<SpiError> {
 
 impl<SpiBus: ActiveBus> UninitializedDevice<SpiBus> {
     pub fn new(bus: SpiBus) -> UninitializedDevice<SpiBus> {
-        UninitializedDevice { bus: bus }
+        UninitializedDevice { bus }
     }
 
     pub fn initialize(
@@ -65,16 +65,16 @@ impl<SpiBus: ActiveBus> UninitializedDevice<SpiBus> {
         self.assert_chip_version(0x4)?;
 
         // RESET
-        let mut mode = [0b10000000];
+        let mode = [0b10000000];
         self.bus
-            .write_frame(register::COMMON, register::common::MODE, &mut mode)
-            .map_err(|e| InitializeError::SpiError(e))?;
+            .write_frame(register::COMMON, register::common::MODE, &mode)
+            .map_err(InitializeError::SpiError)?;
 
         self.set_mode(mode_options)
-            .map_err(|e| InitializeError::SpiError(e))?;
+            .map_err(InitializeError::SpiError)?;
         network
             .refresh(&mut self.bus)
-            .map_err(|e| InitializeError::SpiError(e))?;
+            .map_err(InitializeError::SpiError)?;
         Ok(Device::new(self.bus, network))
     }
 
@@ -85,7 +85,7 @@ impl<SpiBus: ActiveBus> UninitializedDevice<SpiBus> {
         let mut version = [0];
         self.bus
             .read_frame(register::COMMON, register::common::VERSION, &mut version)
-            .map_err(|e| InitializeError::SpiError(e))?;
+            .map_err(InitializeError::SpiError)?;
         if version[0] != expected_version {
             Err(InitializeError::ChipNotConnected)
         } else {
@@ -100,7 +100,7 @@ impl<SpiBus: ActiveBus> UninitializedDevice<SpiBus> {
         mode[0] |= mode_options.connection_type as u8;
         mode[0] |= mode_options.arp_responses as u8;
         self.bus
-            .write_frame(register::COMMON, register::common::MODE, &mut mode)?;
+            .write_frame(register::COMMON, register::common::MODE, &mode)?;
         Ok(())
     }
 }

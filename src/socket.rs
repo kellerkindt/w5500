@@ -45,8 +45,8 @@ impl Socket {
         bus: &mut SpiBus,
         mode: socketn::Protocol,
     ) -> Result<(), SpiBus::Error> {
-        let mut mode = [mode as u8];
-        bus.write_frame(self.register(), socketn::MODE, &mut mode)?;
+        let mode = [mode as u8];
+        bus.write_frame(self.register(), socketn::MODE, &mode)?;
         Ok(())
     }
 
@@ -55,8 +55,8 @@ impl Socket {
         bus: &mut SpiBus,
         code: socketn::Interrupt,
     ) -> Result<(), SpiBus::Error> {
-        let mut data = [code as u8];
-        bus.write_frame(self.register(), socketn::INTERRUPT, &mut data)?;
+        let data = [code as u8];
+        bus.write_frame(self.register(), socketn::INTERRUPT, &data)?;
         Ok(())
     }
 
@@ -75,8 +75,8 @@ impl Socket {
         bus: &mut SpiBus,
         port: u16,
     ) -> Result<(), SpiBus::Error> {
-        let mut data = port.to_be_bytes();
-        bus.write_frame(self.register(), socketn::SOURCE_PORT, &mut data)?;
+        let data = port.to_be_bytes();
+        bus.write_frame(self.register(), socketn::SOURCE_PORT, &data)?;
         Ok(())
     }
 
@@ -85,8 +85,8 @@ impl Socket {
         bus: &mut SpiBus,
         ip: Ipv4Addr,
     ) -> Result<(), SpiBus::Error> {
-        let mut data = ip.octets();
-        bus.write_frame(self.register(), socketn::DESTINATION_IP, &mut data)?;
+        let data = ip.octets();
+        bus.write_frame(self.register(), socketn::DESTINATION_IP, &data)?;
         Ok(())
     }
 
@@ -95,8 +95,8 @@ impl Socket {
         bus: &mut SpiBus,
         port: u16,
     ) -> Result<(), SpiBus::Error> {
-        let mut data = port.to_be_bytes();
-        bus.write_frame(self.register(), socketn::DESTINATION_PORT, &mut data)?;
+        let data = port.to_be_bytes();
+        bus.write_frame(self.register(), socketn::DESTINATION_PORT, &data)?;
         Ok(())
     }
 
@@ -114,8 +114,8 @@ impl Socket {
         bus: &mut SpiBus,
         pointer: u16,
     ) -> Result<(), SpiBus::Error> {
-        let mut data = pointer.to_be_bytes();
-        bus.write_frame(self.register(), socketn::TX_DATA_READ_POINTER, &mut data)?;
+        let data = pointer.to_be_bytes();
+        bus.write_frame(self.register(), socketn::TX_DATA_READ_POINTER, &data)?;
         Ok(())
     }
 
@@ -133,8 +133,8 @@ impl Socket {
         bus: &mut SpiBus,
         pointer: u16,
     ) -> Result<(), SpiBus::Error> {
-        let mut data = pointer.to_be_bytes();
-        bus.write_frame(self.register(), socketn::TX_DATA_WRITE_POINTER, &mut data)?;
+        let data = pointer.to_be_bytes();
+        bus.write_frame(self.register(), socketn::TX_DATA_WRITE_POINTER, &data)?;
         Ok(())
     }
 
@@ -152,8 +152,8 @@ impl Socket {
         bus: &mut SpiBus,
         pointer: u16,
     ) -> Result<(), SpiBus::Error> {
-        let mut data = pointer.to_be_bytes();
-        bus.write_frame(self.register(), socketn::RX_DATA_READ_POINTER, &mut data)?;
+        let data = pointer.to_be_bytes();
+        bus.write_frame(self.register(), socketn::RX_DATA_READ_POINTER, &data)?;
         Ok(())
     }
 
@@ -162,8 +162,8 @@ impl Socket {
         bus: &mut SpiBus,
         mask: u8,
     ) -> Result<(), SpiBus::Error> {
-        let mut data = [mask];
-        bus.write_frame(self.register(), socketn::INTERRUPT_MASK, &mut data)?;
+        let data = [mask];
+        bus.write_frame(self.register(), socketn::INTERRUPT_MASK, &data)?;
         Ok(())
     }
 
@@ -172,8 +172,8 @@ impl Socket {
         bus: &mut SpiBus,
         command: socketn::Command,
     ) -> Result<(), SpiBus::Error> {
-        let mut data = [command as u8];
-        bus.write_frame(self.register(), socketn::COMMAND, &mut data)?;
+        let data = [command as u8];
+        bus.write_frame(self.register(), socketn::COMMAND, &data)?;
         Ok(())
     }
 

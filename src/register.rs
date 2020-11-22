@@ -1,3 +1,5 @@
+#![allow(clippy::unusual_byte_groupings)]
+
 pub const COMMON: u8 = 0;
 pub mod common {
     use bit_field::BitArray;

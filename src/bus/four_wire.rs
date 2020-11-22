@@ -1,3 +1,5 @@
+#![allow(clippy::unusual_byte_groupings)]
+
 use core::fmt;
 use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::spi::FullDuplex;
@@ -38,16 +40,12 @@ impl<Spi: FullDuplex<u8>, ChipSelect: OutputPin> ActiveBus for ActiveFourWire<Sp
         let address_phase = address.to_be_bytes();
         let control_phase = block << 3;
         let data_phase = data;
-        self.cs
-            .set_low()
-            .map_err(|e| FourWireError::ChipSelectError(e))?;
+        self.cs.set_low().map_err(FourWireError::ChipSelectError)?;
         Self::write_bytes(&mut self.spi, &address_phase)
             .and_then(|_| Self::transfer_byte(&mut self.spi, control_phase))
             .and_then(|_| Self::read_bytes(&mut self.spi, data_phase))
-            .map_err(|e| FourWireError::SpiError(e))?;
-        self.cs
-            .set_high()
-            .map_err(|e| FourWireError::ChipSelectError(e))?;
+            .map_err(FourWireError::SpiError)?;
+        self.cs.set_high().map_err(FourWireError::ChipSelectError)?;
 
         Ok(())
     }
@@ -55,16 +53,12 @@ impl<Spi: FullDuplex<u8>, ChipSelect: OutputPin> ActiveBus for ActiveFourWire<Sp
         let address_phase = address.to_be_bytes();
         let control_phase = block << 3 | WRITE_MODE_MASK;
         let data_phase = data;
-        self.cs
-            .set_low()
-            .map_err(|e| FourWireError::ChipSelectError(e))?;
+        self.cs.set_low().map_err(FourWireError::ChipSelectError)?;
         Self::write_bytes(&mut self.spi, &address_phase)
             .and_then(|_| Self::transfer_byte(&mut self.spi, control_phase))
             .and_then(|_| Self::write_bytes(&mut self.spi, data_phase))
-            .map_err(|e| FourWireError::SpiError(e))?;
-        self.cs
-            .set_high()
-            .map_err(|e| FourWireError::ChipSelectError(e))?;
+            .map_err(FourWireError::SpiError)?;
+        self.cs.set_high().map_err(FourWireError::ChipSelectError)?;
 
         Ok(())
     }

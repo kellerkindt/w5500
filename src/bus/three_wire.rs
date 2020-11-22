@@ -1,3 +1,5 @@
+#![allow(clippy::unusual_byte_groupings)]
+
 use core::fmt;
 use embedded_hal::spi::FullDuplex;
 
@@ -14,6 +16,12 @@ pub struct ThreeWire {}
 impl ThreeWire {
     pub fn new() -> Self {
         Self {}
+    }
+}
+
+impl Default for ThreeWire {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -53,7 +61,7 @@ impl<Spi: FullDuplex<u8>> ActiveBus for ActiveThreeWire<Spi> {
 
         let mut data_phase = &mut data[..];
         let mut last_length_written: u16;
-        while data_phase.len() > 0 {
+        while !data_phase.is_empty() {
             if data_phase.len() >= 4 {
                 control_phase |= FIXED_DATA_LENGTH_MODE_4;
                 last_length_written = 4;
@@ -74,7 +82,7 @@ impl<Spi: FullDuplex<u8>> ActiveBus for ActiveThreeWire<Spi> {
                         &mut data_phase[..last_length_written as usize],
                     )
                 })
-                .map_err(|e| ThreeWireError::SpiError(e))?;
+                .map_err(ThreeWireError::SpiError)?;
 
             address += last_length_written;
             data_phase = &mut data_phase[last_length_written as usize..];
@@ -86,7 +94,7 @@ impl<Spi: FullDuplex<u8>> ActiveBus for ActiveThreeWire<Spi> {
 
         let mut data_phase = &data[..];
         let mut last_length_written: u16;
-        while data_phase.len() > 0 {
+        while !data_phase.is_empty() {
             if data_phase.len() >= 4 {
                 control_phase |= FIXED_DATA_LENGTH_MODE_4;
                 last_length_written = 4;
@@ -104,7 +112,7 @@ impl<Spi: FullDuplex<u8>> ActiveBus for ActiveThreeWire<Spi> {
                 .and_then(|_| {
                     Self::write_bytes(&mut self.spi, &data_phase[..last_length_written as usize])
                 })
-                .map_err(|e| ThreeWireError::SpiError(e))?;
+                .map_err(ThreeWireError::SpiError)?;
 
             address += last_length_written;
             data_phase = &data_phase[last_length_written as usize..];

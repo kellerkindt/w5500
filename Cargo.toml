@@ -1,7 +1,7 @@
 [package]
 name = "w5500"
 version = "0.3.0"
-authors = ["Michael Watzko <michael@watzko.de>"]
+authors = ["Michael Watzko <michael@watzko.de>", "Jonah Dahlquist <hi@jonah.name>"]
 repository = "https://github.com/kellerkindt/w5500.git"
 description = "W5500 IoT Controller implementation. Currently UDP sending and receiving is working. WIP"
 keywords = ["embedded", "w5500", "iot", "arm", "embedded-hal-driver"]

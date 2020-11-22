@@ -50,13 +50,13 @@ pub trait Network {
             current.subnet = settings.subnet;
         }
         if settings.mac != current.mac {
-            let mut address = settings.mac.address;
-            bus.write_frame(register::COMMON, register::common::MAC, &mut address)?;
+            let address = settings.mac.octets;
+            bus.write_frame(register::COMMON, register::common::MAC, &address)?;
             current.mac = settings.mac;
         }
         if settings.ip != current.ip {
-            let mut address = settings.ip.octets();
-            bus.write_frame(register::COMMON, register::common::IP, &mut address)?;
+            let address = settings.ip.octets();
+            bus.write_frame(register::COMMON, register::common::IP, &address)?;
             current.ip = settings.ip;
         }
         Ok(())

@@ -46,9 +46,9 @@ impl<SpiBus: ActiveBus, NetworkImpl: Network> Device<SpiBus, NetworkImpl> {
 
     fn clear_mode(&mut self) -> Result<(), SpiBus::Error> {
         // reset bit
-        let mut mode = [0b10000000];
+        let mode = [0b10000000];
         self.bus
-            .write_frame(register::COMMON, register::common::MODE, &mut mode)?;
+            .write_frame(register::COMMON, register::common::MODE, &mode)?;
         Ok(())
     }
 
@@ -73,7 +73,7 @@ impl<SpiBus: ActiveBus, NetworkImpl: Network> Device<SpiBus, NetworkImpl> {
         self.into()
     }
 
-    pub fn release_socket(&mut self, socket: Socket) -> () {
+    pub fn release_socket(&mut self, socket: Socket) {
         self.sockets.set_bit(socket.index.into(), true);
     }
 
