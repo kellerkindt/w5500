@@ -1,6 +1,6 @@
 use crate::bus::ActiveBus;
+use crate::host::Host;
 use crate::interface::Interface;
-use crate::network::Network;
 use crate::register::socketn;
 use crate::socket::Socket;
 use core::fmt::Debug;
@@ -175,10 +175,10 @@ impl<E: Debug> From<NbError<E>> for nb::Error<E> {
     }
 }
 
-impl<SpiBus, NetworkImpl> UdpClient for Interface<SpiBus, NetworkImpl>
+impl<SpiBus, HostImpl> UdpClient for Interface<SpiBus, HostImpl>
 where
     SpiBus: ActiveBus,
-    NetworkImpl: Network,
+    HostImpl: Host,
 {
     type UdpSocket = UdpSocket;
     type Error = UdpSocketError<SpiBus::Error>;
@@ -216,10 +216,10 @@ where
     }
 }
 
-impl<SpiBus, NetworkImpl> UdpServer for Interface<SpiBus, NetworkImpl>
+impl<SpiBus, HostImpl> UdpServer for Interface<SpiBus, HostImpl>
 where
     SpiBus: ActiveBus,
-    NetworkImpl: Network,
+    HostImpl: Host,
 {
     fn bind(&self, local_port: u16) -> Result<Self::UdpSocket, Self::Error> {
         let mut device = self.device.borrow_mut();

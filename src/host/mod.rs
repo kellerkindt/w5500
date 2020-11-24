@@ -8,14 +8,14 @@ use crate::register;
 use crate::MacAddress;
 use embedded_nal::Ipv4Addr;
 
-pub struct NetworkSettings {
+pub struct HostConfig {
     mac: MacAddress,
     ip: Ipv4Addr,
     gateway: Ipv4Addr,
     subnet: Ipv4Addr,
 }
 
-impl Default for NetworkSettings {
+impl Default for HostConfig {
     fn default() -> Self {
         Self {
             mac: MacAddress::default(),
@@ -26,8 +26,8 @@ impl Default for NetworkSettings {
     }
 }
 
-pub trait Network {
-    /// Gets (if necessary) and sets the network settings on the chip
+pub trait Host {
+    /// Gets (if necessary) and sets the host settings on the chip
     fn refresh<SpiBus: ActiveBus>(&mut self, bus: &mut SpiBus) -> Result<(), SpiBus::Error>;
 
     /// Write changed settings to chip
@@ -36,8 +36,8 @@ pub trait Network {
     /// with any changes.
     fn write_settings<SpiBus: ActiveBus>(
         bus: &mut SpiBus,
-        current: &mut NetworkSettings,
-        settings: &NetworkSettings,
+        current: &mut HostConfig,
+        settings: &HostConfig,
     ) -> Result<(), SpiBus::Error> {
         if settings.gateway != current.gateway {
             let address = settings.gateway.octets();

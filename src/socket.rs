@@ -192,10 +192,4 @@ impl Socket {
             }
         }
     }
-
-    pub fn dump_register<SpiBus: ActiveBus>(&self, bus: &mut SpiBus) -> [u8; 0x30] {
-        let mut register = [0u8; 0x30];
-        bus.read_frame(self.register(), 0u16, &mut register);
-        register
-    }
 }

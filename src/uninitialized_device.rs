@@ -1,4 +1,7 @@
-use crate::network::{Dhcp, Manual, Network};
+use crate::bus::{ActiveBus, ActiveFourWire, ActiveThreeWire};
+use crate::device::Device;
+use crate::host::{Dhcp, Host, Manual};
+use crate::register;
 use crate::{MacAddress, Mode};
 use bus::{ActiveBus, ActiveFourWire, ActiveThreeWire};
 use device::Device;
@@ -28,8 +31,8 @@ impl<SpiBus: ActiveBus> UninitializedDevice<SpiBus> {
         mac: MacAddress,
         mode_options: Mode,
     ) -> Result<Device<SpiBus, Dhcp>, InitializeError<SpiBus::Error>> {
-        let network = Dhcp::new(mac);
-        self.initialize_with_network(network, mode_options)
+        let host = Dhcp::new(mac);
+        self.initialize_with_host(host, mode_options)
     }
 
     pub fn initialize_manual(
@@ -53,15 +56,15 @@ impl<SpiBus: ActiveBus> UninitializedDevice<SpiBus> {
         subnet: Ipv4Addr,
         mode_options: Mode,
     ) -> Result<Device<SpiBus, Manual>, InitializeError<SpiBus::Error>> {
-        let network = Manual::new(mac, ip, gateway, subnet);
-        self.initialize_with_network(network, mode_options)
+        let host = Manual::new(mac, ip, gateway, subnet);
+        self.initialize_with_host(host, mode_options)
     }
 
-    fn initialize_with_network<NetworkImpl: Network>(
+    fn initialize_with_host<HostImpl: Host>(
         mut self,
-        mut network: NetworkImpl,
+        mut host: HostImpl,
         mode_options: Mode,
-    ) -> Result<Device<SpiBus, NetworkImpl>, InitializeError<SpiBus::Error>> {
+    ) -> Result<Device<SpiBus, HostImpl>, InitializeError<SpiBus::Error>> {
         self.assert_chip_version(0x4)?;
 
         // RESET
@@ -72,10 +75,9 @@ impl<SpiBus: ActiveBus> UninitializedDevice<SpiBus> {
 
         self.set_mode(mode_options)
             .map_err(InitializeError::SpiError)?;
-        network
-            .refresh(&mut self.bus)
+        host.refresh(&mut self.bus)
             .map_err(InitializeError::SpiError)?;
-        Ok(Device::new(self.bus, network))
+        Ok(Device::new(self.bus, host))
     }
 
     fn assert_chip_version(

@@ -4,14 +4,19 @@ use bit_field::BitArray;
 use bus::{ActiveBus, ActiveFourWire, ActiveThreeWire, FourWire, ThreeWire};
 use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::spi::FullDuplex;
+
 use interface::Interface;
 use network::Network;
-use register;
-use socket::Socket;
+use crate::bus::{ActiveBus, ActiveFourWire, ActiveThreeWire, FourWire, ThreeWire};
+use crate::host::Host;
+use crate::inactive_device::InactiveDevice;
+use crate::register;
+use crate::socket::Socket;
+use crate::uninitialized_device::UninitializedDevice;
 
-pub struct Device<SpiBus: ActiveBus, NetworkImpl: Network> {
+pub struct Device<SpiBus: ActiveBus, HostImpl: Host> {
     pub bus: SpiBus,
-    network: NetworkImpl,
+    host: HostImpl,
     sockets: [u8; 1],
 }
 
@@ -26,11 +31,11 @@ impl<E> From<E> for ResetError<E> {
     }
 }
 
-impl<SpiBus: ActiveBus, NetworkImpl: Network> Device<SpiBus, NetworkImpl> {
-    pub fn new(bus: SpiBus, network: NetworkImpl) -> Self {
+impl<SpiBus: ActiveBus, HostImpl: Host> Device<SpiBus, HostImpl> {
+    pub fn new(bus: SpiBus, host: HostImpl) -> Self {
         Device {
             bus,
-            network,
+            host,
             sockets: [0b11111111],
         }
     }
@@ -69,7 +74,7 @@ impl<SpiBus: ActiveBus, NetworkImpl: Network> Device<SpiBus, NetworkImpl> {
         Ok(phy[0].into())
     }
 
-    pub fn into_interface(self) -> Interface<SpiBus, NetworkImpl> {
+    pub fn into_interface(self) -> Interface<SpiBus, HostImpl> {
         self.into()
     }
 
@@ -77,23 +82,23 @@ impl<SpiBus: ActiveBus, NetworkImpl: Network> Device<SpiBus, NetworkImpl> {
         self.sockets.set_bit(socket.index.into(), true);
     }
 
-    pub fn release(self) -> (SpiBus, NetworkImpl) {
-        (self.bus, self.network)
+    pub fn release(self) -> (SpiBus, HostImpl) {
+        (self.bus, self.host)
     }
 }
 
-impl<Spi: FullDuplex<u8>, ChipSelect: OutputPin, NetworkImpl: Network>
-    Device<ActiveFourWire<Spi, ChipSelect>, NetworkImpl>
+impl<Spi: FullDuplex<u8>, ChipSelect: OutputPin, HostImpl: Host>
+    Device<ActiveFourWire<Spi, ChipSelect>, HostImpl>
 {
-    pub fn deactivate(self) -> (InactiveDevice<FourWire<ChipSelect>, NetworkImpl>, Spi) {
+    pub fn deactivate(self) -> (InactiveDevice<FourWire<ChipSelect>, HostImpl>, Spi) {
         let (bus, spi) = self.bus.deactivate();
-        (InactiveDevice::new(bus, self.network), spi)
+        (InactiveDevice::new(bus, self.host), spi)
     }
 }
 
-impl<Spi: FullDuplex<u8>, NetworkImpl: Network> Device<ActiveThreeWire<Spi>, NetworkImpl> {
-    pub fn deactivate(self) -> (InactiveDevice<ThreeWire, NetworkImpl>, Spi) {
+impl<Spi: FullDuplex<u8>, HostImpl: Host> Device<ActiveThreeWire<Spi>, HostImpl> {
+    pub fn deactivate(self) -> (InactiveDevice<ThreeWire, HostImpl>, Spi) {
         let (bus, spi) = self.bus.deactivate();
-        (InactiveDevice::new(bus, self.network), spi)
+        (InactiveDevice::new(bus, self.host), spi)
     }
 }

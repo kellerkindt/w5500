@@ -1,36 +1,32 @@
-use bus::{ActiveFourWire, ActiveThreeWire, Bus, FourWire, ThreeWire};
-use device::Device;
+use crate::bus::{ActiveFourWire, ActiveThreeWire, Bus, FourWire, ThreeWire};
+use crate::device::Device;
+use crate::host::Host;
 use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::spi::FullDuplex;
 use network::Network;
 
-pub struct InactiveDevice<SpiBus: Bus, NetworkImpl: Network> {
+pub struct InactiveDevice<SpiBus: Bus, HostImpl: Host> {
     bus: SpiBus,
-    network: NetworkImpl,
+    host: HostImpl,
 }
 
-impl<SpiBus: Bus, NetworkImpl: Network> InactiveDevice<SpiBus, NetworkImpl> {
-    pub fn new(bus: SpiBus, network: NetworkImpl) -> Self {
-        Self { bus, network }
+impl<SpiBus: Bus, HostImpl: Host> InactiveDevice<SpiBus, HostImpl> {
+    pub fn new(bus: SpiBus, host: HostImpl) -> Self {
+        Self { bus, host }
     }
 }
 
-impl<ChipSelect: OutputPin, NetworkImpl: Network>
-    InactiveDevice<FourWire<ChipSelect>, NetworkImpl>
-{
+impl<ChipSelect: OutputPin, HostImpl: Host> InactiveDevice<FourWire<ChipSelect>, HostImpl> {
     pub fn activate<Spi: FullDuplex<u8>>(
         self,
         spi: Spi,
-    ) -> Device<ActiveFourWire<Spi, ChipSelect>, NetworkImpl> {
-        Device::new(self.bus.activate(spi), self.network)
+    ) -> Device<ActiveFourWire<Spi, ChipSelect>, HostImpl> {
+        Device::new(self.bus.activate(spi), self.host)
     }
 }
 
-impl<NetworkImpl: Network> InactiveDevice<ThreeWire, NetworkImpl> {
-    pub fn activate<Spi: FullDuplex<u8>>(
-        self,
-        spi: Spi,
-    ) -> Device<ActiveThreeWire<Spi>, NetworkImpl> {
-        Device::new(self.bus.activate(spi), self.network)
+impl<HostImpl: Host> InactiveDevice<ThreeWire, HostImpl> {
+    pub fn activate<Spi: FullDuplex<u8>>(self, spi: Spi) -> Device<ActiveThreeWire<Spi>, HostImpl> {
+        Device::new(self.bus.activate(spi), self.host)
     }
 }

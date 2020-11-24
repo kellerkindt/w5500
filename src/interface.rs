@@ -2,26 +2,24 @@ use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::spi::FullDuplex;
 use embedded_nal::Ipv4Addr;
 
+use crate::bus::{ActiveBus, ActiveFourWire, FourWire};
+use crate::device::Device;
+use crate::host::{Host, Manual};
+use crate::uninitialized_device::{InitializeError, UninitializedDevice};
 use crate::{MacAddress, Mode};
 
-use bus::{ActiveBus, ActiveFourWire, FourWire};
-use core::cell::RefCell;
-use device::Device;
-use network::{Manual, Network};
-use uninitialized_device::{InitializeError, UninitializedDevice};
-
-pub struct Interface<SpiBus: ActiveBus, NetworkImpl: Network> {
-    pub device: RefCell<Device<SpiBus, NetworkImpl>>,
+pub struct Interface<SpiBus: ActiveBus, HostImpl: Host> {
+    pub device: RefCell<Device<SpiBus, HostImpl>>,
 }
 
-impl<SpiBus: ActiveBus, NetworkImpl: Network> Interface<SpiBus, NetworkImpl> {
-    fn new(device: Device<SpiBus, NetworkImpl>) -> Self {
+impl<SpiBus: ActiveBus, HostImpl: Host> Interface<SpiBus, HostImpl> {
+    fn new(device: Device<SpiBus, HostImpl>) -> Self {
         Self {
             device: RefCell::new(device),
         }
     }
 
-    pub fn release(self) -> Device<SpiBus, NetworkImpl> {
+    pub fn release(self) -> Device<SpiBus, HostImpl> {
         self.device.into_inner()
     }
 }
@@ -41,10 +39,10 @@ impl<Spi: FullDuplex<u8>, ChipSelect: OutputPin>
     }
 }
 
-impl<SpiBus: ActiveBus, NetworkImpl: Network> From<Device<SpiBus, NetworkImpl>>
-    for Interface<SpiBus, NetworkImpl>
+impl<SpiBus: ActiveBus, HostImpl: Host> From<Device<SpiBus, HostImpl>>
+    for Interface<SpiBus, HostImpl>
 {
-    fn from(device: Device<SpiBus, NetworkImpl>) -> Interface<SpiBus, NetworkImpl> {
-        Interface::<SpiBus, NetworkImpl>::new(device)
+    fn from(device: Device<SpiBus, HostImpl>) -> Interface<SpiBus, HostImpl> {
+        Interface::<SpiBus, HostImpl>::new(device)
     }
 }
