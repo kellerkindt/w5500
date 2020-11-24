@@ -1,4 +1,4 @@
-#![allow(clippy::unusual_byte_groupings)]
+#![allow(clippy::inconsistent_digit_grouping, clippy::unusual_byte_groupings)]
 
 pub const COMMON: u8 = 0;
 pub mod common {

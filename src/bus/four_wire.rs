@@ -1,4 +1,4 @@
-#![allow(clippy::unusual_byte_groupings)]
+#![allow(clippy::inconsistent_digit_grouping, clippy::unusual_byte_groupings)]
 
 use core::fmt;
 use embedded_hal::digital::v2::OutputPin;
