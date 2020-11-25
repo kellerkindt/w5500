@@ -19,7 +19,12 @@ pub enum InitializeError<SpiError> {
     SpiError(SpiError),
     ChipNotConnected,
 }
-// TODO add From impl and remove map_errs
+
+impl<SpiError> From<SpiError> for InitializeError<SpiError> {
+    fn from(error: SpiError) -> InitializeError<SpiError> {
+        InitializeError::SpiError(error)
+    }
+}
 
 impl<SpiBus: ActiveBus> UninitializedDevice<SpiBus> {
     pub fn new(bus: SpiBus) -> UninitializedDevice<SpiBus> {
@@ -70,13 +75,10 @@ impl<SpiBus: ActiveBus> UninitializedDevice<SpiBus> {
         // RESET
         let mode = [0b10000000];
         self.bus
-            .write_frame(register::COMMON, register::common::MODE, &mode)
-            .map_err(InitializeError::SpiError)?;
+            .write_frame(register::COMMON, register::common::MODE, &mode)?;
 
-        self.set_mode(mode_options)
-            .map_err(InitializeError::SpiError)?;
-        host.refresh(&mut self.bus)
-            .map_err(InitializeError::SpiError)?;
+        self.set_mode(mode_options)?;
+        host.refresh(&mut self.bus)?;
         Ok(Device::new(self.bus, host))
     }
 
@@ -86,8 +88,7 @@ impl<SpiBus: ActiveBus> UninitializedDevice<SpiBus> {
     ) -> Result<(), InitializeError<SpiBus::Error>> {
         let mut version = [0];
         self.bus
-            .read_frame(register::COMMON, register::common::VERSION, &mut version)
-            .map_err(InitializeError::SpiError)?;
+            .read_frame(register::COMMON, register::common::VERSION, &mut version)?;
         if version[0] != expected_version {
             Err(InitializeError::ChipNotConnected)
         } else {
