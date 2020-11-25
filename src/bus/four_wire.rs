@@ -69,6 +69,7 @@ impl<Spi: FullDuplex<u8>, ChipSelect: OutputPin> ActiveFourWire<Spi, ChipSelect>
     }
 }
 
+// Must use map_err, ambiguity prevents From from being implemented
 #[repr(u8)]
 pub enum FourWireError<SpiError, ChipSelectError> {
     SpiError(SpiError),
@@ -87,4 +88,3 @@ impl<SpiError, ChipSelectError> fmt::Debug for FourWireError<SpiError, ChipSelec
         )
     }
 }
-// TODO impl From and remove map_errs

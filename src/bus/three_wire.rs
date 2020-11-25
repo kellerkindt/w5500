@@ -81,8 +81,7 @@ impl<Spi: FullDuplex<u8>> ActiveBus for ActiveThreeWire<Spi> {
                         &mut self.spi,
                         &mut data_phase[..last_length_written as usize],
                     )
-                })
-                .map_err(ThreeWireError::SpiError)?;
+                })?;
 
             address += last_length_written;
             data_phase = &mut data_phase[last_length_written as usize..];
@@ -111,8 +110,7 @@ impl<Spi: FullDuplex<u8>> ActiveBus for ActiveThreeWire<Spi> {
                 .and_then(|_| Self::transfer_byte(&mut self.spi, control_phase))
                 .and_then(|_| {
                     Self::write_bytes(&mut self.spi, &data_phase[..last_length_written as usize])
-                })
-                .map_err(ThreeWireError::SpiError)?;
+                })?;
 
             address += last_length_written;
             data_phase = &data_phase[last_length_written as usize..];
@@ -130,6 +128,13 @@ impl<Spi: FullDuplex<u8>> ActiveThreeWire<Spi> {
 pub enum ThreeWireError<SpiError> {
     SpiError(SpiError),
 }
+
+impl<SpiError> From<SpiError> for ThreeWireError<SpiError> {
+    fn from(error: SpiError) -> ThreeWireError<SpiError> {
+        ThreeWireError::SpiError(error)
+    }
+}
+
 impl<SpiError> fmt::Debug for ThreeWireError<SpiError> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -141,4 +146,3 @@ impl<SpiError> fmt::Debug for ThreeWireError<SpiError> {
         )
     }
 }
-// TODO impl From and remove map_errs
