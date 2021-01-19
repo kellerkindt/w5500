@@ -4,7 +4,7 @@ use crate::interface::Interface;
 use crate::register::socketn;
 use crate::socket::Socket;
 use core::fmt::Debug;
-use embedded_nal::{nb, IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, UdpClient, UdpServer};
+use embedded_nal::{nb, IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, UdpClientStack, UdpFullStack};
 
 pub struct UdpSocket {
     socket: Socket,
@@ -178,7 +178,7 @@ impl<E: Debug> From<NbError<E>> for nb::Error<E> {
     }
 }
 
-impl<SpiBus, HostImpl> UdpClient for Interface<SpiBus, HostImpl>
+impl<SpiBus, HostImpl> UdpClientStack for Interface<SpiBus, HostImpl>
 where
     SpiBus: ActiveBus,
     HostImpl: Host,
@@ -186,7 +186,7 @@ where
     type UdpSocket = UdpSocket;
     type Error = UdpSocketError<SpiBus::Error>;
 
-    fn socket(&self) -> Result<Self::UdpSocket, Self::Error> {
+    fn socket(&mut self) -> Result<Self::UdpSocket, Self::Error> {
         let mut device = self.device.borrow_mut();
         if let Some(socket) = device.take_socket() {
             Ok(UdpSocket::new(socket))
@@ -195,7 +195,11 @@ where
         }
     }
 
-    fn connect(&self, socket: &mut Self::UdpSocket, remote: SocketAddr) -> Result<(), Self::Error> {
+    fn connect(
+        &mut self,
+        socket: &mut Self::UdpSocket,
+        remote: SocketAddr,
+    ) -> Result<(), Self::Error> {
         let mut device = self.device.borrow_mut();
         if let SocketAddr::V4(remote) = remote {
             // TODO find a random port
@@ -206,18 +210,18 @@ where
             Err(Self::Error::UnsupportedAddress)
         }
     }
-    fn send(&self, socket: &mut Self::UdpSocket, buffer: &[u8]) -> nb::Result<(), Self::Error> {
+    fn send(&mut self, socket: &mut Self::UdpSocket, buffer: &[u8]) -> nb::Result<(), Self::Error> {
         socket.send(&mut self.device.borrow_mut().bus, buffer)?;
         Ok(())
     }
     fn receive(
-        &self,
+        &mut self,
         socket: &mut Self::UdpSocket,
         buffer: &mut [u8],
     ) -> nb::Result<(usize, SocketAddr), Self::Error> {
         Ok(socket.receive(&mut self.device.borrow_mut().bus, buffer)?)
     }
-    fn close(&self, socket: Self::UdpSocket) -> Result<(), Self::Error> {
+    fn close(&mut self, socket: Self::UdpSocket) -> Result<(), Self::Error> {
         let mut device = self.device.borrow_mut();
         socket.close(&mut device.bus)?;
         device.release_socket(socket.socket);
@@ -225,18 +229,18 @@ where
     }
 }
 
-impl<SpiBus, HostImpl> UdpServer for Interface<SpiBus, HostImpl>
+impl<SpiBus, HostImpl> UdpFullStack for Interface<SpiBus, HostImpl>
 where
     SpiBus: ActiveBus,
     HostImpl: Host,
 {
-    fn bind(&self, socket: &mut Self::UdpSocket, local_port: u16) -> Result<(), Self::Error> {
+    fn bind(&mut self, socket: &mut Self::UdpSocket, local_port: u16) -> Result<(), Self::Error> {
         let mut device = self.device.borrow_mut();
         socket.open(&mut device.bus, local_port)?;
         Ok(())
     }
     fn send_to(
-        &self,
+        &mut self,
         socket: &mut Self::UdpSocket,
         remote: SocketAddr,
         buffer: &[u8],
