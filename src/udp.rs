@@ -187,7 +187,7 @@ where
     type Error = UdpSocketError<SpiBus::Error>;
 
     fn socket(&mut self) -> Result<Self::UdpSocket, Self::Error> {
-        let mut device = self.device.borrow_mut();
+        let mut device = &mut self.device;
         if let Some(socket) = device.take_socket() {
             Ok(UdpSocket::new(socket))
         } else {
@@ -200,7 +200,7 @@ where
         socket: &mut Self::UdpSocket,
         remote: SocketAddr,
     ) -> Result<(), Self::Error> {
-        let mut device = self.device.borrow_mut();
+        let mut device = &mut self.device;
         if let SocketAddr::V4(remote) = remote {
             // TODO find a random port
             socket.open(&mut device.bus, 4000)?;
@@ -211,7 +211,7 @@ where
         }
     }
     fn send(&mut self, socket: &mut Self::UdpSocket, buffer: &[u8]) -> nb::Result<(), Self::Error> {
-        socket.send(&mut self.device.borrow_mut().bus, buffer)?;
+        socket.send(&mut self.device.bus, buffer)?;
         Ok(())
     }
     fn receive(
@@ -219,10 +219,10 @@ where
         socket: &mut Self::UdpSocket,
         buffer: &mut [u8],
     ) -> nb::Result<(usize, SocketAddr), Self::Error> {
-        Ok(socket.receive(&mut self.device.borrow_mut().bus, buffer)?)
+        Ok(socket.receive(&mut self.device.bus, buffer)?)
     }
     fn close(&mut self, socket: Self::UdpSocket) -> Result<(), Self::Error> {
-        let mut device = self.device.borrow_mut();
+        let mut device = &mut self.device;
         socket.close(&mut device.bus)?;
         device.release_socket(socket.socket);
         Ok(())
@@ -235,7 +235,7 @@ where
     HostImpl: Host,
 {
     fn bind(&mut self, socket: &mut Self::UdpSocket, local_port: u16) -> Result<(), Self::Error> {
-        let mut device = self.device.borrow_mut();
+        let mut device = &mut self.device;
         socket.open(&mut device.bus, local_port)?;
         Ok(())
     }
@@ -246,7 +246,7 @@ where
         buffer: &[u8],
     ) -> nb::Result<(), Self::Error> {
         if let SocketAddr::V4(remote) = remote {
-            socket.send_to(&mut self.device.borrow_mut().bus, remote, buffer)?;
+            socket.send_to(&mut self.device.bus, remote, buffer)?;
             Ok(())
         } else {
             Err(nb::Error::Other(Self::Error::UnsupportedAddress))

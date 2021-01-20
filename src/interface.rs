@@ -9,18 +9,16 @@ use crate::uninitialized_device::{InitializeError, UninitializedDevice};
 use crate::{MacAddress, Mode};
 
 pub struct Interface<SpiBus: ActiveBus, HostImpl: Host> {
-    pub device: RefCell<Device<SpiBus, HostImpl>>,
+    pub device: Device<SpiBus, HostImpl>,
 }
 
 impl<SpiBus: ActiveBus, HostImpl: Host> Interface<SpiBus, HostImpl> {
     fn new(device: Device<SpiBus, HostImpl>) -> Self {
-        Self {
-            device: RefCell::new(device),
-        }
+        Self { device }
     }
 
     pub fn release(self) -> Device<SpiBus, HostImpl> {
-        self.device.into_inner()
+        self.device
     }
 }
 
