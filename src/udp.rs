@@ -11,11 +11,11 @@ pub struct UdpSocket {
 }
 
 impl UdpSocket {
-    pub fn new(socket: Socket) -> Self {
+    fn new(socket: Socket) -> Self {
         UdpSocket { socket }
     }
 
-    pub fn open<SpiBus: Bus>(
+    fn open<SpiBus: Bus>(
         &mut self,
         bus: &mut SpiBus,
         local_port: u16,
@@ -97,7 +97,7 @@ impl UdpSocket {
         }
 
         /*
-         * Packet frame, as described in W5200 docs sectino 5.2.2.1
+         * Packet frame, as described in W5200 docs section 5.2.2.1
          * |<-- read_pointer                                 read_pointer + received_size -->|
          * | Destination IP Address | Destination Port | Byte Size of DATA | Actual DATA ... |
          * |    --- 4 Bytes ---     |  --- 2 Bytes --- |  --- 2 Bytes ---  |      ....       |

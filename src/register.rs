@@ -1,5 +1,6 @@
 #![allow(clippy::inconsistent_digit_grouping, clippy::unusual_byte_groupings)]
 
+// TODO change from u8 to a custom struct implementing a trait.
 pub const COMMON: u8 = 0;
 pub mod common {
     use bit_field::BitArray;

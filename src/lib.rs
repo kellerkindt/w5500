@@ -73,10 +73,13 @@ impl Default for Mode {
 pub mod bus;
 mod device;
 mod host;
-pub mod net;
+mod net;
 pub mod register;
 mod socket;
 mod udp;
-pub mod uninitialized_device;
+mod uninitialized_device;
 
+pub use device::Device;
+pub use host::{Dhcp,HostConfig,Manual};
 pub use net::MacAddress;
+pub use uninitialized_device::UninitializedDevice;

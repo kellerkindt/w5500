@@ -28,7 +28,7 @@ impl<E> From<E> for ResetError<E> {
 }
 
 impl<SpiBus: Bus, HostImpl: Host> Device<SpiBus, HostImpl> {
-    pub fn new(bus: SpiBus, host: HostImpl) -> Self {
+    pub(crate) fn new(bus: SpiBus, host: HostImpl) -> Self {
         Device {
             bus,
             host,
@@ -53,7 +53,7 @@ impl<SpiBus: Bus, HostImpl: Host> Device<SpiBus, HostImpl> {
         Ok(())
     }
 
-    pub fn take_socket(&mut self) -> Option<Socket> {
+    pub(crate) fn take_socket(&mut self) -> Option<Socket> {
         // TODO maybe return Future that resolves when release_socket invoked
         for index in 0..8 {
             if self.sockets.get_bit(index) {
@@ -71,7 +71,7 @@ impl<SpiBus: Bus, HostImpl: Host> Device<SpiBus, HostImpl> {
         Ok(phy[0].into())
     }
 
-    pub fn release_socket(&mut self, socket: Socket) {
+    pub(crate) fn release_socket(&mut self, socket: Socket) {
         self.sockets.set_bit(socket.index.into(), true);
     }
 

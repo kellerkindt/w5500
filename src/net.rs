@@ -102,7 +102,7 @@ impl MacAddress {
     /// # Examples
     ///
     /// ```
-    /// use w5500::net::MacAddress;
+    /// use w5500::MacAddress;
     ///
     /// let addr = MacAddress::new(0x00, 0x00, 0x5E, 0x00, 0x00, 0x00);
     /// ```
@@ -119,7 +119,7 @@ impl MacAddress {
     /// # Examples
     ///
     /// ```
-    /// use w5500::net::MacAddress;
+    /// use w5500::MacAddress;
     ///
     /// let addr = MacAddress::UNSPECIFIED;
     /// assert_eq!(addr, MacAddress::new(0x00, 0x00, 0x00, 0x00, 0x00, 0x00));

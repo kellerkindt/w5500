@@ -11,6 +11,7 @@ const FIXED_DATA_LENGTH_MODE_1: u8 = 0b000000_01;
 const FIXED_DATA_LENGTH_MODE_2: u8 = 0b000000_10;
 const FIXED_DATA_LENGTH_MODE_4: u8 = 0b000000_11;
 
+// TODO This name is not ideal, should be renamed to FDM
 pub struct ThreeWire<Spi: Transfer<u8> + Write<u8>> {
     spi: Spi,
 }
