@@ -1,7 +1,4 @@
-use crate::inactive_device::InactiveDevice;
-use crate::uninitialized_device::UninitializedDevice;
 use bit_field::BitArray;
-use bus::{ActiveBus, ActiveFourWire, ActiveThreeWire, FourWire, ThreeWire};
 use embedded_hal::digital::v2::OutputPin;
 
 use crate::bus::{Bus, FourWire, ThreeWire};

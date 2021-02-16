@@ -4,7 +4,7 @@ use crate::MacAddress;
 
 pub struct Dhcp {
     // settings: HostConfig,
-    // current: HostConfig,
+// current: HostConfig,
 }
 
 impl Dhcp {

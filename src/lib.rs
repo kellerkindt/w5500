@@ -1,23 +1,7 @@
 #![no_std]
 #![allow(unused)]
 #![deny(broken_intra_doc_links)]
-
 #[macro_use(block)]
-extern crate nb;
-
-/// MAC address struct.  Represents a MAC address as a u8 array of length 6. Can be instantiated with `MacAddress::new`
-#[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug)]
-pub struct MacAddress {
-    pub address: [u8; 6],
-}
-
-impl MacAddress {
-    pub fn new(n0: u8, n1: u8, n2: u8, n3: u8, n4: u8, n5: u8) -> Self {
-        MacAddress {
-            address: [n0, n1, n2, n3, n4, n5],
-        }
-    }
-}
 
 /// Settings for wake on LAN.  Allows the W5500 to optionally emit an interrupt upon receiving a packet
 #[repr(u8)]
@@ -82,6 +66,6 @@ mod udp;
 mod uninitialized_device;
 
 pub use device::Device;
-pub use host::{Dhcp,HostConfig,Manual};
+pub use host::{Dhcp, HostConfig, Manual};
 pub use net::MacAddress;
 pub use uninitialized_device::UninitializedDevice;

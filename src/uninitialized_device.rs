@@ -1,12 +1,12 @@
+use embedded_hal::blocking::spi::{Transfer, Write};
+use embedded_hal::digital::v2::OutputPin;
+use embedded_nal::Ipv4Addr;
+
 use crate::bus::{Bus, FourWire, ThreeWire};
 use crate::device::Device;
 use crate::host::{Dhcp, Host, Manual};
 use crate::register;
 use crate::{MacAddress, Mode};
-use embedded_hal::blocking::spi::{Transfer, Write};
-use embedded_hal::digital::v2::OutputPin;
-use embedded_nal::Ipv4Addr;
-use register;
 
 pub struct UninitializedDevice<SpiBus: Bus> {
     bus: SpiBus,
