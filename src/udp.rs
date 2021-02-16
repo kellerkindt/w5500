@@ -1,6 +1,6 @@
 use crate::bus::ActiveBus;
+use crate::device::Device;
 use crate::host::Host;
-use crate::interface::Interface;
 use crate::register::socketn;
 use crate::socket::Socket;
 use core::fmt::Debug;
@@ -178,7 +178,7 @@ impl<E: Debug> From<NbError<E>> for nb::Error<E> {
     }
 }
 
-impl<SpiBus, HostImpl> UdpClientStack for Interface<SpiBus, HostImpl>
+impl<SpiBus, HostImpl> UdpClientStack for Device<SpiBus, HostImpl>
 where
     SpiBus: ActiveBus,
     HostImpl: Host,
@@ -187,8 +187,7 @@ where
     type Error = UdpSocketError<SpiBus::Error>;
 
     fn socket(&mut self) -> Result<Self::UdpSocket, Self::Error> {
-        let mut device = &mut self.device;
-        if let Some(socket) = device.take_socket() {
+        if let Some(socket) = self.take_socket() {
             Ok(UdpSocket::new(socket))
         } else {
             Err(Self::Error::NoMoreSockets)
@@ -200,18 +199,17 @@ where
         socket: &mut Self::UdpSocket,
         remote: SocketAddr,
     ) -> Result<(), Self::Error> {
-        let mut device = &mut self.device;
         if let SocketAddr::V4(remote) = remote {
             // TODO find a random port
-            socket.open(&mut device.bus, 4000)?;
-            socket.set_destination(&mut device.bus, remote)?;
+            socket.open(&mut self.bus, 4000)?;
+            socket.set_destination(&mut self.bus, remote)?;
             Ok(())
         } else {
             Err(Self::Error::UnsupportedAddress)
         }
     }
     fn send(&mut self, socket: &mut Self::UdpSocket, buffer: &[u8]) -> nb::Result<(), Self::Error> {
-        socket.send(&mut self.device.bus, buffer)?;
+        socket.send(&mut self.bus, buffer)?;
         Ok(())
     }
     fn receive(
@@ -219,24 +217,22 @@ where
         socket: &mut Self::UdpSocket,
         buffer: &mut [u8],
     ) -> nb::Result<(usize, SocketAddr), Self::Error> {
-        Ok(socket.receive(&mut self.device.bus, buffer)?)
+        Ok(socket.receive(&mut self.bus, buffer)?)
     }
     fn close(&mut self, socket: Self::UdpSocket) -> Result<(), Self::Error> {
-        let mut device = &mut self.device;
-        socket.close(&mut device.bus)?;
-        device.release_socket(socket.socket);
+        socket.close(&mut self.bus)?;
+        self.release_socket(socket.socket);
         Ok(())
     }
 }
 
-impl<SpiBus, HostImpl> UdpFullStack for Interface<SpiBus, HostImpl>
+impl<SpiBus, HostImpl> UdpFullStack for Device<SpiBus, HostImpl>
 where
     SpiBus: ActiveBus,
     HostImpl: Host,
 {
     fn bind(&mut self, socket: &mut Self::UdpSocket, local_port: u16) -> Result<(), Self::Error> {
-        let mut device = &mut self.device;
-        socket.open(&mut device.bus, local_port)?;
+        socket.open(&mut self.bus, local_port)?;
         Ok(())
     }
     fn send_to(
@@ -246,7 +242,7 @@ where
         buffer: &[u8],
     ) -> nb::Result<(), Self::Error> {
         if let SocketAddr::V4(remote) = remote {
-            socket.send_to(&mut self.device.bus, remote, buffer)?;
+            socket.send_to(&mut self.bus, remote, buffer)?;
             Ok(())
         } else {
             Err(nb::Error::Other(Self::Error::UnsupportedAddress))

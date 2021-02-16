@@ -74,10 +74,6 @@ impl<SpiBus: ActiveBus, HostImpl: Host> Device<SpiBus, HostImpl> {
         Ok(phy[0].into())
     }
 
-    pub fn into_interface(self) -> Interface<SpiBus, HostImpl> {
-        self.into()
-    }
-
     pub fn release_socket(&mut self, socket: Socket) {
         self.sockets.set_bit(socket.index.into(), true);
     }

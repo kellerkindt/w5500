@@ -13,6 +13,6 @@ edition = "2018"
 [dependencies]
 byteorder = { version = "1.3.4", default-features = false }
 embedded-hal = "0.2.4"
-embedded-nal = { git = "https://github.com/rust-embedded-community/embedded-nal.git", rev = "0bc4d77" }
+embedded-nal = "0.3.0"
 bit_field = "0.10.1"
 nb = "1.0.0"

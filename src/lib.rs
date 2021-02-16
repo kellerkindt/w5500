@@ -74,13 +74,10 @@ pub mod bus;
 mod device;
 mod host;
 mod inactive_device;
-pub mod interface;
-mod network;
 pub mod net;
 pub mod register;
 mod socket;
 mod udp;
 pub mod uninitialized_device;
 
-pub use bus::ActiveFourWire;
-pub use interface::Interface;
+pub use net::MacAddress;
