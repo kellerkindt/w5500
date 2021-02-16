@@ -1,16 +1,14 @@
-use crate::bus::{ActiveBus, ActiveFourWire, ActiveThreeWire};
+use crate::bus::{Bus, FourWire, ThreeWire};
 use crate::device::Device;
 use crate::host::{Dhcp, Host, Manual};
 use crate::register;
 use crate::{MacAddress, Mode};
-use bus::{ActiveBus, ActiveFourWire, ActiveThreeWire};
-use device::Device;
+use embedded_hal::blocking::spi::{Transfer, Write};
 use embedded_hal::digital::v2::OutputPin;
-use embedded_hal::spi::FullDuplex;
 use embedded_nal::Ipv4Addr;
 use register;
 
-pub struct UninitializedDevice<SpiBus: ActiveBus> {
+pub struct UninitializedDevice<SpiBus: Bus> {
     bus: SpiBus,
 }
 
@@ -26,7 +24,7 @@ impl<SpiError> From<SpiError> for InitializeError<SpiError> {
     }
 }
 
-impl<SpiBus: ActiveBus> UninitializedDevice<SpiBus> {
+impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
     pub fn new(bus: SpiBus) -> UninitializedDevice<SpiBus> {
         UninitializedDevice { bus }
     }
@@ -124,17 +122,16 @@ impl<SpiBus: ActiveBus> UninitializedDevice<SpiBus> {
     }
 }
 
-impl<Spi: FullDuplex<u8>, ChipSelect: OutputPin>
-    UninitializedDevice<ActiveFourWire<Spi, ChipSelect>>
+impl<Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin>
+    UninitializedDevice<FourWire<Spi, ChipSelect>>
 {
     pub fn deactivate(self) -> (Spi, ChipSelect) {
-        let (bus, spi) = self.bus.deactivate();
-        (spi, bus.release())
+        self.bus.release()
     }
 }
 
-impl<Spi: FullDuplex<u8>> UninitializedDevice<ActiveThreeWire<Spi>> {
+impl<Spi: Transfer<u8> + Write<u8>> UninitializedDevice<ThreeWire<Spi>> {
     pub fn deactivate(self) -> Spi {
-        self.bus.deactivate().1
+        self.bus.release()
     }
 }

@@ -3,18 +3,14 @@ use crate::uninitialized_device::UninitializedDevice;
 use bit_field::BitArray;
 use bus::{ActiveBus, ActiveFourWire, ActiveThreeWire, FourWire, ThreeWire};
 use embedded_hal::digital::v2::OutputPin;
-use embedded_hal::spi::FullDuplex;
 
-use interface::Interface;
-use network::Network;
-use crate::bus::{ActiveBus, ActiveFourWire, ActiveThreeWire, FourWire, ThreeWire};
+use crate::bus::{Bus, FourWire, ThreeWire};
 use crate::host::Host;
-use crate::inactive_device::InactiveDevice;
 use crate::register;
 use crate::socket::Socket;
 use crate::uninitialized_device::UninitializedDevice;
 
-pub struct Device<SpiBus: ActiveBus, HostImpl: Host> {
+pub struct Device<SpiBus: Bus, HostImpl: Host> {
     pub bus: SpiBus,
     host: HostImpl,
     sockets: [u8; 1],
@@ -31,7 +27,7 @@ impl<E> From<E> for ResetError<E> {
     }
 }
 
-impl<SpiBus: ActiveBus, HostImpl: Host> Device<SpiBus, HostImpl> {
+impl<SpiBus: Bus, HostImpl: Host> Device<SpiBus, HostImpl> {
     pub fn new(bus: SpiBus, host: HostImpl) -> Self {
         Device {
             bus,
@@ -58,6 +54,7 @@ impl<SpiBus: ActiveBus, HostImpl: Host> Device<SpiBus, HostImpl> {
     }
 
     pub fn take_socket(&mut self) -> Option<Socket> {
+        // TODO maybe return Future that resolves when release_socket invoked
         for index in 0..8 {
             if self.sockets.get_bit(index) {
                 self.sockets.set_bit(index, false);
@@ -80,21 +77,5 @@ impl<SpiBus: ActiveBus, HostImpl: Host> Device<SpiBus, HostImpl> {
 
     pub fn release(self) -> (SpiBus, HostImpl) {
         (self.bus, self.host)
-    }
-}
-
-impl<Spi: FullDuplex<u8>, ChipSelect: OutputPin, HostImpl: Host>
-    Device<ActiveFourWire<Spi, ChipSelect>, HostImpl>
-{
-    pub fn deactivate(self) -> (InactiveDevice<FourWire<ChipSelect>, HostImpl>, Spi) {
-        let (bus, spi) = self.bus.deactivate();
-        (InactiveDevice::new(bus, self.host), spi)
-    }
-}
-
-impl<Spi: FullDuplex<u8>, HostImpl: Host> Device<ActiveThreeWire<Spi>, HostImpl> {
-    pub fn deactivate(self) -> (InactiveDevice<ThreeWire, HostImpl>, Spi) {
-        let (bus, spi) = self.bus.deactivate();
-        (InactiveDevice::new(bus, self.host), spi)
     }
 }

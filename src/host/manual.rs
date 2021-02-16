@@ -1,4 +1,4 @@
-use crate::bus::ActiveBus;
+use crate::bus::Bus;
 use crate::host::{Host, HostConfig};
 use crate::MacAddress;
 use embedded_nal::Ipv4Addr;
@@ -26,7 +26,7 @@ impl Manual {
 
 impl Host for Manual {
     /// Gets (if necessary) and sets the host settings on the chip
-    fn refresh<SpiBus: ActiveBus>(&mut self, bus: &mut SpiBus) -> Result<(), SpiBus::Error> {
+    fn refresh<SpiBus: Bus>(&mut self, bus: &mut SpiBus) -> Result<(), SpiBus::Error> {
         if !self.is_setup {
             Self::write_settings(bus, &mut self.current, &self.settings)?;
             self.is_setup = true;

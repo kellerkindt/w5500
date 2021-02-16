@@ -1,4 +1,4 @@
-use crate::bus::ActiveBus;
+use crate::bus::Bus;
 use crate::host::Host;
 use crate::MacAddress;
 
@@ -22,7 +22,7 @@ impl Dhcp {
 
 impl Host for Dhcp {
     /// Gets (if necessary) and sets the host settings on the chip
-    fn refresh<SpiBus: ActiveBus>(&mut self, _bus: &mut SpiBus) -> Result<(), SpiBus::Error> {
+    fn refresh<SpiBus: Bus>(&mut self, _bus: &mut SpiBus) -> Result<(), SpiBus::Error> {
         // TODO actually negotiate settings from DHCP
         // TODO figure out how should receive socket for DHCP negotiations
         Ok(())

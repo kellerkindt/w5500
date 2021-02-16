@@ -73,7 +73,6 @@ impl Default for Mode {
 pub mod bus;
 mod device;
 mod host;
-mod inactive_device;
 pub mod net;
 pub mod register;
 mod socket;

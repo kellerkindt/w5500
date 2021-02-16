@@ -1,4 +1,4 @@
-use crate::bus::ActiveBus;
+use crate::bus::Bus;
 use crate::register::socketn;
 use embedded_nal::Ipv4Addr;
 
@@ -40,7 +40,7 @@ impl Socket {
         self.rx_buffer
     }
 
-    pub fn set_mode<SpiBus: ActiveBus>(
+    pub fn set_mode<SpiBus: Bus>(
         &self,
         bus: &mut SpiBus,
         mode: socketn::Protocol,
@@ -50,7 +50,7 @@ impl Socket {
         Ok(())
     }
 
-    pub fn reset_interrupt<SpiBus: ActiveBus>(
+    pub fn reset_interrupt<SpiBus: Bus>(
         &self,
         bus: &mut SpiBus,
         code: socketn::Interrupt,
@@ -60,7 +60,7 @@ impl Socket {
         Ok(())
     }
 
-    pub fn has_interrupt<SpiBus: ActiveBus>(
+    pub fn has_interrupt<SpiBus: Bus>(
         &self,
         bus: &mut SpiBus,
         code: socketn::Interrupt,
@@ -70,7 +70,7 @@ impl Socket {
         Ok(data[0] & code as u8 != 0)
     }
 
-    pub fn set_source_port<SpiBus: ActiveBus>(
+    pub fn set_source_port<SpiBus: Bus>(
         &self,
         bus: &mut SpiBus,
         port: u16,
@@ -80,7 +80,7 @@ impl Socket {
         Ok(())
     }
 
-    pub fn set_destination_ip<SpiBus: ActiveBus>(
+    pub fn set_destination_ip<SpiBus: Bus>(
         &self,
         bus: &mut SpiBus,
         ip: Ipv4Addr,
@@ -90,7 +90,7 @@ impl Socket {
         Ok(())
     }
 
-    pub fn set_destination_port<SpiBus: ActiveBus>(
+    pub fn set_destination_port<SpiBus: Bus>(
         &self,
         bus: &mut SpiBus,
         port: u16,
@@ -100,16 +100,13 @@ impl Socket {
         Ok(())
     }
 
-    pub fn get_tx_read_pointer<SpiBus: ActiveBus>(
-        &self,
-        bus: &mut SpiBus,
-    ) -> Result<u16, SpiBus::Error> {
+    pub fn get_tx_read_pointer<SpiBus: Bus>(&self, bus: &mut SpiBus) -> Result<u16, SpiBus::Error> {
         let mut data = [0u8; 2];
         bus.read_frame(self.register(), socketn::TX_DATA_READ_POINTER, &mut data)?;
         Ok(u16::from_be_bytes(data))
     }
 
-    pub fn set_tx_read_pointer<SpiBus: ActiveBus>(
+    pub fn set_tx_read_pointer<SpiBus: Bus>(
         &self,
         bus: &mut SpiBus,
         pointer: u16,
@@ -119,7 +116,7 @@ impl Socket {
         Ok(())
     }
 
-    pub fn get_tx_write_pointer<SpiBus: ActiveBus>(
+    pub fn get_tx_write_pointer<SpiBus: Bus>(
         &self,
         bus: &mut SpiBus,
     ) -> Result<u16, SpiBus::Error> {
@@ -128,7 +125,7 @@ impl Socket {
         Ok(u16::from_be_bytes(data))
     }
 
-    pub fn set_tx_write_pointer<SpiBus: ActiveBus>(
+    pub fn set_tx_write_pointer<SpiBus: Bus>(
         &self,
         bus: &mut SpiBus,
         pointer: u16,
@@ -138,16 +135,13 @@ impl Socket {
         Ok(())
     }
 
-    pub fn get_rx_read_pointer<SpiBus: ActiveBus>(
-        &self,
-        bus: &mut SpiBus,
-    ) -> Result<u16, SpiBus::Error> {
+    pub fn get_rx_read_pointer<SpiBus: Bus>(&self, bus: &mut SpiBus) -> Result<u16, SpiBus::Error> {
         let mut data = [0u8; 2];
         bus.read_frame(self.register(), socketn::RX_DATA_READ_POINTER, &mut data)?;
         Ok(u16::from_be_bytes(data))
     }
 
-    pub fn set_rx_read_pointer<SpiBus: ActiveBus>(
+    pub fn set_rx_read_pointer<SpiBus: Bus>(
         &self,
         bus: &mut SpiBus,
         pointer: u16,
@@ -157,7 +151,7 @@ impl Socket {
         Ok(())
     }
 
-    pub fn set_interrupt_mask<SpiBus: ActiveBus>(
+    pub fn set_interrupt_mask<SpiBus: Bus>(
         &self,
         bus: &mut SpiBus,
         mask: u8,
@@ -167,7 +161,7 @@ impl Socket {
         Ok(())
     }
 
-    pub fn command<SpiBus: ActiveBus>(
+    pub fn command<SpiBus: Bus>(
         &self,
         bus: &mut SpiBus,
         command: socketn::Command,
@@ -177,10 +171,7 @@ impl Socket {
         Ok(())
     }
 
-    pub fn get_receive_size<SpiBus: ActiveBus>(
-        &self,
-        bus: &mut SpiBus,
-    ) -> Result<u16, SpiBus::Error> {
+    pub fn get_receive_size<SpiBus: Bus>(&self, bus: &mut SpiBus) -> Result<u16, SpiBus::Error> {
         loop {
             // Section 4.2 of datasheet, Sn_TX_FSR address docs indicate that read must be repeated until two sequential reads are stable
             let mut sample_0 = [0u8; 2];

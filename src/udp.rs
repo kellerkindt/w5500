@@ -1,4 +1,4 @@
-use crate::bus::ActiveBus;
+use crate::bus::Bus;
 use crate::device::Device;
 use crate::host::Host;
 use crate::register::socketn;
@@ -15,7 +15,7 @@ impl UdpSocket {
         UdpSocket { socket }
     }
 
-    pub fn open<SpiBus: ActiveBus>(
+    pub fn open<SpiBus: Bus>(
         &mut self,
         bus: &mut SpiBus,
         local_port: u16,
@@ -32,7 +32,7 @@ impl UdpSocket {
         Ok(())
     }
 
-    fn set_destination<SpiBus: ActiveBus>(
+    fn set_destination<SpiBus: Bus>(
         &mut self,
         bus: &mut SpiBus,
         remote: SocketAddrV4,
@@ -42,7 +42,7 @@ impl UdpSocket {
         Ok(())
     }
 
-    fn send<SpiBus: ActiveBus>(
+    fn send<SpiBus: Bus>(
         &self,
         bus: &mut SpiBus,
         send_buffer: &[u8],
@@ -74,7 +74,7 @@ impl UdpSocket {
         }
     }
 
-    fn send_to<SpiBus: ActiveBus>(
+    fn send_to<SpiBus: Bus>(
         &mut self,
         bus: &mut SpiBus,
         remote: SocketAddrV4,
@@ -84,7 +84,7 @@ impl UdpSocket {
         self.send(bus, send_buffer)
     }
 
-    fn receive<SpiBus: ActiveBus>(
+    fn receive<SpiBus: Bus>(
         &mut self,
         bus: &mut SpiBus,
         receive_buffer: &mut [u8],
@@ -127,10 +127,7 @@ impl UdpSocket {
         Ok((packet_size, remote))
     }
 
-    fn close<SpiBus: ActiveBus>(
-        &self,
-        bus: &mut SpiBus,
-    ) -> Result<(), UdpSocketError<SpiBus::Error>> {
+    fn close<SpiBus: Bus>(&self, bus: &mut SpiBus) -> Result<(), UdpSocketError<SpiBus::Error>> {
         self.socket.set_mode(bus, socketn::Protocol::Closed)?;
         self.socket.command(bus, socketn::Command::Close)?;
         Ok(())
@@ -180,7 +177,7 @@ impl<E: Debug> From<NbError<E>> for nb::Error<E> {
 
 impl<SpiBus, HostImpl> UdpClientStack for Device<SpiBus, HostImpl>
 where
-    SpiBus: ActiveBus,
+    SpiBus: Bus,
     HostImpl: Host,
 {
     type UdpSocket = UdpSocket;
@@ -200,8 +197,9 @@ where
         remote: SocketAddr,
     ) -> Result<(), Self::Error> {
         if let SocketAddr::V4(remote) = remote {
-            // TODO find a random port
-            socket.open(&mut self.bus, 4000)?;
+            // TODO dynamically select a random port
+            socket.open(&mut self.bus, 49849)?; // chosen by fair dice roll.
+                                                // guaranteed to be random.
             socket.set_destination(&mut self.bus, remote)?;
             Ok(())
         } else {
@@ -228,7 +226,7 @@ where
 
 impl<SpiBus, HostImpl> UdpFullStack for Device<SpiBus, HostImpl>
 where
-    SpiBus: ActiveBus,
+    SpiBus: Bus,
     HostImpl: Host,
 {
     fn bind(&mut self, socket: &mut Self::UdpSocket, local_port: u16) -> Result<(), Self::Error> {

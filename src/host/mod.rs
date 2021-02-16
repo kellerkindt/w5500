@@ -3,7 +3,7 @@ mod manual;
 
 pub use self::dhcp::Dhcp;
 pub use self::manual::Manual;
-use crate::bus::ActiveBus;
+use crate::bus::Bus;
 use crate::register;
 use crate::MacAddress;
 use embedded_nal::Ipv4Addr;
@@ -28,13 +28,13 @@ impl Default for HostConfig {
 
 pub trait Host {
     /// Gets (if necessary) and sets the host settings on the chip
-    fn refresh<SpiBus: ActiveBus>(&mut self, bus: &mut SpiBus) -> Result<(), SpiBus::Error>;
+    fn refresh<SpiBus: Bus>(&mut self, bus: &mut SpiBus) -> Result<(), SpiBus::Error>;
 
     /// Write changed settings to chip
     ///
     /// Will check all settings and write any new ones to the chip.  Will update the settings returned by `current`
     /// with any changes.
-    fn write_settings<SpiBus: ActiveBus>(
+    fn write_settings<SpiBus: Bus>(
         bus: &mut SpiBus,
         current: &mut HostConfig,
         settings: &HostConfig,
