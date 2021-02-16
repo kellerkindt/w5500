@@ -70,6 +70,8 @@ impl Default for Mode {
     }
 }
 
+// TODO add better docs to all public items, add unit tests.
+
 pub mod bus;
 mod device;
 mod host;
