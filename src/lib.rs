@@ -59,7 +59,7 @@ impl Default for Mode {
 pub mod bus;
 mod device;
 mod host;
-mod net;
+pub mod net;
 pub mod register;
 mod socket;
 mod udp;

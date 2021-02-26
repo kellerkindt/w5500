@@ -10,6 +10,8 @@
 //! [RFC 2832]: https://github.com/rust-lang/rfcs/pull/2832
 #![deny(unsafe_code, missing_docs, warnings)]
 
+// TODO remove some of these constructs and use equivalents available from embedded-nal
+
 /// Ipv4Addr address struct.  Can be instantiated with `Ipv4Addr::new`.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash, Default)]
 pub struct Ipv4Addr {
