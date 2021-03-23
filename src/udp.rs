@@ -123,7 +123,8 @@ impl UdpSocket {
         let tx_write_pointer = self.socket.get_tx_write_pointer(bus)?;
         self.socket
             .set_rx_read_pointer(bus, tx_write_pointer)
-            .and_then(|_| self.socket.command(bus, socketn::Command::Receive))?;
+            .and_then(|_| self.socket.command(bus, socketn::Command::Receive))
+            .and_then(|_| self.socket.command(bus, socketn::Command::Open))?;
         Ok((packet_size, remote))
     }
 
