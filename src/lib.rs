@@ -52,10 +52,10 @@ pub enum ArpResponses {
 
 #[derive(Copy, Clone, PartialEq)]
 pub struct Mode {
-    on_wake_on_lan: OnWakeOnLan,
-    on_ping_request: OnPingRequest,
-    connection_type: ConnectionType,
-    arp_responses: ArpResponses,
+    pub on_wake_on_lan: OnWakeOnLan,
+    pub on_ping_request: OnPingRequest,
+    pub connection_type: ConnectionType,
+    pub arp_responses: ArpResponses,
 }
 
 impl Default for Mode {
