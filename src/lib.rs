@@ -1,7 +1,22 @@
 #![no_std]
 #![allow(unused)]
 #![deny(broken_intra_doc_links)]
-#[macro_use(block)]
+
+pub mod bus;
+mod device;
+mod host;
+pub mod net;
+pub mod register;
+mod socket;
+pub mod udp;
+mod uninitialized_device;
+
+pub use device::{Device, InactiveDevice};
+pub use host::{Dhcp, HostConfig, Manual};
+pub use net::MacAddress;
+pub use uninitialized_device::UninitializedDevice;
+
+// TODO add better docs to all public items, add unit tests.
 
 /// Settings for wake on LAN.  Allows the W5500 to optionally emit an interrupt upon receiving a packet
 #[repr(u8)]
@@ -53,19 +68,3 @@ impl Default for Mode {
         }
     }
 }
-
-// TODO add better docs to all public items, add unit tests.
-
-pub mod bus;
-mod device;
-mod host;
-pub mod net;
-pub mod register;
-mod socket;
-mod udp;
-mod uninitialized_device;
-
-pub use device::Device;
-pub use host::{Dhcp, HostConfig, Manual};
-pub use net::MacAddress;
-pub use uninitialized_device::UninitializedDevice;

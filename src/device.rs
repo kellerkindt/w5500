@@ -75,4 +75,29 @@ impl<SpiBus: Bus, HostImpl: Host> Device<SpiBus, HostImpl> {
     pub fn release(self) -> (SpiBus, HostImpl) {
         (self.bus, self.host)
     }
+
+    pub fn deactivate(self) -> (SpiBus, InactiveDevice<HostImpl>) {
+        (
+            self.bus,
+            InactiveDevice {
+                host: self.host,
+                sockets: self.sockets,
+            },
+        )
+    }
+}
+
+pub struct InactiveDevice<HostImpl: Host> {
+    host: HostImpl,
+    sockets: [u8; 1],
+}
+
+impl<HostImpl: Host> InactiveDevice<HostImpl> {
+    pub fn activate<SpiBus: Bus>(self, bus: SpiBus) -> Device<SpiBus, HostImpl> {
+        Device {
+            bus,
+            host: self.host,
+            sockets: self.sockets,
+        }
+    }
 }
