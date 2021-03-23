@@ -33,9 +33,14 @@ of the SPI implementation.  It must be set up to work as the W5500 chip requires
     let mut spi = ...; // SPI interface to use
     let mut cs : OutputPin = ...; // chip select
 
-    let device = UninitializedDevice::new(FourWire::new(spi, cs));
-    let device = device.initialize_manual(MacAddress::new(0, 1, 2, 3, 4, 5), Ipv4Addr::new(192, 168, 86, 79), Mode::default()).unwrap();
-    let socket = interface.socket();
+    // alternative                     FourWireRef::new(&mut spi, &mut spi)
+    let device = UninitializedDevice::new(FourWire::new(spi, cs))
+            .initialize_manual(
+                    MacAddress::new(0, 1, 2, 3, 4, 5),
+                    Ipv4Addr::new(192, 168, 86, 79),
+                    Mode::default()
+            ).unwrap();
+    let socket = device.socket();
     socket.connect(
         SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 86, 38)), 8000),
     ).unwrap();
