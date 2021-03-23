@@ -84,6 +84,7 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
         mut host: HostImpl,
         mode_options: Mode,
     ) -> Result<Device<SpiBus, HostImpl>, InitializeError<SpiBus::Error>> {
+        #[cfg(not(feature = "no-chip-version-assertion"))]
         self.assert_chip_version(0x4)?;
 
         // RESET
@@ -96,6 +97,7 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
         Ok(Device::new(self.bus, host))
     }
 
+    #[cfg(not(feature = "no-chip-version-assertion"))]
     fn assert_chip_version(
         &mut self,
         expected_version: u8,
