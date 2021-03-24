@@ -33,8 +33,8 @@ of the SPI implementation.  It must be set up to work as the W5500 chip requires
     let mut spi = ...; // SPI interface to use
     let mut cs : OutputPin = ...; // chip select
 
-    // alternative                     FourWireRef::new(&mut spi, &mut cs)
-    let device = UninitializedDevice::new(FourWire::new(spi, cs))
+    // alternative                     VdmRef::new(&mut spi, &mut cs)
+    let device = UninitializedDevice::new(Vdm::new(spi, cs))
             .initialize_manual(
                     MacAddress::new(0, 1, 2, 3, 4, 5),
                     Ipv4Addr::new(192, 168, 86, 79),

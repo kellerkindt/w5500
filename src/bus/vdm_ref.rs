@@ -4,20 +4,20 @@ use core::fmt;
 use embedded_hal::blocking::spi::{Transfer, Write};
 use embedded_hal::digital::v2::OutputPin;
 
-use crate::bus::{Bus, FourWire, FourWireError};
+use crate::bus::{Bus, Vdm, VdmError};
 
 const WRITE_MODE_MASK: u8 = 0b00000_1_00;
 
 // TODO This name is not ideal, should be renamed to VDM
-/// This is just like [crate::bus::FourWire] but takes references instead of ownership
+/// This is just like [crate::bus::Vdm] but takes references instead of ownership
 /// for the SPI bus and the ChipSelect pin
-pub struct FourWireRef<'a, Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin>(
-    FourWire<SpiRef<'a, Spi>, OutputPinRef<'a, ChipSelect>>,
+pub struct VdmRef<'a, Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin>(
+    Vdm<SpiRef<'a, Spi>, OutputPinRef<'a, ChipSelect>>,
 );
 
-impl<'a, Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin> FourWireRef<'a, Spi, ChipSelect> {
+impl<'a, Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin> VdmRef<'a, Spi, ChipSelect> {
     pub fn new(spi: &'a mut Spi, cs: &'a mut ChipSelect) -> Self {
-        Self(FourWire::new(SpiRef(spi), OutputPinRef(cs)))
+        Self(Vdm::new(SpiRef(spi), OutputPinRef(cs)))
     }
 
     // this is actually a bit silly, but maybe someday someone finds this useful
@@ -27,11 +27,9 @@ impl<'a, Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin> FourWireRef<'a, S
     }
 }
 
-impl<Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin> Bus
-    for FourWireRef<'_, Spi, ChipSelect>
-{
+impl<Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin> Bus for VdmRef<'_, Spi, ChipSelect> {
     type Error =
-        FourWireError<<Spi as Transfer<u8>>::Error, <Spi as Write<u8>>::Error, ChipSelect::Error>;
+        VdmError<<Spi as Transfer<u8>>::Error, <Spi as Write<u8>>::Error, ChipSelect::Error>;
 
     #[inline]
     fn read_frame(&mut self, block: u8, address: u16, data: &mut [u8]) -> Result<(), Self::Error> {
