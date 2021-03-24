@@ -79,7 +79,7 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
         self.initialize_with_host(host, mode_options)
     }
 
-    fn initialize_with_host<HostImpl: Host>(
+    pub fn initialize_with_host<HostImpl: Host>(
         mut self,
         mut host: HostImpl,
         mode_options: Mode,

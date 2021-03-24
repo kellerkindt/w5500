@@ -16,7 +16,7 @@ pub struct FourWire<Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin> {
 
 impl<Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin> FourWire<Spi, ChipSelect> {
     pub fn new(spi: Spi, cs: ChipSelect) -> Self {
-        Self { spi, cs }
+        Self { cs, spi }
     }
 
     pub fn release(self) -> (Spi, ChipSelect) {

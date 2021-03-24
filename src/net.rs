@@ -1,18 +1,5 @@
 //! Networking data types.
-//!
-//! There may a standard for embedded networking in the future, see
-//! [rust-embedded issue 348] and [RFC 2832]
-//!
-//! This is mostly ripped directly from [std::net].
-//!
-//! [rust-embedded issue 348]: https://github.com/rust-embedded/wg/issues/348
-//! [std::net]: https://doc.rust-lang.org/std/net/index.html
-//! [RFC 2832]: https://github.com/rust-lang/rfcs/pull/2832
 #![deny(unsafe_code, missing_docs, warnings)]
-
-// TODO remove some of these constructs and use equivalents available from embedded-nal
-
-pub use embedded_nal::Ipv4Addr;
 
 /// MAC address struct.  Can be instantiated with `MacAddress::new`.
 ///
