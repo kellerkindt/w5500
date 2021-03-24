@@ -1,7 +1,7 @@
 use bit_field::BitArray;
 use embedded_hal::digital::v2::OutputPin;
 
-use crate::bus::{Bus, FourWire, ThreeWire};
+use crate::bus::{Bus, Fdm, Vdm};
 use crate::host::Host;
 use crate::register;
 use crate::socket::Socket;

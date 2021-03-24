@@ -8,13 +8,18 @@ use crate::bus::Bus;
 
 const WRITE_MODE_MASK: u8 = 0b00000_1_00;
 
-// TODO This name is not ideal, should be renamed to VDM
-pub struct FourWire<Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin> {
+/// Variable Data Mode for communicating with the chip.  Requires four connection wires:
+///
+/// - MISO
+/// - MOSI
+/// - CLK
+/// - CS
+pub struct Vdm<Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin> {
     cs: ChipSelect,
     spi: Spi,
 }
 
-impl<Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin> FourWire<Spi, ChipSelect> {
+impl<Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin> Vdm<Spi, ChipSelect> {
     pub fn new(spi: Spi, cs: ChipSelect) -> Self {
         Self { cs, spi }
     }
@@ -24,22 +29,22 @@ impl<Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin> FourWire<Spi, ChipSel
     }
 }
 
-impl<Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin> Bus for FourWire<Spi, ChipSelect> {
+impl<Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin> Bus for Vdm<Spi, ChipSelect> {
     type Error =
-        FourWireError<<Spi as Transfer<u8>>::Error, <Spi as Write<u8>>::Error, ChipSelect::Error>;
+        VdmError<<Spi as Transfer<u8>>::Error, <Spi as Write<u8>>::Error, ChipSelect::Error>;
     fn read_frame(&mut self, block: u8, address: u16, data: &mut [u8]) -> Result<(), Self::Error> {
         let address_phase = address.to_be_bytes();
         let control_phase = block << 3;
         let data_phase = data;
-        self.cs.set_low().map_err(FourWireError::ChipSelectError)?;
+        self.cs.set_low().map_err(VdmError::ChipSelectError)?;
         self.spi
             .write(&address_phase)
             .and_then(|_| self.spi.write(&[control_phase]))
-            .map_err(FourWireError::WriteError)?;
+            .map_err(VdmError::WriteError)?;
         self.spi
             .transfer(data_phase)
-            .map_err(FourWireError::TransferError)?;
-        self.cs.set_high().map_err(FourWireError::ChipSelectError)?;
+            .map_err(VdmError::TransferError)?;
+        self.cs.set_high().map_err(VdmError::ChipSelectError)?;
 
         Ok(())
     }
@@ -47,13 +52,13 @@ impl<Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin> Bus for FourWire<Spi,
         let address_phase = address.to_be_bytes();
         let control_phase = block << 3 | WRITE_MODE_MASK;
         let data_phase = data;
-        self.cs.set_low().map_err(FourWireError::ChipSelectError)?;
+        self.cs.set_low().map_err(VdmError::ChipSelectError)?;
         self.spi
             .write(&address_phase)
             .and_then(|_| self.spi.write(&[control_phase]))
             .and_then(|_| self.spi.write(data_phase))
-            .map_err(FourWireError::WriteError)?;
-        self.cs.set_high().map_err(FourWireError::ChipSelectError)?;
+            .map_err(VdmError::WriteError)?;
+        self.cs.set_high().map_err(VdmError::ChipSelectError)?;
 
         Ok(())
     }
@@ -61,19 +66,19 @@ impl<Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin> Bus for FourWire<Spi,
 
 // Must use map_err, ambiguity prevents From from being implemented
 #[repr(u8)]
-pub enum FourWireError<TransferError, WriteError, ChipSelectError> {
+pub enum VdmError<TransferError, WriteError, ChipSelectError> {
     TransferError(TransferError),
     WriteError(WriteError),
     ChipSelectError(ChipSelectError),
 }
 
 impl<TransferError, WriteError, ChipSelectError> fmt::Debug
-    for FourWireError<TransferError, WriteError, ChipSelectError>
+    for VdmError<TransferError, WriteError, ChipSelectError>
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "FourWireError::{}",
+            "VdmError::{}",
             match self {
                 Self::TransferError(_) => "TransferError",
                 Self::WriteError(_) => "WriteError",

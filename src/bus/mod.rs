@@ -1,16 +1,16 @@
 use core::fmt::Debug;
 
-mod four_wire;
-mod four_wire_ref;
-mod three_wire;
+mod fdm;
+mod vdm;
+mod vdm_ref;
 
-pub use self::four_wire::FourWire;
-pub use self::four_wire::FourWireError;
-pub use self::four_wire_ref::FourWireRef;
-pub use self::four_wire_ref::OutputPinRef;
-pub use self::four_wire_ref::SpiRef;
-pub use self::three_wire::ThreeWire;
-pub use self::three_wire::ThreeWireError;
+pub use self::fdm::Fdm;
+pub use self::fdm::FdmError;
+pub use self::vdm::Vdm;
+pub use self::vdm::VdmError;
+pub use self::vdm_ref::OutputPinRef;
+pub use self::vdm_ref::SpiRef;
+pub use self::vdm_ref::VdmRef;
 
 pub trait Bus {
     type Error: Debug;
