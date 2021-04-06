@@ -32,30 +32,34 @@ impl<Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin> Bus for FourWire<Spi,
         let control_phase = block << 3;
         let data_phase = data;
         self.cs.set_low().map_err(FourWireError::ChipSelectError)?;
-        self.spi
-            .write(&address_phase)
-            .and_then(|_| self.spi.write(&[control_phase]))
-            .map_err(FourWireError::WriteError)?;
-        self.spi
-            .transfer(data_phase)
-            .map_err(FourWireError::TransferError)?;
+        let result = (|| {
+            self.spi
+                .write(&address_phase)
+                .and_then(|_| self.spi.write(&[control_phase]))
+                .map_err(FourWireError::WriteError)?;
+            self.spi
+                .transfer(data_phase)
+                .map_err(FourWireError::TransferError)?;
+            Ok(())
+        })();
         self.cs.set_high().map_err(FourWireError::ChipSelectError)?;
-
-        Ok(())
+        result
     }
     fn write_frame(&mut self, block: u8, address: u16, data: &[u8]) -> Result<(), Self::Error> {
         let address_phase = address.to_be_bytes();
         let control_phase = block << 3 | WRITE_MODE_MASK;
         let data_phase = data;
         self.cs.set_low().map_err(FourWireError::ChipSelectError)?;
-        self.spi
-            .write(&address_phase)
-            .and_then(|_| self.spi.write(&[control_phase]))
-            .and_then(|_| self.spi.write(data_phase))
-            .map_err(FourWireError::WriteError)?;
+        let result = (|| {
+            self.spi
+                .write(&address_phase)
+                .and_then(|_| self.spi.write(&[control_phase]))
+                .and_then(|_| self.spi.write(data_phase))
+                .map_err(FourWireError::WriteError)?;
+            Ok(())
+        })();
         self.cs.set_high().map_err(FourWireError::ChipSelectError)?;
-
-        Ok(())
+        result
     }
 }
 
