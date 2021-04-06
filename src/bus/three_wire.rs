@@ -48,7 +48,7 @@ impl<Spi: Transfer<u8> + Write<u8>> Bus for ThreeWire<Spi> {
     ) -> Result<(), Self::Error> {
         let mut control_phase = block << 3;
 
-        let mut data_phase = &mut data[..];
+        let mut data_phase = data;
         let mut last_length_written: u16;
         while !data_phase.is_empty() {
             if data_phase.len() >= 4 {
@@ -80,7 +80,7 @@ impl<Spi: Transfer<u8> + Write<u8>> Bus for ThreeWire<Spi> {
     fn write_frame(&mut self, block: u8, mut address: u16, data: &[u8]) -> Result<(), Self::Error> {
         let mut control_phase = block << 3 | WRITE_MODE_MASK;
 
-        let mut data_phase = &data[..];
+        let mut data_phase = data;
         let mut last_length_written: u16;
         while !data_phase.is_empty() {
             if data_phase.len() >= 4 {
