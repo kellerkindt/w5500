@@ -3,9 +3,10 @@ use embedded_hal::digital::v2::OutputPin;
 
 use crate::bus::{Bus, FourWire, ThreeWire};
 use crate::host::Host;
-use crate::register;
+use crate::net::Ipv4Addr;
 use crate::socket::Socket;
 use crate::uninitialized_device::UninitializedDevice;
+use crate::{register, MacAddress};
 
 pub struct Device<SpiBus: Bus, HostImpl: Host> {
     pub bus: SpiBus,
@@ -61,11 +62,46 @@ impl<SpiBus: Bus, HostImpl: Host> Device<SpiBus, HostImpl> {
         None
     }
 
+    pub fn gateway(&mut self) -> Result<Ipv4Addr, SpiBus::Error> {
+        let mut octets = [0u8; 4];
+        self.bus
+            .read_frame(register::COMMON, register::common::GATEWAY, &mut octets)?;
+        Ok(Ipv4Addr::from(octets))
+    }
+
+    pub fn subnet_mask(&mut self) -> Result<Ipv4Addr, SpiBus::Error> {
+        let mut octets = [0u8; 4];
+        self.bus
+            .read_frame(register::COMMON, register::common::SUBNET_MASK, &mut octets)?;
+        Ok(Ipv4Addr::from(octets))
+    }
+
+    pub fn mac(&mut self) -> Result<MacAddress, SpiBus::Error> {
+        let mut mac = MacAddress::default();
+        self.bus
+            .read_frame(register::COMMON, register::common::MAC, &mut mac.octets)?;
+        Ok(mac)
+    }
+
+    pub fn ip(&mut self) -> Result<Ipv4Addr, SpiBus::Error> {
+        let mut octets = [0u8; 4];
+        self.bus
+            .read_frame(register::COMMON, register::common::IP, &mut octets)?;
+        Ok(Ipv4Addr::from(octets))
+    }
+
     pub fn phy_config(&mut self) -> Result<register::common::PhyConfig, SpiBus::Error> {
         let mut phy = [0u8];
         self.bus
             .read_frame(register::COMMON, register::common::PHY_CONFIG, &mut phy)?;
         Ok(phy[0].into())
+    }
+
+    pub fn version(&mut self) -> Result<u8, SpiBus::Error> {
+        let mut version = [0u8];
+        self.bus
+            .read_frame(register::COMMON, register::common::VERSION, &mut version)?;
+        Ok(version[0])
     }
 
     pub(crate) fn release_socket(&mut self, socket: Socket) {
