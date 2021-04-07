@@ -29,6 +29,7 @@ of the SPI implementation.  It must be set up to work as the W5500 chip requires
 * Clock Phase: Sample leading edge
 * Clock speed: 33MHz maximum
 
+Initialization and usage of owned `Device`:
 ```rust
     let mut spi = ...; // SPI interface to use
     let mut cs : OutputPin = ...; // chip select
@@ -40,14 +41,38 @@ of the SPI implementation.  It must be set up to work as the W5500 chip requires
                     Ipv4Addr::new(192, 168, 86, 79),
                     Mode::default()
             ).unwrap();
+
     let socket = device.socket();
     socket.connect(
         SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 86, 38)), 8000),
     ).unwrap();
     block!(interface.send(&mut socket, &[104, 101, 108, 108, 111, 10]));
-    interface.close(socket);
+    device.close(socket);
+
+    // optional
+    let (spi_bus, inactive_device) = device.deactivate();
 ```
 
+Usage of borrowed SPI-Bus and previously initialized `Device`:
+```rust
+    let mut spi = ...; // SPI interface to use
+    let mut cs: OutputPin = ...; // chip select
+
+    let mut device: Option<InactiveDevice<..>> = ...; // maybe: previously initialized device
+    let mut socket: Option<Socket> = ...; // maybe: previously opened socket
+    
+    if let (Some(socket), Some(device)) = (socket.as_mut(), device.as_mut()) {
+        let mut buffer = [0u8; 1024];
+        match device
+            // scoped activation & usage of the SPI bus without move
+            .activate_ref(&mut FourWireRef::new(&mut spi, &mut cs))
+            .receive(socket, &mut buffer)
+        {
+            Ok(..) => todo!(),
+            Err(..) => todo!(),
+        }
+    }
+```
 ## Todo
 
 In no particular order, things to do to improve this driver.

@@ -8,12 +8,6 @@ use crate::socket::Socket;
 use crate::uninitialized_device::UninitializedDevice;
 use crate::{register, MacAddress};
 
-pub struct Device<SpiBus: Bus, HostImpl: Host> {
-    pub bus: SpiBus,
-    host: HostImpl,
-    sockets: [u8; 1],
-}
-
 pub enum ResetError<E> {
     SocketsNotReleased,
     Other(E),
@@ -25,17 +19,29 @@ impl<E> From<E> for ResetError<E> {
     }
 }
 
+pub(crate) struct DeviceState<HostImpl: Host> {
+    host: HostImpl,
+    sockets: [u8; 1],
+}
+
+pub struct Device<SpiBus: Bus, HostImpl: Host> {
+    bus: SpiBus,
+    state: DeviceState<HostImpl>,
+}
+
 impl<SpiBus: Bus, HostImpl: Host> Device<SpiBus, HostImpl> {
     pub(crate) fn new(bus: SpiBus, host: HostImpl) -> Self {
         Device {
             bus,
-            host,
-            sockets: [0b11111111],
+            state: DeviceState {
+                host,
+                sockets: [0b11111111],
+            },
         }
     }
 
     pub fn reset(mut self) -> Result<UninitializedDevice<SpiBus>, ResetError<SpiBus::Error>> {
-        if self.sockets != [0b11111111] {
+        if self.state.sockets != [0b11111111] {
             Err(ResetError::SocketsNotReleased)
         } else {
             self.clear_mode()?;
@@ -51,15 +57,103 @@ impl<SpiBus: Bus, HostImpl: Host> Device<SpiBus, HostImpl> {
         Ok(())
     }
 
-    pub(crate) fn take_socket(&mut self) -> Option<Socket> {
+    #[inline]
+    pub fn gateway(&mut self) -> Result<Ipv4Addr, SpiBus::Error> {
+        self.as_mut().gateway()
+    }
+
+    #[inline]
+    pub fn subnet_mask(&mut self) -> Result<Ipv4Addr, SpiBus::Error> {
+        self.as_mut().subnet_mask()
+    }
+
+    #[inline]
+    pub fn mac(&mut self) -> Result<MacAddress, SpiBus::Error> {
+        self.as_mut().mac()
+    }
+
+    #[inline]
+    pub fn ip(&mut self) -> Result<Ipv4Addr, SpiBus::Error> {
+        self.as_mut().ip()
+    }
+
+    #[inline]
+    pub fn phy_config(&mut self) -> Result<register::common::PhyConfig, SpiBus::Error> {
+        self.as_mut().phy_config()
+    }
+
+    #[inline]
+    pub fn version(&mut self) -> Result<u8, SpiBus::Error> {
+        self.as_mut().version()
+    }
+
+    #[inline]
+    pub(crate) fn as_mut(&mut self) -> DeviceRefMut<'_, SpiBus, HostImpl> {
+        DeviceRefMut {
+            bus: &mut self.bus,
+            state: &mut self.state,
+        }
+    }
+
+    pub fn release(self) -> (SpiBus, HostImpl) {
+        (self.bus, self.state.host)
+    }
+
+    pub fn deactivate(self) -> (SpiBus, InactiveDevice<HostImpl>) {
+        (self.bus, InactiveDevice(self.state))
+    }
+}
+
+impl<'a, SpiBus: Bus, HostImpl: Host> From<&'a mut Device<SpiBus, HostImpl>>
+    for DeviceRefMut<'a, SpiBus, HostImpl>
+{
+    fn from(device: &'a mut Device<SpiBus, HostImpl>) -> Self {
+        DeviceRefMut {
+            bus: &mut device.bus,
+            state: &mut device.state,
+        }
+    }
+}
+
+pub struct InactiveDevice<HostImpl: Host>(DeviceState<HostImpl>);
+
+impl<HostImpl: Host> InactiveDevice<HostImpl> {
+    /// Activates the device by ownership
+    pub fn activate<SpiBus: Bus>(self, bus: SpiBus) -> Device<SpiBus, HostImpl> {
+        Device { bus, state: self.0 }
+    }
+
+    /// Activates the device by borrowing
+    pub fn activate_ref<'a, SpiBus: Bus>(
+        &'a mut self,
+        bus: &'a mut SpiBus,
+    ) -> DeviceRefMut<'a, SpiBus, HostImpl> {
+        DeviceRefMut {
+            bus,
+            state: &mut self.0,
+        }
+    }
+}
+
+pub struct DeviceRefMut<'a, SpiBus: Bus, HostImpl: Host> {
+    pub(crate) bus: &'a mut SpiBus,
+    state: &'a mut DeviceState<HostImpl>,
+}
+
+impl<SpiBus: Bus, HostImpl: Host> DeviceRefMut<'_, SpiBus, HostImpl> {
+    pub fn take_socket(&mut self) -> Option<Socket> {
         // TODO maybe return Future that resolves when release_socket invoked
         for index in 0..8 {
-            if self.sockets.get_bit(index) {
-                self.sockets.set_bit(index, false);
+            if self.state.sockets.get_bit(index) {
+                self.state.sockets.set_bit(index, false);
                 return Some(Socket::new(index as u8));
             }
         }
         None
+    }
+
+    pub fn release_socket(&mut self, socket: Socket) {
+        self.state.sockets.set_bit(socket.index.into(), true);
     }
 
     pub fn gateway(&mut self) -> Result<Ipv4Addr, SpiBus::Error> {
@@ -102,38 +196,5 @@ impl<SpiBus: Bus, HostImpl: Host> Device<SpiBus, HostImpl> {
         self.bus
             .read_frame(register::COMMON, register::common::VERSION, &mut version)?;
         Ok(version[0])
-    }
-
-    pub(crate) fn release_socket(&mut self, socket: Socket) {
-        self.sockets.set_bit(socket.index.into(), true);
-    }
-
-    pub fn release(self) -> (SpiBus, HostImpl) {
-        (self.bus, self.host)
-    }
-
-    pub fn deactivate(self) -> (SpiBus, InactiveDevice<HostImpl>) {
-        (
-            self.bus,
-            InactiveDevice {
-                host: self.host,
-                sockets: self.sockets,
-            },
-        )
-    }
-}
-
-pub struct InactiveDevice<HostImpl: Host> {
-    host: HostImpl,
-    sockets: [u8; 1],
-}
-
-impl<HostImpl: Host> InactiveDevice<HostImpl> {
-    pub fn activate<SpiBus: Bus>(self, bus: SpiBus) -> Device<SpiBus, HostImpl> {
-        Device {
-            bus,
-            host: self.host,
-            sockets: self.sockets,
-        }
     }
 }
