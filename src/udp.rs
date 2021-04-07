@@ -199,8 +199,8 @@ where
     ) -> Result<(), Self::Error> {
         if let SocketAddr::V4(remote) = remote {
             // TODO dynamically select a random port
-            socket.open(&mut self.bus, 49849)?; // chosen by fair dice roll.
-                                                // guaranteed to be random.
+            socket.open(&mut self.bus, 49849 + u16::from(socket.socket.index))?; // chosen by fair dice roll.
+                                                                                 // guaranteed to be random.
             socket.set_destination(&mut self.bus, remote)?;
             Ok(())
         } else {
