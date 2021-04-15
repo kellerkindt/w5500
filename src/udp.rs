@@ -61,13 +61,15 @@ impl UdpSocket {
         loop {
             if self.socket.get_tx_read_pointer(bus)? == self.socket.get_tx_write_pointer(bus)? {
                 if self.socket.has_interrupt(bus, socketn::Interrupt::SendOk)? {
-                    self.socket.reset_interrupt(bus, socketn::Interrupt::All)?;
+                    self.socket
+                        .reset_interrupt(bus, socketn::Interrupt::SendOk)?;
                     return Ok(());
                 } else if self
                     .socket
                     .has_interrupt(bus, socketn::Interrupt::Timeout)?
                 {
-                    self.socket.reset_interrupt(bus, socketn::Interrupt::All)?;
+                    self.socket
+                        .reset_interrupt(bus, socketn::Interrupt::Timeout)?;
                     return Err(NbError::Other(UdpSocketError::WriteTimeout));
                 }
             }
@@ -125,6 +127,8 @@ impl UdpSocket {
             .set_rx_read_pointer(bus, tx_write_pointer)
             .and_then(|_| self.socket.command(bus, socketn::Command::Receive))
             .and_then(|_| self.socket.command(bus, socketn::Command::Open))?;
+        self.socket
+            .reset_interrupt(bus, socketn::Interrupt::Receive)?;
         Ok((packet_size, remote))
     }
 
