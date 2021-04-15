@@ -6,8 +6,6 @@ use embedded_hal::digital::v2::OutputPin;
 
 use crate::bus::{Bus, FourWire, FourWireError};
 
-const WRITE_MODE_MASK: u8 = 0b00000_1_00;
-
 // TODO This name is not ideal, should be renamed to VDM
 /// This is just like [crate::bus::FourWire] but takes references instead of ownership
 /// for the SPI bus and the ChipSelect pin
@@ -45,7 +43,7 @@ impl<Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin> Bus
 }
 
 #[derive(Debug)]
-pub struct SpiRef<'a, Spi: Transfer<u8> + Write<u8>>(&'a mut Spi);
+pub struct SpiRef<'a, Spi: Transfer<u8> + Write<u8>>(pub &'a mut Spi);
 
 impl<'a, Spi: Transfer<u8> + Write<u8>> Transfer<u8> for SpiRef<'a, Spi> {
     type Error = <Spi as Transfer<u8>>::Error;
@@ -66,7 +64,7 @@ impl<'a, Spi: Transfer<u8> + Write<u8>> Write<u8> for SpiRef<'a, Spi> {
 }
 
 #[derive(Debug)]
-pub struct OutputPinRef<'a, P: OutputPin>(&'a mut P);
+pub struct OutputPinRef<'a, P: OutputPin>(pub &'a mut P);
 
 impl<'a, P: OutputPin> OutputPin for OutputPinRef<'a, P> {
     type Error = P::Error;

@@ -19,3 +19,19 @@ pub trait Bus {
 
     fn write_frame(&mut self, block: u8, address: u16, data: &[u8]) -> Result<(), Self::Error>;
 }
+
+pub struct BusRef<'a, B: Bus>(pub &'a mut B);
+
+impl<B: Bus> Bus for BusRef<'_, B> {
+    type Error = B::Error;
+
+    #[inline]
+    fn read_frame(&mut self, block: u8, address: u16, data: &mut [u8]) -> Result<(), Self::Error> {
+        self.0.read_frame(block, address, data)
+    }
+
+    #[inline]
+    fn write_frame(&mut self, block: u8, address: u16, data: &[u8]) -> Result<(), Self::Error> {
+        self.0.write_frame(block, address, data)
+    }
+}

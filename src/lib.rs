@@ -11,7 +11,7 @@ mod socket;
 pub mod udp;
 mod uninitialized_device;
 
-pub use device::{Device, InactiveDevice};
+pub use device::{Device, DeviceRefMut, InactiveDevice};
 pub use host::{Dhcp, HostConfig, Manual};
 pub use net::MacAddress;
 pub use uninitialized_device::UninitializedDevice;

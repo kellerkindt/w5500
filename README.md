@@ -65,7 +65,7 @@ Usage of borrowed SPI-Bus and previously initialized `Device`:
         let mut buffer = [0u8; 1024];
         match device
             // scoped activation & usage of the SPI bus without move
-            .activate_ref(&mut FourWireRef::new(&mut spi, &mut cs))
+            .activate_ref(FourWireRef::new(&mut spi, &mut cs))
             .receive(socket, &mut buffer)
         {
             Ok(..) => todo!(),

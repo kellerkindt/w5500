@@ -245,9 +245,9 @@ where
     ) -> Result<(), Self::Error> {
         if let SocketAddr::V4(remote) = remote {
             // TODO dynamically select a random port
-            socket.open(&mut *self.bus, 49849 + u16::from(socket.socket.index))?; // chosen by fair dice roll.
-                                                                                  // guaranteed to be random.
-            socket.set_destination(self.bus, remote)?;
+            socket.open(&mut self.bus, 49849 + u16::from(socket.socket.index))?; // chosen by fair dice roll.
+                                                                                 // guaranteed to be random.
+            socket.set_destination(&mut self.bus, remote)?;
             Ok(())
         } else {
             Err(Self::Error::UnsupportedAddress)
@@ -255,7 +255,7 @@ where
     }
 
     fn send(&mut self, socket: &mut Self::UdpSocket, buffer: &[u8]) -> nb::Result<(), Self::Error> {
-        socket.send(self.bus, buffer)?;
+        socket.send(&mut self.bus, buffer)?;
         Ok(())
     }
 
@@ -264,11 +264,11 @@ where
         socket: &mut Self::UdpSocket,
         buffer: &mut [u8],
     ) -> nb::Result<(usize, SocketAddr), Self::Error> {
-        Ok(socket.receive(self.bus, buffer)?)
+        Ok(socket.receive(&mut self.bus, buffer)?)
     }
 
     fn close(&mut self, socket: Self::UdpSocket) -> Result<(), Self::Error> {
-        socket.close(self.bus)?;
+        socket.close(&mut self.bus)?;
         self.release_socket(socket.socket);
         Ok(())
     }
@@ -301,7 +301,7 @@ where
     HostImpl: Host,
 {
     fn bind(&mut self, socket: &mut Self::UdpSocket, local_port: u16) -> Result<(), Self::Error> {
-        socket.open(self.bus, local_port)?;
+        socket.open(&mut self.bus, local_port)?;
         Ok(())
     }
 
@@ -312,7 +312,7 @@ where
         buffer: &[u8],
     ) -> nb::Result<(), Self::Error> {
         if let SocketAddr::V4(remote) = remote {
-            socket.send_to(self.bus, remote, buffer)?;
+            socket.send_to(&mut self.bus, remote, buffer)?;
             Ok(())
         } else {
             Err(nb::Error::Other(Self::Error::UnsupportedAddress))

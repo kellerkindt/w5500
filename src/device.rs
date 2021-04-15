@@ -1,7 +1,7 @@
 use bit_field::BitArray;
 use embedded_hal::digital::v2::OutputPin;
 
-use crate::bus::{Bus, FourWire, ThreeWire};
+use crate::bus::{Bus, BusRef, FourWire, SpiRef, ThreeWire};
 use crate::host::Host;
 use crate::net::Ipv4Addr;
 use crate::socket::Socket;
@@ -88,9 +88,9 @@ impl<SpiBus: Bus, HostImpl: Host> Device<SpiBus, HostImpl> {
     }
 
     #[inline]
-    pub(crate) fn as_mut(&mut self) -> DeviceRefMut<'_, SpiBus, HostImpl> {
+    pub(crate) fn as_mut(&mut self) -> DeviceRefMut<'_, BusRef<'_, SpiBus>, HostImpl> {
         DeviceRefMut {
-            bus: &mut self.bus,
+            bus: BusRef(&mut self.bus),
             state: &mut self.state,
         }
     }
@@ -104,30 +104,16 @@ impl<SpiBus: Bus, HostImpl: Host> Device<SpiBus, HostImpl> {
     }
 }
 
-impl<'a, SpiBus: Bus, HostImpl: Host> From<&'a mut Device<SpiBus, HostImpl>>
-    for DeviceRefMut<'a, SpiBus, HostImpl>
-{
-    fn from(device: &'a mut Device<SpiBus, HostImpl>) -> Self {
-        DeviceRefMut {
-            bus: &mut device.bus,
-            state: &mut device.state,
-        }
-    }
-}
-
 pub struct InactiveDevice<HostImpl: Host>(DeviceState<HostImpl>);
 
 impl<HostImpl: Host> InactiveDevice<HostImpl> {
-    /// Activates the device by ownership
+    /// Activates the device by taking ownership
     pub fn activate<SpiBus: Bus>(self, bus: SpiBus) -> Device<SpiBus, HostImpl> {
         Device { bus, state: self.0 }
     }
 
-    /// Activates the device by borrowing
-    pub fn activate_ref<'a, SpiBus: Bus>(
-        &'a mut self,
-        bus: &'a mut SpiBus,
-    ) -> DeviceRefMut<'a, SpiBus, HostImpl> {
+    /// Activates the device by borrowing it
+    pub fn activate_ref<SpiBus: Bus>(&mut self, bus: SpiBus) -> DeviceRefMut<SpiBus, HostImpl> {
         DeviceRefMut {
             bus,
             state: &mut self.0,
@@ -136,7 +122,7 @@ impl<HostImpl: Host> InactiveDevice<HostImpl> {
 }
 
 pub struct DeviceRefMut<'a, SpiBus: Bus, HostImpl: Host> {
-    pub(crate) bus: &'a mut SpiBus,
+    pub(crate) bus: SpiBus,
     state: &'a mut DeviceState<HostImpl>,
 }
 
