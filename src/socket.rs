@@ -50,10 +50,7 @@ impl Socket {
         Ok(())
     }
 
-    pub fn get_status<SpiBus: Bus>(
-        &self,
-        bus: &mut SpiBus,
-    ) -> Result<u8, SpiBus::Error> {
+    pub fn get_status<SpiBus: Bus>(&self, bus: &mut SpiBus) -> Result<u8, SpiBus::Error> {
         let mut data = [0u8];
         bus.read_frame(self.register(), socketn::STATUS, &mut data)?;
         Ok(data[0])

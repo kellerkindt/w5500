@@ -8,8 +8,8 @@ mod host;
 pub mod net;
 pub mod register;
 mod socket;
-pub mod udp;
 pub mod tcp;
+pub mod udp;
 mod uninitialized_device;
 
 pub use device::{Device, DeviceRefMut, InactiveDevice};
