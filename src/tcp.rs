@@ -148,7 +148,7 @@ impl TcpSocket {
         let write_pointer = self.socket.get_tx_write_pointer(bus)?;
 
         // Write data into the buffer and update the writer pointer.
-        bus.write_frame(self.socket.tx_buffer(), write_pointer, &data)?;
+        bus.write_frame(self.socket.tx_buffer(), write_pointer, write_data)?;
         self.socket
             .set_tx_write_pointer(bus, write_pointer.wrapping_add(write_data.len() as u16))?;
 
