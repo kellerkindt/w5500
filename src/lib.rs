@@ -17,6 +17,8 @@ pub use host::{Dhcp, HostConfig, Manual};
 pub use net::MacAddress;
 pub use uninitialized_device::UninitializedDevice;
 
+// TODO add better docs to all public items, add unit tests.
+
 /// Settings for wake on LAN.  Allows the W5500 to optionally emit an interrupt upon receiving a packet
 #[repr(u8)]
 #[derive(Copy, Clone, PartialOrd, PartialEq)]
