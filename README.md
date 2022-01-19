@@ -19,25 +19,9 @@ like this one.  Any microcontroller that implements the
 [`spi::FullDuplex<u8>`](https://docs.rs/embedded-hal/0.2.3/embedded_hal/spi/trait.FullDuplex.html) interface can use
 this driver.
 
-## Implementation
-
-This driver is built in several layers of structs.
-
-The lowest level (and the first a program would instantiate) is the `W5500` struct.  It contains a reference to the
-chip-select [pin](https://docs.rs/embedded-hal/0.2.3/embedded_hal/digital/v2/trait.OutputPin.html).
-
-The next layer is the `ActiveW5500` struct.  It contains a reference to a `W5500` instance, and an implementation of
-the [`spi::FullDuplex<u8>`](https://docs.rs/embedded-hal/0.2.3/embedded_hal/spi/trait.FullDuplex.html) trait.  It has
-the ability to actually communicate with the chip.  It has general methods for reading/writing to the chip, and
-higher-level functions that can set up specific configuration, like the MAC address, etc.
-
-The last layer is the network protocol.  Currently that is only `Udp`.  `Udp` is a tuple struct made up of an
-`ActiveW5500` and a `Socket`.  This last layer can be used to send and receive UDP packets over the network via the
-`receive` and `blocking_send` methods.
-
 # Example Usage
 
-Below is a basic example of listening for UDP packets and replying.  An important thing to confirm is the configuration
+Below is a basic example of sending UDP packets to a remote host.  An important thing to confirm is the configuration
 of the SPI implementation.  It must be set up to work as the W5500 chip requires.  That configuration is as follows:
 
 * Data Order: Most significant bit first
@@ -45,45 +29,53 @@ of the SPI implementation.  It must be set up to work as the W5500 chip requires
 * Clock Phase: Sample leading edge
 * Clock speed: 33MHz maximum
 
+Initialization and usage of owned `Device`:
 ```rust
     let mut spi = ...; // SPI interface to use
-    let mut cs_w5500 : OutputPin = ...; // chip select
-    
-    let mut w5500 = W5500::with_initialisation(
-        &mut cs_w5500, // borrowed for whole W5500 lifetime
-        &mut spi, // borrowed for call to `with_initialisation` only
-        OnWakeOnLan::Ignore,
-        OnPingRequest::Respond,
-        ConnectionType::Ethernet,
-        ArpResponses::Cache,
+    let mut cs : OutputPin = ...; // chip select
+
+    // alternative                     FourWireRef::new(&mut spi, &mut cs)
+    let device = UninitializedDevice::new(FourWire::new(spi, cs))
+            .initialize_manual(
+                    MacAddress::new(0, 1, 2, 3, 4, 5),
+                    Ipv4Addr::new(192, 168, 86, 79),
+                    Mode::default()
+            ).unwrap();
+
+    let socket = device.socket();
+    socket.connect(
+        SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 86, 38)), 8000),
     ).unwrap();
+    block!(interface.send(&mut socket, &[104, 101, 108, 108, 111, 10]));
+    device.close(socket);
+
+    // optional
+    let (spi_bus, inactive_device) = device.deactivate();
+```
+
+Usage of borrowed SPI-Bus and previously initialized `Device`:
+```rust
+    let mut spi = ...; // SPI interface to use
+    let mut cs: OutputPin = ...; // chip select
+
+    let mut device: Option<InactiveDevice<..>> = ...; // maybe: previously initialized device
+    let mut socket: Option<Socket> = ...; // maybe: previously opened socket
     
-    let mut active = w5500.activate(&mut spi).unwrap();
-    // using a 'locally administered' MAC address
-    active.set_mac(MacAddress::new(0x02, 0x01, 0x02, 0x03, 0x04, 0x05)).unwrap();
-    active.set_ip(IpAddress::new(192, 168, 0, 222)).unwrap();
-    active.set_subnet(IpAddress::new(255, 255, 255, 0)).unwrap();
-    active.set_gateway(IpAddress::new(192, 168, 0, 1)).unwrap();
-
-    let socket0: UninitializedSocket = active.take_socket(Socket::Socket0).unwrap();
-    let udp_server_socket = (&mut active, socket0).try_into_udp_server_socket(1234).unwrap();
-
-    let mut buffer = [0u8; 256];
-    let response = [104, 101, 108, 108, 111, 10];// "hello" as ASCII
-    loop {
-        if let Ok(Some((ip, port, len))) = (&mut active, udp_server_socket).receive(&mut buffer[..]) {
-            (&mut active, udp_server_socket).blocking_send(ip, port, response[..]).unwrap();
+    if let (Some(socket), Some(device)) = (socket.as_mut(), device.as_mut()) {
+        let mut buffer = [0u8; 1024];
+        match device
+            // scoped activation & usage of the SPI bus without move
+            .activate_ref(FourWireRef::new(&mut spi, &mut cs))
+            .receive(socket, &mut buffer)
+        {
+            Ok(..) => todo!(),
+            Err(..) => todo!(),
         }
     }
 ```
-
 ## Todo
 
 In no particular order, things to do to improve this driver.
 
 * Add support for TCP
 * Add support for DHCP
-* Method to return socket back to the pool
-* Make reset safe by requiring that all sockets be returned to the pool first
-* Support a 3-wire SPI bus
-* Sane defaults for IP/Gateway/Subnet

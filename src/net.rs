@@ -10,6 +10,10 @@
 //! [RFC 2832]: https://github.com/rust-lang/rfcs/pull/2832
 #![deny(unsafe_code, missing_docs, warnings)]
 
+// TODO remove some of these constructs and use equivalents available from embedded-nal
+
+pub use embedded_nal::Ipv4Addr;
+
 /// MAC address struct.  Can be instantiated with `MacAddress::new`.
 ///
 /// This is an EUI-48 MAC address (previously called MAC-48).
@@ -28,7 +32,7 @@ impl MacAddress {
     /// # Examples
     ///
     /// ```
-    /// use w5500::net::MacAddress;
+    /// use w5500::MacAddress;
     ///
     /// let addr = MacAddress::new(0x00, 0x00, 0x5E, 0x00, 0x00, 0x00);
     /// ```
@@ -39,9 +43,25 @@ impl MacAddress {
         }
     }
 
-    /// Creates a new EUI-48 MAC address from six eight-bit octets.
-    pub const fn from_bytes(octets: [u8; 6]) -> MacAddress {
-        MacAddress { octets }
+    /// Returns the six eight-bit integers that make up this address.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use w5500::MacAddress;
+    ///
+    /// let addr = MacAddress::new(13, 12, 11, 10, 15, 14);
+    /// assert_eq!([13u8, 12u8, 11u8, 10u8, 15u8, 14u8], addr.octets());
+    /// ```
+    pub const fn octets(&self) -> [u8; 6] {
+        [
+            self.octets[0],
+            self.octets[1],
+            self.octets[2],
+            self.octets[3],
+            self.octets[4],
+            self.octets[5],
+        ]
     }
 
     /// An EUI-48 MAC address representing an unspecified address:
@@ -50,12 +70,30 @@ impl MacAddress {
     /// # Examples
     ///
     /// ```
-    /// use w5500::net::MacAddress;
+    /// use w5500::MacAddress;
     ///
     /// let addr = MacAddress::UNSPECIFIED;
     /// assert_eq!(addr, MacAddress::new(0x00, 0x00, 0x00, 0x00, 0x00, 0x00));
     /// ```
     pub const UNSPECIFIED: Self = MacAddress::new(0, 0, 0, 0, 0, 0);
+}
+
+impl From<[u8; 6]> for MacAddress {
+    /// Creates an `Ipv4Addr` from a six element byte array.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use w5500::MacAddress;
+    ///
+    /// let addr = MacAddress::from([13u8, 12u8, 11u8, 10u8, 15u8, 14u8]);
+    /// assert_eq!(MacAddress::new(13, 12, 11, 10, 15, 14), addr);
+    /// ```
+    fn from(octets: [u8; 6]) -> MacAddress {
+        MacAddress::new(
+            octets[0], octets[1], octets[2], octets[3], octets[4], octets[5],
+        )
+    }
 }
 
 impl ::core::fmt::Display for MacAddress {
