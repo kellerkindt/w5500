@@ -1,3 +1,8 @@
+# Unreleased
+
+### Added
+- Added TCP client support
+
 # 0.3.0 (June 10, 2020)
 
 ### Breaking changes
