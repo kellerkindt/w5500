@@ -280,4 +280,3 @@ impl <SpiBus: Bus, HostImpl: Host> TcpClientStack for Device<SpiBus, HostImpl> {
         self.as_mut().close(socket)
     }
 }
-
