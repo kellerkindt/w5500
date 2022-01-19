@@ -12,6 +12,7 @@ pub struct UninitializedDevice<SpiBus: Bus> {
     bus: SpiBus,
 }
 
+#[derive(Debug)]
 #[repr(u8)]
 pub enum InitializeError<SpiError> {
     SpiError(SpiError),
