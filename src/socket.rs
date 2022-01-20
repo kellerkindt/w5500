@@ -184,7 +184,7 @@ impl Socket {
             bus.read_frame(self.register(), socketn::RECEIVED_SIZE, &mut sample_0)?;
             let mut sample_1 = [0u8; 2];
             bus.read_frame(self.register(), socketn::RECEIVED_SIZE, &mut sample_1)?;
-            if sample_0 == sample_1 && sample_0[0] >= 8 {
+            if sample_0 == sample_1 {
                 break Ok(u16::from_be_bytes(sample_0));
             }
         }
