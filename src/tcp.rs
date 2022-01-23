@@ -132,7 +132,7 @@ impl TcpSocket {
         bus: &mut B,
         data: &[u8],
     ) -> Result<usize, TcpSocketError<B::Error>> {
-        if self.is_connected(bus)? == false {
+        if !self.is_connected(bus)? {
             return Err(TcpSocketError::NotReady);
         }
 
@@ -156,7 +156,7 @@ impl TcpSocket {
         self.socket.command(bus, socketn::Command::Send)?;
 
         // Wait until the send command completes.
-        while self.socket.has_interrupt(bus, socketn::Interrupt::SendOk)? == false {}
+        while !self.socket.has_interrupt(bus, socketn::Interrupt::SendOk)? {}
         self.socket
             .reset_interrupt(bus, socketn::Interrupt::SendOk)?;
 
@@ -168,15 +168,14 @@ impl TcpSocket {
         bus: &mut B,
         data: &mut [u8],
     ) -> Result<usize, TcpSocketError<B::Error>> {
-        if self.is_connected(bus)? == false {
+        if !self.is_connected(bus)? {
             return Err(TcpSocketError::NotReady);
         }
 
         // Check if we've received data.
-        if self
+        if !self
             .socket
             .has_interrupt(bus, socketn::Interrupt::Receive)?
-            == false
         {
             return Ok(0);
         }
@@ -211,7 +210,7 @@ impl<SpiBus: Bus, HostImpl: Host> TcpClientStack for DeviceRefMut<'_, SpiBus, Ho
     fn socket(&mut self) -> Result<TcpSocket, Self::Error> {
         match self.take_socket() {
             Some(socket) => Ok(TcpSocket { socket }),
-            None => return Err(TcpSocketError::NoMoreSockets),
+            None => Err(TcpSocketError::NoMoreSockets),
         }
     }
 
@@ -232,7 +231,7 @@ impl<SpiBus: Bus, HostImpl: Host> TcpClientStack for DeviceRefMut<'_, SpiBus, Ho
     }
 
     fn is_connected(&mut self, socket: &Self::TcpSocket) -> Result<bool, Self::Error> {
-        Ok(socket.is_connected(&mut self.bus)?)
+        socket.is_connected(&mut self.bus)
     }
 
     fn send(

@@ -51,7 +51,7 @@ impl UdpSocket {
         // TODO ensure write is currently possible
         self.socket
             .set_tx_read_pointer(bus, 0)
-            .and_then(|_| bus.write_frame(self.socket.tx_buffer(), 0, &send_buffer))
+            .and_then(|_| bus.write_frame(self.socket.tx_buffer(), 0, send_buffer))
             .and_then(|_| {
                 self.socket
                     .set_tx_write_pointer(bus, send_buffer.len() as u16)

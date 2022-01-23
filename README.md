@@ -77,5 +77,5 @@ Usage of borrowed SPI-Bus and previously initialized `Device`:
 
 In no particular order, things to do to improve this driver.
 
-* Add support for TCP
+* Add support for TCP server implementations
 * Add support for DHCP
