@@ -1,9 +1,36 @@
-# Unreleased
+# Changelog
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.4.0] - January 22nd, 2022
 
 ### Added
-- Added TCP client support
+- Add support for 3-wire SPI bus (#15)
+- Make IpAddr derive `Eq` (#19)
+- Add constructors for network types (#21)
+- Add method to change PHY configuration (#23)
+- Add feature `no-chip-version-assertion` for compatible chips with unexpected version information
+- Add `MacAddress::octets()`
+- Add `impl From<[u8; 6]> for MacAddress`
+- Add `Device::deactivate` and `InactiveDevice::activate`
+- Add re-export of `FourWireError` and `ThreeWireError`
+- Add `FourWireRef` to be able to use `Device` with borrowed SPI and CS
+- Add `DeviceRefMut` to be able to use `Device` without moving ownership
+- Add getter: `Device::{gateway,subnet_mask,mac,ip,version}
+- Restructure and implement embedded-nal UDP trais (#26) - big thanks to @jonahd-g 
+- Add TCP client support (#24) - big thanks to @ryan-summers
 
-# 0.3.0 (June 10, 2020)
+### Changed
+- Updated dependencies (#22)
+- `Mode` fields are now publicly acessible
+
+### Removed
+- Cargo.lock (#20)
+- Replace `net::Ipv4Addr` with `embedded_nal::Ipv4Addr`
+
+## [0.3.0] - June 10, 2020
 
 ### Breaking changes
 - Require [`v2::OutputPins`](https://github.com/rust-embedded/embedded-hal/blob/9e6ab5a1ee8900830bd4fe56f0a84ddb0bccda3f/src/digital/v2.rs)
