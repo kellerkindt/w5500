@@ -50,6 +50,12 @@ impl Socket {
         Ok(())
     }
 
+    pub fn get_status<SpiBus: Bus>(&self, bus: &mut SpiBus) -> Result<u8, SpiBus::Error> {
+        let mut data = [0u8];
+        bus.read_frame(self.register(), socketn::STATUS, &mut data)?;
+        Ok(data[0])
+    }
+
     pub fn reset_interrupt<SpiBus: Bus>(
         &self,
         bus: &mut SpiBus,
@@ -178,9 +184,15 @@ impl Socket {
             bus.read_frame(self.register(), socketn::RECEIVED_SIZE, &mut sample_0)?;
             let mut sample_1 = [0u8; 2];
             bus.read_frame(self.register(), socketn::RECEIVED_SIZE, &mut sample_1)?;
-            if sample_0 == sample_1 && sample_0[0] >= 8 {
+            if sample_0 == sample_1 {
                 break Ok(u16::from_be_bytes(sample_0));
             }
         }
+    }
+
+    pub fn get_tx_free_size<SpiBus: Bus>(&self, bus: &mut SpiBus) -> Result<u16, SpiBus::Error> {
+        let mut data = [0; 2];
+        bus.read_frame(self.register(), socketn::TX_FREE_SIZE, &mut data)?;
+        Ok(u16::from_be_bytes(data))
     }
 }

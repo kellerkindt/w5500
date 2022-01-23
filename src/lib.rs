@@ -1,6 +1,6 @@
 #![no_std]
 #![allow(unused)]
-#![deny(broken_intra_doc_links)]
+#![deny(rustdoc::broken_intra_doc_links)]
 
 pub mod bus;
 mod device;
@@ -8,6 +8,7 @@ mod host;
 pub mod net;
 pub mod register;
 mod socket;
+pub mod tcp;
 pub mod udp;
 mod uninitialized_device;
 
@@ -34,8 +35,8 @@ pub enum OnPingRequest {
     Ignore = 0b00010000,
 }
 
-/// Use [TransmissionMode::PPoE] when talking
-/// to an ADSL modem. Otherwise use [TransmissionMode::Ethernet]
+/// Use [ConnectionType::PPoE] when talking
+/// to an ADSL modem. Otherwise use [ConnectionType::Ethernet]
 #[repr(u8)]
 #[derive(Copy, Clone, PartialOrd, PartialEq)]
 pub enum ConnectionType {

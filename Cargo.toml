@@ -1,9 +1,9 @@
 [package]
 name = "w5500"
 version = "0.3.0"
-authors = ["Michael Watzko <michael@watzko.de>", "Jonah Dahlquist <hi@jonah.name>"]
+authors = ["Michael Watzko <michael@watzko.de>", "Jonah Dahlquist <hi@jonah.name>", "Ryan Summers <ryan.summers@vertigo-designs.com"]
 repository = "https://github.com/kellerkindt/w5500.git"
-description = "W5500 IoT Controller implementation. Currently UDP sending and receiving is working. WIP"
+description = "W5500 IoT Controller implementation."
 keywords = ["embedded", "w5500", "iot", "arm", "embedded-hal-driver"]
 categories = ["embedded", "hardware-support", "no-std", "network-programming"]
 license = "MIT OR Apache-2.0"
@@ -13,8 +13,9 @@ edition = "2018"
 [dependencies]
 byteorder = { version = "1.3.4", default-features = false }
 embedded-hal = "0.2.4"
-embedded-nal = "0.4.0"
+embedded-nal = "0.6.0"
 bit_field = "0.10.1"
+derive-try-from-primitive = "1"
 nb = "1.0.0"
 
 [features]

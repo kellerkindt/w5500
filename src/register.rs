@@ -159,19 +159,25 @@ pub const SOCKET7_BUFFER_TX: u8 = 0b000_11110;
 pub const SOCKET7_BUFFER_RX: u8 = 0b000_11111;
 
 pub mod socketn {
+    use derive_try_from_primitive::TryFromPrimitive;
+
     pub const MODE: u16 = 0x00;
     #[repr(u8)]
     pub enum Protocol {
-        Udp = 0b10u8,
-        Closed = 0u8,
+        Closed = 0b00,
+        Tcp = 0b01,
+        Udp = 0b10,
     }
     pub const COMMAND: u16 = 0x01;
     #[repr(u8)]
     pub enum Command {
         Open = 0x01,
+        Listen = 0x02,
+        Connect = 0x04,
+        Discon = 0x08,
+        Close = 0x10,
         Send = 0x20,
         Receive = 0x40,
-        Close = 0x10,
     }
 
     pub const INTERRUPT: u16 = 0x02;
@@ -183,11 +189,34 @@ pub mod socketn {
         Receive = 0b00100u8,
     }
 
+    pub const STATUS: u16 = 0x03;
+    #[repr(u8)]
+    #[derive(TryFromPrimitive)]
+    pub enum Status {
+        Closed = 0x00,
+        Init = 0x13,
+        Listen = 0x14,
+        Established = 0x17,
+        CloseWait = 0x1c,
+        Udp = 0x22,
+        MacRaw = 0x42,
+
+        // Transient states.
+        SynSent = 0x15,
+        SynRecv = 0x16,
+        FinWait = 0x18,
+        Closing = 0x1a,
+        TimeWait = 0x1b,
+        LastAck = 0x1d,
+    }
+
     pub const SOURCE_PORT: u16 = 0x04;
 
     pub const DESTINATION_IP: u16 = 0x0C;
 
     pub const DESTINATION_PORT: u16 = 0x10;
+
+    pub const TX_FREE_SIZE: u16 = 0x20;
 
     pub const TX_DATA_READ_POINTER: u16 = 0x22;
 
