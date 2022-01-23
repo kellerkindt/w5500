@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Add support for 3-wire SPI bus ([#15](https://github.com/kellerkindt/w5500/issues/15))
-- Make IpAddr derive `Eq` ([#19](https://github.com/kellerkindt/w5500/issues/19))
 - Add constructors for network types ([#21](https://github.com/kellerkindt/w5500/issues/21))
 - Add method to change PHY configuration ([#23](https://github.com/kellerkindt/w5500/issues/23))
 - Add feature `no-chip-version-assertion` for compatible chips with unexpected version information
@@ -23,11 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add TCP client support ([#24](https://github.com/kellerkindt/w5500/issues/24)) - big thanks to [@ryan-summers](https://github.com/ryan-summers)
 
 ### Changed
-- Updated dependencies (#22)
+- Updated dependencies ([#22](https://github.com/kellerkindt/w5500/issues/22))
 - `Mode` fields are now publicly acessible
 
 ### Removed
-- Cargo.lock (#20)
+- Cargo.lock ([#20](https://github.com/kellerkindt/w5500/issues/20))
 - Replace `net::Ipv4Addr` with `embedded_nal::Ipv4Addr`
 
 ## [0.3.0] - June 10, 2020
