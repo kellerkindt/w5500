@@ -7,10 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.4.0] - January 22nd, 2022
 
 ### Added
-- Add support for 3-wire SPI bus (#15)
-- Make IpAddr derive `Eq` (#19)
-- Add constructors for network types (#21)
-- Add method to change PHY configuration (#23)
+- Add support for 3-wire SPI bus ([#15](https://github.com/kellerkindt/w5500/issues/15))
+- Make IpAddr derive `Eq` ([#19](https://github.com/kellerkindt/w5500/issues/19))
+- Add constructors for network types ([#21](https://github.com/kellerkindt/w5500/issues/21))
+- Add method to change PHY configuration ([#23](https://github.com/kellerkindt/w5500/issues/23))
 - Add feature `no-chip-version-assertion` for compatible chips with unexpected version information
 - Add `MacAddress::octets()`
 - Add `impl From<[u8; 6]> for MacAddress`
@@ -18,9 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add re-export of `FourWireError` and `ThreeWireError`
 - Add `FourWireRef` to be able to use `Device` with borrowed SPI and CS
 - Add `DeviceRefMut` to be able to use `Device` without moving ownership
-- Add getter: `Device::{gateway,subnet_mask,mac,ip,version}
-- Restructure and implement embedded-nal UDP trais (#26) - big thanks to @jonahd-g 
-- Add TCP client support (#24) - big thanks to @ryan-summers
+- Add getter: `Device::{gateway,subnet_mask,mac,ip,version}`
+- Restructure and implement embedded-nal UDP trais ([#26](https://github.com/kellerkindt/w5500/issues/26)) - big thanks to [@jonahd-g](https://github.com/jonahd-g)
+- Add TCP client support ([#24](https://github.com/kellerkindt/w5500/issues/24)) - big thanks to [@ryan-summers](https://github.com/ryan-summers)
 
 ### Changed
 - Updated dependencies (#22)
