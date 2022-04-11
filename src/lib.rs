@@ -6,6 +6,7 @@ pub mod bus;
 mod device;
 mod host;
 pub mod net;
+pub mod raw_device;
 pub mod register;
 mod socket;
 pub mod tcp;

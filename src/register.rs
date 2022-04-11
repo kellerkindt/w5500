@@ -167,6 +167,7 @@ pub mod socketn {
         Closed = 0b00,
         Tcp = 0b01,
         Udp = 0b10,
+        MacRaw = 0b100,
     }
     pub const COMMAND: u16 = 0x01;
     #[repr(u8)]
