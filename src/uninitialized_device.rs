@@ -5,6 +5,7 @@ use embedded_nal::Ipv4Addr;
 use crate::bus::{Bus, FourWire, ThreeWire};
 use crate::device::Device;
 use crate::host::{Dhcp, Host, Manual};
+use crate::raw_device::RawDevice;
 use crate::register;
 use crate::{MacAddress, Mode};
 
@@ -96,6 +97,15 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
         self.set_mode(mode_options)?;
         host.refresh(&mut self.bus)?;
         Ok(Device::new(self.bus, host))
+    }
+
+    pub fn initialize_macraw(
+        mut self,
+        mac: MacAddress,
+    ) -> Result<RawDevice<SpiBus>, InitializeError<SpiBus::Error>> {
+        self.bus
+            .write_frame(register::COMMON, register::common::MAC, &mac.octets)?;
+        RawDevice::new(self.bus)
     }
 
     #[cfg(not(feature = "no-chip-version-assertion"))]
