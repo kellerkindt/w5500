@@ -67,17 +67,17 @@ pub mod common {
 
     impl PhyConfig {
         // Link status bit position.
-        const LNK_POS: usize = 7;
+        const LNK_POS: usize = 0;
         // Speed status bit position.
-        const SPD_POS: usize = 6;
+        const SPD_POS: usize = 1;
         // Duplex status bit position.
-        const DPX_POS: usize = 5;
+        const DPX_POS: usize = 2;
         // Operation mode bit position.
-        // const OPMDC_POS = 2;
+        // const OPMDC_POS = 3;
         // Configure PHY opeartion mode bit position.
-        // const OPMD_POS = 1;
+        // const OPMD_POS = 6;
         // Reset bit position.
-        // const RST_POS = 0;
+        // const RST_POS = 7;
 
         /// PHY link status.
         ///
