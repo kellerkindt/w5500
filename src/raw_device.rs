@@ -27,8 +27,7 @@ impl<SpiBus: Bus> RawDevice<SpiBus> {
             bus.write_frame(socket.register(), register::socketn::RXBUF_SIZE, &[0])?;
         }
 
-        // Configure the chip in MACRAW mode with MAC filtering + Multicast blocking + IPv6
-        // Blocking + Broadcast blocking.
+        // Configure the chip in MACRAW mode with MAC filtering.
         let mode: u8 = (1 << 7) | // MAC address filtering
                        (register::socketn::Protocol::MacRaw as u8);
 
@@ -38,6 +37,15 @@ impl<SpiBus: Bus> RawDevice<SpiBus> {
         Ok(Self { bus, raw_socket })
     }
 
+    // Read bytes from the RX buffer.
+    //
+    // # Args
+    // * `buffer` - The location to read data into. The length of this slice determines how much
+    // data is read.
+    // * `offset` - The offset into current RX data to start reading from in bytes.
+    //
+    // # Returns
+    // The number of bytes successfully read.
     fn read_bytes(&mut self, buffer: &mut [u8], offset: u16) -> Result<usize, SpiBus::Error> {
         let rx_size = self.raw_socket.get_receive_size(&mut self.bus)? as usize;
 
