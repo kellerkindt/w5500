@@ -105,8 +105,7 @@ impl<SpiBus: Bus> RawDevice<SpiBus> {
         self.raw_socket
             .command(&mut self.bus, register::socketn::Command::Receive)?;
 
-        // If we couldn't read the whole check sequence or if we read less bytes than expected,
-        // drop the frame.
+        // If we couldn't read the whole frame, drop it instead.
         if received_frame_size < expected_frame_size {
             Ok(0)
         } else {
