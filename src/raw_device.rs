@@ -15,15 +15,50 @@ impl<SpiBus: Bus> RawDevice<SpiBus> {
     /// # Args
     /// * `bus` - The bus to communicate with the device.
     pub(crate) fn new(mut bus: SpiBus) -> Result<Self, InitializeError<SpiBus::Error>> {
+        // Set the raw socket to 16KB RX/TX buffer space.
         let raw_socket = Socket::new(0);
+        bus.write_frame(raw_socket.register(), register::socketn::TXBUF_SIZE, &[16])?;
+        bus.write_frame(raw_socket.register(), register::socketn::RXBUF_SIZE, &[16])?;
 
-        // Configure the chip in MACRAW mode with MAC filtering.
-        let mode: u8 = (1 << 7) | (register::socketn::Protocol::MacRaw as u8);
+        // Set all socket buffers to 0KB size.
+        for socket_index in 1..8 {
+            let socket = Socket::new(socket_index);
+            bus.write_frame(socket.register(), register::socketn::TXBUF_SIZE, &[0])?;
+            bus.write_frame(socket.register(), register::socketn::RXBUF_SIZE, &[0])?;
+        }
+
+        // Configure the chip in MACRAW mode with MAC filtering + Multicast blocking + IPv6
+        // Blocking + Broadcast blocking.
+        let mode: u8 = (1 << 7) | // MAC address filtering
+                       (register::socketn::Protocol::MacRaw as u8);
 
         bus.write_frame(raw_socket.register(), register::socketn::MODE, &[mode])?;
         raw_socket.command(&mut bus, register::socketn::Command::Open)?;
 
         Ok(Self { bus, raw_socket })
+    }
+
+    fn read_bytes(&mut self, buffer: &mut [u8], offset: u16) -> Result<usize, SpiBus::Error> {
+        let rx_size = self.raw_socket.get_receive_size(&mut self.bus)? as usize;
+
+        let read_buffer = if rx_size > buffer.len() + offset as usize {
+            buffer
+        } else {
+            &mut buffer[..rx_size - offset as usize]
+        };
+
+        let read_pointer = self
+            .raw_socket
+            .get_rx_read_pointer(&mut self.bus)?
+            .wrapping_add(offset);
+        self.bus
+            .read_frame(self.raw_socket.rx_buffer(), read_pointer, read_buffer)?;
+        self.raw_socket.set_rx_read_pointer(
+            &mut self.bus,
+            read_pointer.wrapping_add(read_buffer.len() as u16),
+        )?;
+
+        Ok(read_buffer.len())
     }
 
     /// Read an ethernet frame from the device.
@@ -34,37 +69,41 @@ impl<SpiBus: Bus> RawDevice<SpiBus> {
     /// # Returns
     /// The number of bytes read into the provided frame buffer.
     pub fn read_frame(&mut self, frame: &mut [u8]) -> Result<usize, SpiBus::Error> {
-        if !self
-            .raw_socket
-            .has_interrupt(&mut self.bus, register::socketn::Interrupt::Receive)?
-        {
+        // Check if there is anything to receive.
+        let rx_size = self.raw_socket.get_receive_size(&mut self.bus)? as usize;
+        if rx_size == 0 {
             return Ok(0);
         }
 
-        let rx_size = self.raw_socket.get_receive_size(&mut self.bus)? as usize;
+        // The W5500 specifies the size of the received ethernet frame in the first two bytes.
+        // Refer to https://forum.wiznet.io/t/topic/979/2 for more information.
+        let expected_frame_size: usize = {
+            let mut frame_bytes = [0u8; 2];
+            assert!(self.read_bytes(&mut frame_bytes[..], 0)? == 2);
 
-        let read_buffer = if rx_size > frame.len() {
-            frame
-        } else {
-            &mut frame[..rx_size]
+            u16::from_be_bytes(frame_bytes) as usize - 2
         };
 
-        // Read from the RX ring buffer.
-        let read_pointer = self.raw_socket.get_rx_read_pointer(&mut self.bus)?;
-        self.bus
-            .read_frame(self.raw_socket.rx_buffer(), read_pointer, read_buffer)?;
-        self.raw_socket.set_rx_read_pointer(
-            &mut self.bus,
-            read_pointer.wrapping_add(read_buffer.len() as u16),
-        )?;
+        // Read the ethernet frame
+        let read_buffer = if frame.len() > expected_frame_size {
+            &mut frame[..expected_frame_size]
+        } else {
+            frame
+        };
+
+        let received_frame_size = self.read_bytes(read_buffer, 2)?;
 
         // Register the reception as complete.
         self.raw_socket
             .command(&mut self.bus, register::socketn::Command::Receive)?;
-        self.raw_socket
-            .reset_interrupt(&mut self.bus, register::socketn::Interrupt::Receive)?;
 
-        Ok(read_buffer.len())
+        // If we couldn't read the whole check sequence or if we read less bytes than expected,
+        // drop the frame.
+        if received_frame_size < expected_frame_size {
+            Ok(0)
+        } else {
+            Ok(received_frame_size)
+        }
     }
 
     /// Write an ethernet frame to the device.

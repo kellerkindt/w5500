@@ -217,6 +217,10 @@ pub mod socketn {
 
     pub const DESTINATION_PORT: u16 = 0x10;
 
+    pub const RXBUF_SIZE: u16 = 0x1E;
+
+    pub const TXBUF_SIZE: u16 = 0x1F;
+
     pub const TX_FREE_SIZE: u16 = 0x20;
 
     pub const TX_DATA_READ_POINTER: u16 = 0x22;
