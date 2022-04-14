@@ -103,8 +103,13 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
         mut self,
         mac: MacAddress,
     ) -> Result<RawDevice<SpiBus>, InitializeError<SpiBus::Error>> {
+        // Reset the device.
+        self.bus
+            .write_frame(register::COMMON, register::common::MODE, &[0x80])?;
+
         self.bus
             .write_frame(register::COMMON, register::common::MAC, &mac.octets)?;
+
         RawDevice::new(self.bus)
     }
 
