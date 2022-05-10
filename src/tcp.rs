@@ -37,7 +37,9 @@ impl TcpSocket {
 
         self.socket.set_interrupt_mask(
             bus,
-            socketn::Interrupt::SendOk as u8 & socketn::Interrupt::Timeout as u8,
+            socketn::Interrupt::SendOk as u8
+                | socketn::Interrupt::Timeout as u8
+                | socketn::Interrupt::Receive as u8,
         )?;
 
         self.socket.command(bus, socketn::Command::Open)?;
@@ -55,7 +57,9 @@ impl TcpSocket {
 
         self.socket.set_interrupt_mask(
             bus,
-            socketn::Interrupt::SendOk as u8 & socketn::Interrupt::Timeout as u8,
+            socketn::Interrupt::SendOk as u8
+                | socketn::Interrupt::Timeout as u8
+                | socketn::Interrupt::Receive as u8,
         )?;
 
         self.socket.command(bus, socketn::Command::Open)?;

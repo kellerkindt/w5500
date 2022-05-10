@@ -94,6 +94,12 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
         self.bus
             .write_frame(register::COMMON, register::common::MODE, &mode)?;
 
+        self.bus.write_frame(
+            register::COMMON,
+            register::common::SOCKET_INTERRUPT_MASK,
+            &[0xFF],
+        )?;
+
         self.set_mode(mode_options)?;
         host.refresh(&mut self.bus)?;
         Ok(Device::new(self.bus, host))
