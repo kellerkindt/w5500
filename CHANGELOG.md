@@ -6,8 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+## [0.4.1] - January 2nd, 2023
+
 ### Added
-- Add support for MACRAW operation mode [#33](https://github.com/kellerkindt/w5500/pull/33)
+
+- Fix indexing for phy configuration register by [@Wassasin](https://github.com/Wassasin) ([#32](https://github.com/kellerkindt/w5500/issues/32))
+- Add support for MACRAW operation mode by [@ryan-summers](https://github.com/ryan-summers) ([#33](https://github.com/kellerkindt/w5500/issues/33))
+
 
 ## [0.4.0] - January 22nd, 2022
 
