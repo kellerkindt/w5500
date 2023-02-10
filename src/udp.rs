@@ -6,6 +6,8 @@ use crate::socket::Socket;
 use core::fmt::Debug;
 use embedded_nal::{nb, IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, UdpClientStack, UdpFullStack};
 
+#[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct UdpSocket {
     socket: Socket,
 }
@@ -140,10 +142,11 @@ impl UdpSocket {
 }
 
 #[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum UdpSocketError<E: Debug> {
     NoMoreSockets,
     UnsupportedAddress,
-    Other(E),
+    Other(#[cfg_attr(feature = "defmt", defmt(Debug2Format))] E),
     WriteTimeout,
 }
 
