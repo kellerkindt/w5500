@@ -14,7 +14,7 @@ pub mod udp;
 mod uninitialized_device;
 
 pub use device::{Device, DeviceRefMut, InactiveDevice};
-pub use host::{Dhcp, HostConfig, Manual};
+pub use host::{Dhcp, Host, HostConfig, Manual};
 pub use net::MacAddress;
 pub use uninitialized_device::UninitializedDevice;
 
