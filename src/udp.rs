@@ -78,6 +78,7 @@ impl UdpSocket {
         }
     }
 
+    /// Sets a new destination before performing the send operation.
     fn send_to<SpiBus: Bus>(
         &mut self,
         bus: &mut SpiBus,
@@ -88,6 +89,9 @@ impl UdpSocket {
         self.send(bus, send_buffer)
     }
 
+    /// Receive data and mutate the `receive_buffer`.
+    ///
+    /// If [`Interrupt::Receive`] is not set, it will always return [`NbError::WouldBlock`].
     fn receive<SpiBus: Bus>(
         &mut self,
         bus: &mut SpiBus,
@@ -138,6 +142,12 @@ impl UdpSocket {
         self.socket.set_mode(bus, socketn::Protocol::Closed)?;
         self.socket.command(bus, socketn::Command::Close)?;
         Ok(())
+    }
+
+    /// returns the index of the socket
+    #[inline]
+    pub fn index(&self) -> u8 {
+        self.socket.index
     }
 }
 
