@@ -9,6 +9,8 @@ use crate::bus::{Bus, FourWire, FourWireError};
 // TODO This name is not ideal, should be renamed to VDM
 /// This is just like [crate::bus::FourWire] but takes references instead of ownership
 /// for the SPI bus and the ChipSelect pin
+#[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct FourWireRef<'a, Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin>(
     FourWire<SpiRef<'a, Spi>, OutputPinRef<'a, ChipSelect>>,
 );
@@ -43,6 +45,7 @@ impl<Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin> Bus
 }
 
 #[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SpiRef<'a, Spi: Transfer<u8> + Write<u8>>(pub &'a mut Spi);
 
 impl<'a, Spi: Transfer<u8> + Write<u8>> Transfer<u8> for SpiRef<'a, Spi> {
@@ -64,6 +67,7 @@ impl<'a, Spi: Transfer<u8> + Write<u8>> Write<u8> for SpiRef<'a, Spi> {
 }
 
 #[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct OutputPinRef<'a, P: OutputPin>(pub &'a mut P);
 
 impl<'a, P: OutputPin> OutputPin for OutputPinRef<'a, P> {

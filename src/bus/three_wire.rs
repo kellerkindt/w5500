@@ -12,6 +12,8 @@ const FIXED_DATA_LENGTH_MODE_2: u8 = 0b000000_10;
 const FIXED_DATA_LENGTH_MODE_4: u8 = 0b000000_11;
 
 // TODO This name is not ideal, should be renamed to FDM
+#[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ThreeWire<Spi: Transfer<u8> + Write<u8>> {
     spi: Spi,
 }

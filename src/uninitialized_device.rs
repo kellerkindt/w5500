@@ -9,6 +9,8 @@ use crate::raw_device::RawDevice;
 use crate::register;
 use crate::{MacAddress, Mode};
 
+#[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct UninitializedDevice<SpiBus: Bus> {
     bus: SpiBus,
 }

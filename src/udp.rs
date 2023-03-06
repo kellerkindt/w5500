@@ -6,6 +6,8 @@ use crate::socket::Socket;
 use core::fmt::Debug;
 use embedded_nal::{nb, IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, UdpClientStack, UdpFullStack};
 
+#[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct UdpSocket {
     socket: Socket,
 }
@@ -76,6 +78,7 @@ impl UdpSocket {
         }
     }
 
+    /// Sets a new destination before performing the send operation.
     fn send_to<SpiBus: Bus>(
         &mut self,
         bus: &mut SpiBus,
@@ -86,6 +89,9 @@ impl UdpSocket {
         self.send(bus, send_buffer)
     }
 
+    /// Receive data and mutate the `receive_buffer`.
+    ///
+    /// If [`Interrupt::Receive`] is not set, it will always return [`NbError::WouldBlock`].
     fn receive<SpiBus: Bus>(
         &mut self,
         bus: &mut SpiBus,
@@ -137,13 +143,20 @@ impl UdpSocket {
         self.socket.command(bus, socketn::Command::Close)?;
         Ok(())
     }
+
+    /// returns the index of the socket
+    #[inline]
+    pub fn index(&self) -> u8 {
+        self.socket.index
+    }
 }
 
 #[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum UdpSocketError<E: Debug> {
     NoMoreSockets,
     UnsupportedAddress,
-    Other(E),
+    Other(#[cfg_attr(feature = "defmt", defmt(Debug2Format))] E),
     WriteTimeout,
 }
 

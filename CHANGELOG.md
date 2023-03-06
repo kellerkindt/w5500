@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `defmt` features for enabling `defmt::Format` to most structs and errors by [@elpiel](https://github.com/elpiel) ([#39](https://github.com/kellerkindt/w5500/issues/39))
 
 ## [0.4.1] - January 2nd, 2023
 
@@ -13,7 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix indexing for phy configuration register by [@Wassasin](https://github.com/Wassasin) ([#32](https://github.com/kellerkindt/w5500/issues/32))
 - Add support for MACRAW operation mode by [@ryan-summers](https://github.com/ryan-summers) ([#33](https://github.com/kellerkindt/w5500/issues/33))
-
 
 ## [0.4.0] - January 22nd, 2022
 

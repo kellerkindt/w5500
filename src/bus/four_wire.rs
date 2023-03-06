@@ -9,6 +9,8 @@ use crate::bus::Bus;
 const WRITE_MODE_MASK: u8 = 0b00000_1_00;
 
 // TODO This name is not ideal, should be renamed to VDM
+#[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct FourWire<Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin> {
     cs: ChipSelect,
     spi: Spi,

@@ -1,6 +1,8 @@
 use crate::{bus::Bus, register, socket::Socket, uninitialized_device::InitializeError};
 
 /// The W5500 operating in MACRAW mode to send and receive ethernet frames.
+#[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct RawDevice<SpiBus: Bus> {
     bus: SpiBus,
     raw_socket: Socket,

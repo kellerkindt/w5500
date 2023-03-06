@@ -18,6 +18,7 @@ pub use embedded_nal::Ipv4Addr;
 ///
 /// This is an EUI-48 MAC address (previously called MAC-48).
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash, Default)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct MacAddress {
     /// Octets of the MAC address.
     pub octets: [u8; 6],

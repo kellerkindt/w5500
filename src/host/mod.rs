@@ -8,10 +8,15 @@ use crate::register;
 use crate::MacAddress;
 use embedded_nal::Ipv4Addr;
 
+#[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct HostConfig {
     mac: MacAddress,
+    #[cfg_attr(feature = "defmt", defmt(Display2Format))]
     ip: Ipv4Addr,
+    #[cfg_attr(feature = "defmt", defmt(Display2Format))]
     gateway: Ipv4Addr,
+    #[cfg_attr(feature = "defmt", defmt(Display2Format))]
     subnet: Ipv4Addr,
 }
 
