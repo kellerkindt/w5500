@@ -19,6 +19,8 @@ impl<E> From<E> for ResetError<E> {
     }
 }
 
+#[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub(crate) struct DeviceState<HostImpl: Host> {
     host: HostImpl,
     sockets: [u8; 1],
@@ -104,6 +106,8 @@ impl<SpiBus: Bus, HostImpl: Host> Device<SpiBus, HostImpl> {
     }
 }
 
+#[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct InactiveDevice<HostImpl: Host>(DeviceState<HostImpl>);
 
 impl<HostImpl: Host> InactiveDevice<HostImpl> {

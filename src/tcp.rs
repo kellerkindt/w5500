@@ -11,11 +11,12 @@ use embedded_nal::{nb, IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, TcpClientStac
 use core::convert::TryFrom;
 
 #[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum TcpSocketError<E: core::fmt::Debug> {
     NoMoreSockets,
     NotReady,
     UnsupportedAddress,
-    Other(E),
+    Other(#[cfg_attr(feature = "defmt", defmt(Debug2Format))] E),
     UnsupportedMode,
 }
 
@@ -25,6 +26,8 @@ impl<E: core::fmt::Debug> From<E> for TcpSocketError<E> {
     }
 }
 
+#[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct TcpSocket {
     socket: Socket,
 }

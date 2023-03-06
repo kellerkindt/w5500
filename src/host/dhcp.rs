@@ -2,6 +2,8 @@ use crate::bus::Bus;
 use crate::host::Host;
 use crate::MacAddress;
 
+#[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Dhcp {
     // settings: HostConfig,
     // current: HostConfig,
