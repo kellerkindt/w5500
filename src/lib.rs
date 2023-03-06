@@ -11,12 +11,12 @@ pub mod register;
 mod socket;
 pub mod tcp;
 pub mod udp;
-pub mod uninitialized_device;
+mod uninitialized_device;
 
 pub use device::{Device, DeviceRefMut, InactiveDevice};
 pub use host::{Dhcp, Host, HostConfig, Manual};
 pub use net::MacAddress;
-pub use uninitialized_device::UninitializedDevice;
+pub use uninitialized_device::{InitializeError, UninitializedDevice};
 
 // TODO add better docs to all public items, add unit tests.
 
