@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Add support for MACRAW operation mode [#33](https://github.com/kellerkindt/w5500/pull/33)
+- Add `defmt` features for enabling `defmt::Format` to most structs and errors [#39](https://github.com/kellerkindt/w5500/pull/39)
 
 ## [0.4.0] - January 22nd, 2022
 
