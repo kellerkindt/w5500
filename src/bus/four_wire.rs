@@ -29,10 +29,16 @@ impl<Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin> FourWire<Spi, ChipSel
 impl<Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin> Bus for FourWire<Spi, ChipSelect> {
     type Error =
         FourWireError<<Spi as Transfer<u8>>::Error, <Spi as Write<u8>>::Error, ChipSelect::Error>;
+
     fn read_frame(&mut self, block: u8, address: u16, data: &mut [u8]) -> Result<(), Self::Error> {
         let address_phase = address.to_be_bytes();
         let control_phase = block << 3;
         let data_phase = data;
+
+        #[cfg(feature = "defmt")]
+        defmt::debug!("Address: {:b}, control_phase: {:b}", address, control_phase);
+
+        // set Chip select to Low, i.e. prepare to receive data
         self.cs.set_low().map_err(FourWireError::ChipSelectError)?;
         let result = (|| {
             self.spi
@@ -44,23 +50,32 @@ impl<Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin> Bus for FourWire<Spi,
                 .map_err(FourWireError::TransferError)?;
             Ok(())
         })();
+
+        // set Chip select to High, i.e. we've finished listening
         self.cs.set_high().map_err(FourWireError::ChipSelectError)?;
+
+        // then return the result of the transmission
         result
     }
+
     fn write_frame(&mut self, block: u8, address: u16, data: &[u8]) -> Result<(), Self::Error> {
         let address_phase = address.to_be_bytes();
         let control_phase = block << 3 | WRITE_MODE_MASK;
         let data_phase = data;
+
+        // set Chip select to Low, i.e. prepare to transmit
         self.cs.set_low().map_err(FourWireError::ChipSelectError)?;
-        let result = (|| {
-            self.spi
-                .write(&address_phase)
-                .and_then(|_| self.spi.write(&[control_phase]))
-                .and_then(|_| self.spi.write(data_phase))
-                .map_err(FourWireError::WriteError)?;
-            Ok(())
-        })();
+        let result = self
+            .spi
+            .write(&address_phase)
+            .and_then(|_| self.spi.write(&[control_phase]))
+            .and_then(|_| self.spi.write(data_phase))
+            .map_err(FourWireError::WriteError);
+
+        // set Chip select to High, i.e. we've finished transmitting
         self.cs.set_high().map_err(FourWireError::ChipSelectError)?;
+
+        // then return the result of the transmission
         result
     }
 }

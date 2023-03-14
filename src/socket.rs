@@ -12,6 +12,7 @@ pub struct Socket {
 }
 
 impl Socket {
+    /// 8 sockets available on the w5500
     pub fn new(index: u8) -> Self {
         /*
          * Socket 0 is at address    0x01
@@ -179,9 +180,12 @@ impl Socket {
         Ok(())
     }
 
+    /// Get the received bytes size of the socket's RX buffer.
+    ///
+    /// Section 4.2 of datasheet, Sn_TX_FSR address docs indicate that read must be repeated until two sequential reads are stable
     pub fn get_receive_size<SpiBus: Bus>(&self, bus: &mut SpiBus) -> Result<u16, SpiBus::Error> {
         loop {
-            // Section 4.2 of datasheet, Sn_TX_FSR address docs indicate that read must be repeated until two sequential reads are stable
+            
             let mut sample_0 = [0u8; 2];
             bus.read_frame(self.register(), socketn::RECEIVED_SIZE, &mut sample_0)?;
             let mut sample_1 = [0u8; 2];
@@ -192,6 +196,9 @@ impl Socket {
         }
     }
 
+    /// Get the free TX buffer size still available for this socket.
+    ///
+    /// It's cleared once we `SEND` the buffer over the socket.
     pub fn get_tx_free_size<SpiBus: Bus>(&self, bus: &mut SpiBus) -> Result<u16, SpiBus::Error> {
         let mut data = [0; 2];
         bus.read_frame(self.register(), socketn::TX_FREE_SIZE, &mut data)?;

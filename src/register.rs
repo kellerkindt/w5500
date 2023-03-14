@@ -169,8 +169,16 @@ pub mod socketn {
         Udp = 0b10,
         MacRaw = 0b100,
     }
+    /// Socket n Command Register
+    ///
+    /// `Sn_CR`
+    // pub const COMMAND: u16 = 0b0001;
     pub const COMMAND: u16 = 0x01;
     #[repr(u8)]
+
+    /// Socket n Commands
+    ///
+    /// `Sn_CR` regiter
     pub enum Command {
         Open = 0x01,
         Listen = 0x02,
@@ -182,12 +190,37 @@ pub mod socketn {
     }
 
     pub const INTERRUPT: u16 = 0x02;
+    /// | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+    /// | Reserved | Reserved | Reserved | SEND_OK | TIMEOUT | RECV | DISCON | CON |
+    ///
+    /// | Bit | Symbol | Description |
+    /// | 7~5 | Reserved | Reserved |
+    /// | 4 | SENDOK | Sn_IR(SENDOK) | Interrupt Mask |
+    /// | 3 | TIMEOUT | Sn_IR(TIMEOUT) | Interrupt Mask |
+    /// | 2 | RECV | Sn_IR(RECV) | Interrupt Mask |
+    /// | 1 | DISCON | Sn_IR(DISCON) | Interrupt Mask |
+    /// | 0 | CON | Sn_IR(CON) | Interrupt Mask |
     #[repr(u8)]
     pub enum Interrupt {
         All = 0b11111111u8,
-        SendOk = 0b010000u8,
-        Timeout = 0b01000u8,
-        Receive = 0b00100u8,
+        SendOk = 0b10000u8,
+        Timeout = 0b1000u8,
+        Receive = 0b100u8,
+
+        // SendOk = 0b10000u8,
+        // Timeout = 0b1000u8,
+        // /// Receive data
+        // ///
+        // /// bit 2, symbol `RECV`, `Sn_IR(RECV) Interrupt Mask`
+        // Receive = 0b100u8,
+        /// Disconnect
+        ///
+        /// bit 1, symbol `DISCON`, `Sn_IR(DISCON) Interrupt Mask`
+        Disconnect = 0b10u8,
+        /// Connect
+        ///
+        /// bit 0, symbol `CON`, `Sn_IR(CON) Interrupt Mask`
+        Connect = 0b1u8,
     }
 
     pub const STATUS: u16 = 0x03;
@@ -219,17 +252,55 @@ pub mod socketn {
 
     pub const RXBUF_SIZE: u16 = 0x1E;
 
+    /// Socket n TX Buffer Size Register
+    ///
+    /// `Sn_TXBUF_SIZE`
+    ///
+    /// From datasheet:
+    ///
+    /// > .. can be configured with 1,2,4,8, and 16 Kbytes.
+    /// >
+    /// > Although Socket n TX Buffer Block size is initially configured to 2Kbytes, user can
+    /// > be re-configure its size using Sn_TXBUF_SIZE. The total sum of Sn_TXBUF_SIZE
+    /// > cannot be exceed 16Kbytes. When exceeded, the data transmission error is
+    /// > occurred.
     pub const TXBUF_SIZE: u16 = 0x1F;
 
+    /// TX Free Size Register
+    ///
+    /// `Sn_TX_FSR`
+    ///
+    /// Socket n TX Free Size
+    /// 
+    /// offset (register)
+    /// 0x0020 (Sn_TX_FSR0)
+    /// 0x0021 (Sn_TX_FSR1)
     pub const TX_FREE_SIZE: u16 = 0x20;
 
+    /// Socket n TX Read Pointer
+    ///
+    /// offset (register)
+    /// 0x0022 (Sn_TX_RD0)
+    /// 0x0023 (Sn_TX_RD1)
     pub const TX_DATA_READ_POINTER: u16 = 0x22;
 
+    /// Socket n TX Write Pointer
+    ///
+    /// offset (register)
+    /// 0x0024 (Sn_TX_WR0)
+    /// 0x0025 (Sn_TX_WR1)
     pub const TX_DATA_WRITE_POINTER: u16 = 0x24;
 
+    /// Socket n Received Size Register
+    ///
+    /// `Sn_RX_RSR`
     pub const RECEIVED_SIZE: u16 = 0x26;
 
     pub const RX_DATA_READ_POINTER: u16 = 0x28;
 
+    /// Socket n Interrupt Mask
+    ///
+    /// offset (register)
+    /// 0x002C (Sn_IMR)
     pub const INTERRUPT_MASK: u16 = 0x2C;
 }
