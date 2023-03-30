@@ -44,7 +44,7 @@ impl UdpSocket {
         Ok(())
     }
 
-    fn send<SpiBus: Bus>(
+    fn _send<SpiBus: Bus>(
         &self,
         bus: &mut SpiBus,
         send_buffer: &[u8],
@@ -79,20 +79,20 @@ impl UdpSocket {
     }
 
     /// Sets a new destination before performing the send operation.
-    fn send_to<SpiBus: Bus>(
+    fn _send_to<SpiBus: Bus>(
         &mut self,
         bus: &mut SpiBus,
         remote: SocketAddrV4,
         send_buffer: &[u8],
     ) -> NbResult<(), UdpSocketError<SpiBus::Error>> {
         self.set_destination(bus, remote)?;
-        self.send(bus, send_buffer)
+        self._send(bus, send_buffer)
     }
 
     /// Receive data and mutate the `receive_buffer`.
     ///
     /// If [`Interrupt::Receive`] is not set, it will always return [`NbError::WouldBlock`].
-    fn receive<SpiBus: Bus>(
+    fn _receive<SpiBus: Bus>(
         &mut self,
         bus: &mut SpiBus,
         receive_buffer: &mut [u8],
@@ -138,7 +138,7 @@ impl UdpSocket {
         Ok((packet_size, remote))
     }
 
-    fn close<SpiBus: Bus>(&self, bus: &mut SpiBus) -> Result<(), UdpSocketError<SpiBus::Error>> {
+    fn _close<SpiBus: Bus>(&self, bus: &mut SpiBus) -> Result<(), UdpSocketError<SpiBus::Error>> {
         self.socket.set_mode(bus, socketn::Protocol::Closed)?;
         self.socket.command(bus, socketn::Command::Close)?;
         Ok(())
@@ -256,19 +256,18 @@ where
         socket: &mut Self::UdpSocket,
         remote: SocketAddr,
     ) -> Result<(), Self::Error> {
-        if let SocketAddr::V4(remote) = remote {
-            // TODO dynamically select a random port
-            socket.open(&mut self.bus, 49849 + u16::from(socket.socket.index))?; // chosen by fair dice roll.
-                                                                                 // guaranteed to be random.
-            socket.set_destination(&mut self.bus, remote)?;
-            Ok(())
-        } else {
-            Err(Self::Error::UnsupportedAddress)
-        }
+        let SocketAddr::V4(remote) = remote else {
+            return Err(Self::Error::UnsupportedAddress)
+        };
+        // TODO dynamically select a random port
+        socket.open(&mut self.bus, 49849 + u16::from(socket.socket.index))?; // chosen by fair dice roll.
+                                                                             // guaranteed to be random.
+        socket.set_destination(&mut self.bus, remote)?;
+        Ok(())
     }
 
     fn send(&mut self, socket: &mut Self::UdpSocket, buffer: &[u8]) -> nb::Result<(), Self::Error> {
-        socket.send(&mut self.bus, buffer)?;
+        socket._send(&mut self.bus, buffer)?;
         Ok(())
     }
 
@@ -277,11 +276,11 @@ where
         socket: &mut Self::UdpSocket,
         buffer: &mut [u8],
     ) -> nb::Result<(usize, SocketAddr), Self::Error> {
-        Ok(socket.receive(&mut self.bus, buffer)?)
+        Ok(socket._receive(&mut self.bus, buffer)?)
     }
 
     fn close(&mut self, socket: Self::UdpSocket) -> Result<(), Self::Error> {
-        socket.close(&mut self.bus)?;
+        socket._close(&mut self.bus)?;
         self.release_socket(socket.socket);
         Ok(())
     }
@@ -324,11 +323,11 @@ where
         remote: SocketAddr,
         buffer: &[u8],
     ) -> nb::Result<(), Self::Error> {
-        if let SocketAddr::V4(remote) = remote {
-            socket.send_to(&mut self.bus, remote, buffer)?;
-            Ok(())
-        } else {
-            Err(nb::Error::Other(Self::Error::UnsupportedAddress))
-        }
+        let SocketAddr::V4(remote) = remote else {
+            return Err(nb::Error::Other(Self::Error::UnsupportedAddress))
+        };
+
+        socket._send_to(&mut self.bus, remote, buffer)?;
+        Ok(())
     }
 }
