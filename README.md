@@ -30,7 +30,7 @@ of the SPI implementation.  It must be set up to work as the W5500 chip requires
 * Clock speed: 33MHz maximum
 
 ```rust,no_run
-use embedded_nal::{IpAddr, Ipv4Addr, SocketAddr, UdpClientStack};
+use embedded_nal::{IpAddr, Ipv4Addr, SocketAddr};
 #
 # struct Mock;
 # 
@@ -75,30 +75,53 @@ use embedded_nal::{IpAddr, Ipv4Addr, SocketAddr, UdpClientStack};
 #     }
 # }
 
-let mut spi = Mock;
-let mut cs = Mock;
+{
+    use embedded_nal::UdpClientStack;
 
-let mut device = w5500::UninitializedDevice::new(w5500::bus::FourWire::new(spi, cs))
-        .initialize_manual(
-                w5500::MacAddress::new(0, 1, 2, 3, 4, 5),
-                Ipv4Addr::new(192, 168, 86, 79),
-                w5500::Mode::default()
-        ).unwrap();
+    let mut spi = Mock;
+    let mut cs = Mock;
 
-// Allocate a UDP socket to send data with
-let mut socket = device.socket().unwrap();
+    let mut device = w5500::UninitializedDevice::new(w5500::bus::FourWire::new(spi, cs))
+            .initialize_manual(
+                    w5500::MacAddress::new(0, 1, 2, 3, 4, 5),
+                    Ipv4Addr::new(192, 168, 86, 79),
+                    w5500::Mode::default()
+            ).unwrap();
 
-// Connect the socket to the IP address and port we want to send to.
-device.connect(&mut socket,
-    SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 86, 38)), 8000),
-).unwrap();
+    // Allocate a UDP socket to send data with
+    let mut socket = device.socket().unwrap();
 
-// Send the data
-nb::block!(device.send(&mut socket, &[104, 101, 108, 108, 111, 10]));
+    // Connect the socket to the IP address and port we want to send to.
+    device.connect(&mut socket,
+        SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 86, 38)), 8000),
+    ).unwrap();
 
-// Optionally close the socket and deactivate the device
-device.close(socket);
-let (spi_bus, inactive_device) = device.deactivate();
+    // Send the data
+    nb::block!(device.send(&mut socket, &[104, 101, 108, 108, 111, 10]));
+
+    // Optionally close the socket and deactivate the device
+    device.close(socket);
+    let (spi_bus, inactive_device) = device.deactivate();
+}
+
+// Alternatively, you can use the W5500 where a SPI bus is shared between drivers:
+{
+    use embedded_nal::TcpClientStack;
+
+    let mut spi = Mock;
+    let mut cs = Mock;
+
+    let mut device: Option<w5500::InactiveDevice<w5500::Manual>> = None; // maybe: previously initialized device
+    let mut socket: Option<w5500::tcp::TcpSocket> = None; // maybe: previously opened socket
+
+    if let (Some(socket), Some(device)) = (socket.as_mut(), device.as_mut()) {
+        let mut buffer = [0u8; 1024];
+        let mut active = device.activate_ref(w5500::bus::FourWireRef::new(&mut spi, &mut cs));
+
+        // Read from the device.
+        active.receive(socket, &mut buffer).unwrap();
+    }
+}
 ```
 ## Todo
 

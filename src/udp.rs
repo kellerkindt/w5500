@@ -44,7 +44,7 @@ impl UdpSocket {
         Ok(())
     }
 
-    fn _send<SpiBus: Bus>(
+    fn socket_send<SpiBus: Bus>(
         &self,
         bus: &mut SpiBus,
         send_buffer: &[u8],
@@ -79,20 +79,20 @@ impl UdpSocket {
     }
 
     /// Sets a new destination before performing the send operation.
-    fn _send_to<SpiBus: Bus>(
+    fn socket_send_to<SpiBus: Bus>(
         &mut self,
         bus: &mut SpiBus,
         remote: SocketAddrV4,
         send_buffer: &[u8],
     ) -> NbResult<(), UdpSocketError<SpiBus::Error>> {
         self.set_destination(bus, remote)?;
-        self._send(bus, send_buffer)
+        self.socket_send(bus, send_buffer)
     }
 
     /// Receive data and mutate the `receive_buffer`.
     ///
     /// If [`Interrupt::Receive`] is not set, it will always return [`NbError::WouldBlock`].
-    fn _receive<SpiBus: Bus>(
+    fn socket_receive<SpiBus: Bus>(
         &mut self,
         bus: &mut SpiBus,
         receive_buffer: &mut [u8],
@@ -138,7 +138,7 @@ impl UdpSocket {
         Ok((packet_size, remote))
     }
 
-    fn _close<SpiBus: Bus>(&self, bus: &mut SpiBus) -> Result<(), UdpSocketError<SpiBus::Error>> {
+    fn socket_close<SpiBus: Bus>(&self, bus: &mut SpiBus) -> Result<(), UdpSocketError<SpiBus::Error>> {
         self.socket.set_mode(bus, socketn::Protocol::Closed)?;
         self.socket.command(bus, socketn::Command::Close)?;
         Ok(())
@@ -267,7 +267,7 @@ where
     }
 
     fn send(&mut self, socket: &mut Self::UdpSocket, buffer: &[u8]) -> nb::Result<(), Self::Error> {
-        socket._send(&mut self.bus, buffer)?;
+        socket.socket_send(&mut self.bus, buffer)?;
         Ok(())
     }
 
@@ -276,11 +276,11 @@ where
         socket: &mut Self::UdpSocket,
         buffer: &mut [u8],
     ) -> nb::Result<(usize, SocketAddr), Self::Error> {
-        Ok(socket._receive(&mut self.bus, buffer)?)
+        Ok(socket.socket_receive(&mut self.bus, buffer)?)
     }
 
     fn close(&mut self, socket: Self::UdpSocket) -> Result<(), Self::Error> {
-        socket._close(&mut self.bus)?;
+        socket.socket_close(&mut self.bus)?;
         self.release_socket(socket.socket);
         Ok(())
     }
@@ -327,7 +327,7 @@ where
             return Err(nb::Error::Other(Self::Error::UnsupportedAddress))
         };
 
-        socket._send_to(&mut self.bus, remote, buffer)?;
+        socket.socket_send_to(&mut self.bus, remote, buffer)?;
         Ok(())
     }
 }

@@ -65,13 +65,13 @@ impl TcpSocket {
         Ok(())
     }
 
-    fn _close<B: Bus>(&self, bus: &mut B) -> Result<(), TcpSocketError<B::Error>> {
+    fn socket_close<B: Bus>(&self, bus: &mut B) -> Result<(), TcpSocketError<B::Error>> {
         self.socket.set_mode(bus, socketn::Protocol::Closed)?;
         self.socket.command(bus, socketn::Command::Close)?;
         Ok(())
     }
 
-    fn _connect<B: Bus>(
+    fn socket_connect<B: Bus>(
         &mut self,
         bus: &mut B,
         remote: SocketAddrV4,
@@ -89,7 +89,7 @@ impl TcpSocket {
             // All other cases are transient TCP states. For these, we need to reset the TCP
             // machinery to return to the INIT state.
             Ok(_) => {
-                self._close(bus)?;
+                self.socket_close(bus)?;
                 self.reopen(bus)?;
             }
         }
@@ -115,7 +115,7 @@ impl TcpSocket {
                 Ok(socketn::Status::Closed) => {
                     // For now, always return an open socket so that the user can re-connect with
                     // it in the future.
-                    self._close(bus)?;
+                    self.socket_close(bus)?;
                     return self.reopen(bus);
                 }
 
@@ -126,16 +126,16 @@ impl TcpSocket {
         }
     }
 
-    fn _is_connected<B: Bus>(&self, bus: &mut B) -> Result<bool, TcpSocketError<B::Error>> {
+    fn socket_is_connected<B: Bus>(&self, bus: &mut B) -> Result<bool, TcpSocketError<B::Error>> {
         Ok(self.socket.get_status(bus)? == socketn::Status::Established as u8)
     }
 
-    fn _send<B: Bus>(
+    fn socket_send<B: Bus>(
         &mut self,
         bus: &mut B,
         data: &[u8],
     ) -> Result<usize, TcpSocketError<B::Error>> {
-        if !self._is_connected(bus)? {
+        if !self.socket_is_connected(bus)? {
             return Err(TcpSocketError::NotReady);
         }
 
@@ -166,12 +166,12 @@ impl TcpSocket {
         Ok(write_data.len())
     }
 
-    fn _receive<B: Bus>(
+    fn socket_receive<B: Bus>(
         &mut self,
         bus: &mut B,
         data: &mut [u8],
     ) -> Result<usize, TcpSocketError<B::Error>> {
-        if !self._is_connected(bus)? {
+        if !self.socket_is_connected(bus)? {
             return Err(TcpSocketError::NotReady);
         }
 
@@ -227,13 +227,13 @@ impl<SpiBus: Bus, HostImpl: Host> TcpClientStack for DeviceRefMut<'_, SpiBus, Ho
         };
         // TODO dynamically select a random port
         socket.open(&mut self.bus, 49849 + u16::from(socket.socket.index))?; // chosen by fair dice roll.
-        socket._connect(&mut self.bus, remote)?;
+        socket.socket_connect(&mut self.bus, remote)?;
 
         Ok(())
     }
 
     fn is_connected(&mut self, socket: &Self::TcpSocket) -> Result<bool, Self::Error> {
-        socket._is_connected(&mut self.bus)
+        socket.socket_is_connected(&mut self.bus)
     }
 
     fn send(
@@ -241,7 +241,7 @@ impl<SpiBus: Bus, HostImpl: Host> TcpClientStack for DeviceRefMut<'_, SpiBus, Ho
         socket: &mut Self::TcpSocket,
         buffer: &[u8],
     ) -> nb::Result<usize, Self::Error> {
-        let len = socket._send(&mut self.bus, buffer)?;
+        let len = socket.socket_send(&mut self.bus, buffer)?;
         Ok(len)
     }
 
@@ -250,11 +250,11 @@ impl<SpiBus: Bus, HostImpl: Host> TcpClientStack for DeviceRefMut<'_, SpiBus, Ho
         socket: &mut Self::TcpSocket,
         buffer: &mut [u8],
     ) -> nb::Result<usize, Self::Error> {
-        Ok(socket._receive(&mut self.bus, buffer)?)
+        Ok(socket.socket_receive(&mut self.bus, buffer)?)
     }
 
     fn close(&mut self, socket: Self::TcpSocket) -> Result<(), Self::Error> {
-        socket._close(&mut self.bus)?;
+        socket.socket_close(&mut self.bus)?;
         self.release_socket(socket.socket);
         Ok(())
     }
