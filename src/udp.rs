@@ -138,7 +138,10 @@ impl UdpSocket {
         Ok((packet_size, remote))
     }
 
-    fn socket_close<SpiBus: Bus>(&self, bus: &mut SpiBus) -> Result<(), UdpSocketError<SpiBus::Error>> {
+    fn socket_close<SpiBus: Bus>(
+        &self,
+        bus: &mut SpiBus,
+    ) -> Result<(), UdpSocketError<SpiBus::Error>> {
         self.socket.set_mode(bus, socketn::Protocol::Closed)?;
         self.socket.command(bus, socketn::Command::Close)?;
         Ok(())
