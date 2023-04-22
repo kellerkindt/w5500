@@ -39,38 +39,6 @@ impl<SpiBus: Bus> RawDevice<SpiBus> {
         Ok(Self { bus, raw_socket })
     }
 
-    // Read bytes from the RX buffer.
-    //
-    // # Args
-    // * `buffer` - The location to read data into. The length of this slice determines how much
-    // data is read.
-    // * `offset` - The offset into current RX data to start reading from in bytes.
-    //
-    // # Returns
-    // The number of bytes successfully read.
-    fn read_bytes(&mut self, buffer: &mut [u8], offset: u16) -> Result<usize, SpiBus::Error> {
-        let rx_size = self.raw_socket.get_receive_size(&mut self.bus)? as usize;
-
-        let read_buffer = if rx_size > buffer.len() + offset as usize {
-            buffer
-        } else {
-            &mut buffer[..rx_size - offset as usize]
-        };
-
-        let read_pointer = self
-            .raw_socket
-            .get_rx_read_pointer(&mut self.bus)?
-            .wrapping_add(offset);
-        self.bus
-            .read_frame(self.raw_socket.rx_buffer(), read_pointer, read_buffer)?;
-        self.raw_socket.set_rx_read_pointer(
-            &mut self.bus,
-            read_pointer.wrapping_add(read_buffer.len() as u16),
-        )?;
-
-        Ok(read_buffer.len())
-    }
-
     /// Read an ethernet frame from the device.
     ///
     /// # Args
@@ -79,40 +47,29 @@ impl<SpiBus: Bus> RawDevice<SpiBus> {
     /// # Returns
     /// The number of bytes read into the provided frame buffer.
     pub fn read_frame(&mut self, frame: &mut [u8]) -> Result<usize, SpiBus::Error> {
+        let mut rx_cursor = crate::cursor::RxCursor::new(&mut self.raw_socket, &mut self.bus)?;
+
         // Check if there is anything to receive.
-        let rx_size = self.raw_socket.get_receive_size(&mut self.bus)? as usize;
-        if rx_size == 0 {
+        if rx_cursor.available() == 0 {
             return Ok(0);
         }
 
         // The W5500 specifies the size of the received ethernet frame in the first two bytes.
         // Refer to https://forum.wiznet.io/t/topic/979/2 for more information.
-        let expected_frame_size: usize = {
+        let expected_frame_size = {
             let mut frame_bytes = [0u8; 2];
-            assert!(self.read_bytes(&mut frame_bytes[..], 0)? == 2);
+            assert!(rx_cursor.read(&mut frame_bytes[..])? == 2);
 
-            u16::from_be_bytes(frame_bytes) as usize - 2
+            u16::from_be_bytes(frame_bytes).saturating_sub(2)
         };
 
-        // Read the ethernet frame
-        let read_buffer = if frame.len() > expected_frame_size {
-            &mut frame[..expected_frame_size]
-        } else {
-            frame
-        };
-
-        let received_frame_size = self.read_bytes(read_buffer, 2)?;
-
-        // Register the reception as complete.
-        self.raw_socket
-            .command(&mut self.bus, register::socketn::Command::Receive)?;
-
-        // If we couldn't read the whole frame, drop it instead.
+        let received_frame_size = rx_cursor.read_upto(frame, expected_frame_size)?;
         if received_frame_size < expected_frame_size {
-            Ok(0)
-        } else {
-            Ok(received_frame_size)
+            rx_cursor.skip(expected_frame_size - received_frame_size);
         }
+
+        rx_cursor.commit()?;
+        Ok(received_frame_size as _)
     }
 
     /// Write an ethernet frame to the device.
@@ -123,37 +80,20 @@ impl<SpiBus: Bus> RawDevice<SpiBus> {
     /// # Returns
     /// The number of bytes successfully transmitted from the provided buffer.
     pub fn write_frame(&mut self, frame: &[u8]) -> Result<usize, SpiBus::Error> {
-        let max_size = self.raw_socket.get_tx_free_size(&mut self.bus)? as usize;
-
-        let write_data = if frame.len() < max_size {
-            frame
-        } else {
-            &frame[..max_size]
-        };
-
-        // Append the data to the write buffer after the current write pointer.
-        let write_pointer = self.raw_socket.get_tx_write_pointer(&mut self.bus)?;
-
-        // Write data into the buffer and update the writer pointer.
-        self.bus
-            .write_frame(self.raw_socket.tx_buffer(), write_pointer, write_data)?;
-        self.raw_socket.set_tx_write_pointer(
-            &mut self.bus,
-            write_pointer.wrapping_add(write_data.len() as u16),
-        )?;
-
-        // Wait for the socket transmission to complete.
+        // Reset the transmission complete flag, we'll wait on it later.
         self.raw_socket
             .reset_interrupt(&mut self.bus, register::socketn::Interrupt::SendOk)?;
 
-        self.raw_socket
-            .command(&mut self.bus, register::socketn::Command::Send)?;
+        let mut tx_cursor = crate::cursor::TxCursor::new(&mut self.raw_socket, &mut self.bus)?;
+        let count = tx_cursor.write(frame)?;
+        tx_cursor.commit()?;
 
+        // Wait for the socket transmission to complete.
         while !self
             .raw_socket
             .has_interrupt(&mut self.bus, register::socketn::Interrupt::SendOk)?
         {}
 
-        Ok(write_data.len())
+        Ok(count as _)
     }
 }
