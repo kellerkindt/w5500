@@ -7,14 +7,48 @@ use core::fmt::Debug;
 use embedded_nal::{nb, IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, UdpClientStack, UdpFullStack};
 
 /// W5500 UDP Header
+///
+/// Contains the destination IP address, port and the length of the data.
+///
+/// Packet frame, as described in W5200 docs section 5.2.2.1:
+///
+/// ```text
+/// |<-- read_pointer                                 read_pointer + received_size -->|
+/// | Destination IP Address | Destination Port | Byte Size of DATA | Actual DATA ... |
+/// |    --- 4 Bytes ---     |  --- 2 Bytes --- |  --- 2 Bytes ---  |      ....       |
+/// ```
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct UdpHeader {
     /// The origin socket address (IP address and port).
+    #[cfg_attr(feature = "defmt", defmt(Debug2Format))]
     pub origin: SocketAddrV4,
     /// Length of the UDP packet in bytes.
     ///
     /// This may not be equal to the length of the data in the socket buffer if the UDP packet was truncated
     /// due to small buffer or the size of the internal W5500 RX buffer for the socket.
     pub len: usize,
+}
+
+impl UdpHeader {
+    pub fn from_array(array: [u8; 8]) -> Self {
+        Self::from(array)
+    }
+}
+
+impl From<[u8; 8]> for UdpHeader {
+    fn from(header: [u8; 8]) -> Self {
+        let origin_addr = SocketAddrV4::new(
+            Ipv4Addr::new(header[0], header[1], header[2], header[3]),
+            u16::from_be_bytes([header[4], header[5]]),
+        );
+
+        let packet_len: usize = u16::from_be_bytes([header[6], header[7]]).into();
+
+        Self {
+            origin: origin_addr,
+            len: packet_len,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -118,22 +152,9 @@ impl UdpSocket {
             &send_buffer[..(free_size as usize)]
         };
 
-        #[cfg(feature = "defmt")]
-        defmt::debug!(
-            "Prepare for sending {} bytes out of {} ({} free TX buffer size)",
-            write_data.len(),
-            send_buffer.len(),
-            free_size,
-        );
         // Append the data to the write buffer after the current write pointer.
         let write_pointer = self.socket.get_tx_write_pointer(bus)?;
 
-        // #[cfg(feature = "defmt")]
-        // defmt::debug!("TX read at {} TX Write at {}", self.socket.get_tx_read_pointer(bus)?, write_pointer);
-
-        #[cfg(feature = "defmt")]
-        defmt::debug!("TX Buffer at {}, write pointer: {}", self.socket.tx_buffer(), write_pointer);
-        
         // Write data into the buffer and update the writer pointer.
         bus.write_frame(self.socket.tx_buffer(), write_pointer, write_data)?;
         // this will wrap the pointer accordingly to the TX `free_size`.
@@ -141,32 +162,14 @@ impl UdpSocket {
         self.socket
             .set_tx_write_pointer(bus, write_pointer.wrapping_add(write_data.len() as u16))?;
 
-        #[cfg(feature = "defmt")]
-        defmt::debug!("NEW TX Write at {}", write_pointer.wrapping_add(write_data.len() as u16));
-
         // Send the data.
         self.socket.command(bus, socketn::Command::Send)?;
-
-        // #[cfg(feature = "defmt")]
-        // defmt::debug!("NEW TX read at {} TX Write at {}", self.socket.get_tx_read_pointer(bus)?, write_pointer.wrapping_add(write_data.len() as u16));
-
-        // wait for reaching out the TX write pointer (we've sent all the data in the buffer)
-        // #[cfg(feature = "defmt")]
-        // for i in 0..10 {
-        //     let tx_read = self.socket.get_tx_read_pointer(bus)?;
-        //     let tx_write = self.socket.get_tx_write_pointer(bus)?;
-
-        //     defmt::debug!("TX Read at {} TX Write at {}", tx_read, tx_write);
-        // }
 
         loop {
             let tx_read = self.socket.get_tx_read_pointer(bus)?;
             let tx_write = self.socket.get_tx_write_pointer(bus)?;
             if tx_read == tx_write {
                 if self.socket.has_interrupt(bus, socketn::Interrupt::SendOk)? {
-                    #[cfg(feature = "defmt")]
-                    defmt::debug!("has interrupt for SendOk");
-
                     self.socket
                         .reset_interrupt(bus, socketn::Interrupt::SendOk)?;
                     return Ok(write_data.len());
@@ -174,9 +177,6 @@ impl UdpSocket {
                     .socket
                     .has_interrupt(bus, socketn::Interrupt::Timeout)?
                 {
-                    #[cfg(feature = "defmt")]
-                    defmt::debug!("has interrupt for Timeout");
-
                     self.socket
                         .reset_interrupt(bus, socketn::Interrupt::Timeout)?;
                     return Err(NbError::Other(UdpSocketError::WriteTimeout));
@@ -255,21 +255,14 @@ impl UdpSocket {
         let mut header = [0u8; 8];
         // read enough data for the headers - remote SocketAddr & Packet size
         bus.read_frame(self.socket.rx_buffer(), read_pointer, &mut header)?;
-        let origin_addr = SocketAddrV4::new(
-            Ipv4Addr::new(header[0], header[1], header[2], header[3]),
-            u16::from_be_bytes([header[4], header[5]]),
-        );
 
-        let packet_len: usize = u16::from_be_bytes([header[6], header[7]]).into();
-        let udp_header = UdpHeader {
-            origin: origin_addr,
-            len: packet_len,
-        };
+        let udp_header = UdpHeader::from_array(header);
 
+        // we have to exclude the header's bytes when reading the data we put in the buffer.
         let data_read_pointer = read_pointer.wrapping_add(8);
 
         /// read the rest of the packet's data that can fit in the buffer
-        bus.read_frame(self.socket.rx_buffer(), read_pointer, read_buffer)?;
+        bus.read_frame(self.socket.rx_buffer(), data_read_pointer, read_buffer)?;
 
         // Set the RX point after the `rx_size`, truncating any bytes that the
         // `receiving_buffer` was not able to fit
@@ -287,14 +280,6 @@ impl UdpSocket {
         // Reset the Receive interrupt
         self.socket
             .reset_interrupt(bus, socketn::Interrupt::Receive)?;
-
-        #[cfg(feature = "defmt")]
-        defmt::debug!(
-            "Received {} bytes of maximum {} RX buffer size from packet with length {}",
-            read_size,
-            rx_size,
-            packet_len
-        );
 
         Ok((read_size, udp_header))
     }
@@ -499,10 +484,4 @@ where
             Err(nb::Error::Other(Self::Error::UnsupportedAddress))
         }
     }
-}
-
-#[cfg(test)]
-mod test {
-    #[test]
-    fn send_all_with_data_overflowing_the_tx_buffer() {}
 }
