@@ -105,8 +105,6 @@ impl<TransferError, WriteError, ChipSelectError> fmt::Debug
 // https://github.com/rust-lang/rust/issues/31844
 #[cfg(test)]
 mod test {
-    use defmt::unwrap;
-
     use embedded_hal::digital::v2::OutputPin;
     use embedded_hal_mock::{
         pin::{Mock as PinMock, State as PinState, Transaction as PinTransaction},
