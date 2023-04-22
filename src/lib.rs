@@ -1,4 +1,4 @@
-#![no_std]
+#![cfg_attr(not(test), no_std)]
 #![allow(unused)]
 #![deny(rustdoc::broken_intra_doc_links)]
 
