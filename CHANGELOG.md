@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `defmt` features for enabling `defmt::Format` to most structs and errors by [@elpiel](https://github.com/elpiel) ([#39](https://github.com/kellerkindt/w5500/issues/39))
+- Tests for `FourWire` `Bus` implementation and internal `Socket` registers by [@elpiel](https://github.com/elpiel) ([#42](https://github.com/kellerkindt/w5500/issues/42))
+
+### Fixed
+
+- Udp socket sending and receiving using the ring buffers of `w5500` by [@elpiel](https://github.com/elpiel) ([#42](https://github.com/kellerkindt/w5500/issues/42))
 
 ## [0.4.1] - January 2nd, 2023
 
