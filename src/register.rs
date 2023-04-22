@@ -169,6 +169,7 @@ pub mod socketn {
         Udp = 0b10,
         MacRaw = 0b100,
     }
+
     /// Socket n Command Register
     ///
     /// `Sn_CR`
@@ -178,7 +179,7 @@ pub mod socketn {
 
     /// Socket n Commands
     ///
-    /// `Sn_CR` regiter
+    /// `Sn_CR` register
     pub enum Command {
         Open = 0x01,
         Listen = 0x02,
@@ -271,7 +272,7 @@ pub mod socketn {
     /// `Sn_TX_FSR`
     ///
     /// Socket n TX Free Size
-    /// 
+    ///
     /// offset (register)
     /// 0x0020 (Sn_TX_FSR0)
     /// 0x0021 (Sn_TX_FSR1)
