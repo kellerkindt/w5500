@@ -89,7 +89,7 @@ impl UdpSocket {
         Ok(())
     }
 
-    fn send_all<SpiBus: Bus>(
+    fn socket_send_all<SpiBus: Bus>(
         &self,
         bus: &mut SpiBus,
         send_buffer: &[u8],
@@ -192,7 +192,7 @@ impl UdpSocket {
     /// # Returns
     /// The amount of bytes that were sent. The caller should make sure to
     /// check and send the rest of the `send_buffer` data.
-    fn send_to<SpiBus: Bus>(
+    fn socket_send_to<SpiBus: Bus>(
         &mut self,
         bus: &mut SpiBus,
         remote: SocketAddrV4,
@@ -200,7 +200,7 @@ impl UdpSocket {
     ) -> NbResult<(), UdpSocketError<SpiBus::Error>> {
         self.set_destination(bus, remote)?;
 
-        self.send_all(bus, send_buffer)
+        self.socket_send_all(bus, send_buffer)
     }
 
     /// Receive data and mutate the `receive_buffer`.
@@ -222,7 +222,7 @@ impl UdpSocket {
     /// | Destination IP Address | Destination Port | Byte Size of DATA | Actual DATA ... |
     /// |    --- 4 Bytes ---     |  --- 2 Bytes --- |  --- 2 Bytes ---  |      ....       |
     /// ```
-    fn receive<SpiBus: Bus>(
+    fn socket_receive<SpiBus: Bus>(
         &mut self,
         bus: &mut SpiBus,
         receive_buffer: &mut [u8],
@@ -284,7 +284,10 @@ impl UdpSocket {
         Ok((read_size, udp_header))
     }
 
-    fn close<SpiBus: Bus>(&self, bus: &mut SpiBus) -> Result<(), UdpSocketError<SpiBus::Error>> {
+    fn socket_close<SpiBus: Bus>(
+        &self,
+        bus: &mut SpiBus,
+    ) -> Result<(), UdpSocketError<SpiBus::Error>> {
         self.socket.set_mode(bus, socketn::Protocol::Closed)?;
         self.socket.command(bus, socketn::Command::Close)?;
         Ok(())
@@ -406,20 +409,18 @@ where
         socket: &mut Self::UdpSocket,
         remote: SocketAddr,
     ) -> Result<(), Self::Error> {
-        if let SocketAddr::V4(remote) = remote {
-            // TODO dynamically select a random port
-            socket.open(&mut self.bus, 49849 + u16::from(socket.socket.index))?; // chosen by fair dice roll.
-                                                                                 // guaranteed to be random.
-            socket.set_destination(&mut self.bus, remote)?;
-            Ok(())
-        } else {
-            Err(Self::Error::UnsupportedAddress)
-        }
+        let SocketAddr::V4(remote) = remote else {
+            return Err(Self::Error::UnsupportedAddress)
+        };
+        // TODO dynamically select a random port
+        socket.open(&mut self.bus, 49849 + u16::from(socket.socket.index))?; // chosen by fair dice roll.
+                                                                             // guaranteed to be random.
+        socket.set_destination(&mut self.bus, remote)?;
+        Ok(())
     }
 
     fn send(&mut self, socket: &mut Self::UdpSocket, buffer: &[u8]) -> nb::Result<(), Self::Error> {
-        socket.send_all(&mut self.bus, buffer)?;
-
+        socket.socket_send_all(&mut self.bus, buffer)?;
         Ok(())
     }
 
@@ -428,13 +429,13 @@ where
         socket: &mut Self::UdpSocket,
         buffer: &mut [u8],
     ) -> nb::Result<(usize, SocketAddr), Self::Error> {
-        let (received, udp_header) = socket.receive(&mut self.bus, buffer)?;
+        let (received, udp_header) = socket.socket_receive(&mut self.bus, buffer)?;
 
         Ok((received, SocketAddr::V4(udp_header.origin)))
     }
 
     fn close(&mut self, socket: Self::UdpSocket) -> Result<(), Self::Error> {
-        socket.close(&mut self.bus)?;
+        socket.socket_close(&mut self.bus)?;
         self.release_socket(socket.socket);
         Ok(())
     }
@@ -477,11 +478,11 @@ where
         remote: SocketAddr,
         buffer: &[u8],
     ) -> nb::Result<(), Self::Error> {
-        if let SocketAddr::V4(remote) = remote {
-            socket.send_to(&mut self.bus, remote, buffer)?;
-            Ok(())
-        } else {
-            Err(nb::Error::Other(Self::Error::UnsupportedAddress))
-        }
+        let SocketAddr::V4(remote) = remote else {
+            return Err(nb::Error::Other(Self::Error::UnsupportedAddress))
+        };
+
+        socket.socket_send_to(&mut self.bus, remote, buffer)?;
+        Ok(())
     }
 }

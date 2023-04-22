@@ -13,7 +13,7 @@ pub mod common {
     pub const PHY_CONFIG: u16 = 0x2E;
     pub const VERSION: u16 = 0x39;
 
-    #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+    #[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
     #[repr(u8)]
     pub enum PhyOperationMode {
         /// 10BT half-duplex. Auto-negotiation disabled.
@@ -29,18 +29,13 @@ pub mod common {
         /// Power down mode.
         PowerDown = 0b110_000,
         /// All capable. Auto-negotiation enabled.
+        #[default]
         Auto = 0b111_000,
     }
 
     impl From<PhyOperationMode> for u8 {
         fn from(val: PhyOperationMode) -> u8 {
             val as u8
-        }
-    }
-
-    impl Default for PhyOperationMode {
-        fn default() -> PhyOperationMode {
-            PhyOperationMode::Auto
         }
     }
 
