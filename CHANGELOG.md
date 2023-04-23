@@ -10,11 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `defmt` features for enabling `defmt::Format` to most structs and errors by [@elpiel](https://github.com/elpiel) ([#39](https://github.com/kellerkindt/w5500/issues/39))
 - Fixed an issue where internal function names were conflicting with trait names by [@ryan-summers](https://github.com/ryan-summers) ([#36](https://github.com/kellerkindt/w5500/issues/36))
-- Tests for `FourWire` `Bus` implementation and internal `Socket` registers by [@elpiel](https://github.com/elpiel) ([#42](https://github.com/kellerkindt/w5500/issues/42))
+- Tests for `FourWire` `Bus` implementation and internal `Socket` registers by [@elpiel](https://github.com/elpiel) ([#42][PR42])
+- Added `UdpSocket.set_port` to set a new socket port by [@elpiel](https://github.com/elpiel) ([#42][PR42])
+- Additional checks for `UdpSocket` status when sending data by [@elpiel](https://github.com/elpiel) ([#42][PR42])
+- Additional checks for `UdpSocket` when sending data to validate that there has been a set destination by [@elpiel](https://github.com/elpiel) ([#42][PR42])
 
 ### Fixed
 
-- Udp socket sending and receiving using the ring buffers of `w5500` by [@elpiel](https://github.com/elpiel) ([#42](https://github.com/kellerkindt/w5500/issues/42))
+- Udp socket sending and receiving using the ring buffers for RX & TX of `w5500` by [@elpiel](https://github.com/elpiel) ([#42][PR42])
+
+[PR42]: https://github.com/kellerkindt/w5500/pull/42
 
 ## [0.4.1] - January 2nd, 2023
 

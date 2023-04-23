@@ -1,9 +1,9 @@
 use crate::bus::Bus;
 use crate::device::{Device, DeviceRefMut};
 use crate::host::Host;
-use crate::register::socketn;
+use crate::register::socketn::{self, Status};
 use crate::socket::Socket;
-use core::fmt::Debug;
+use core::{convert::TryFrom, fmt::Debug};
 use embedded_nal::{nb, IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, UdpClientStack, UdpFullStack};
 
 /// W5500 UDP Header
@@ -55,27 +55,47 @@ impl From<[u8; 8]> for UdpHeader {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct UdpSocket {
     socket: Socket,
+    /// Whether or not there has been a destination set for the socket.
+    has_destination: bool,
+    /// The local port of the socket
+    port: u16,
 }
 
 impl UdpSocket {
     fn new(socket: Socket) -> Self {
-        UdpSocket { socket }
+        let socket_index = socket.index;
+        UdpSocket {
+            socket,
+            has_destination: false,
+            // TODO dynamically select a random port
+            // chosen by fair dice roll.
+            // guaranteed to be random.
+            port: 49849 + u16::from(socket_index),
+        }
     }
 
-    fn open<SpiBus: Bus>(
-        &mut self,
-        bus: &mut SpiBus,
-        local_port: u16,
-    ) -> Result<(), SpiBus::Error> {
+    fn open<SpiBus: Bus>(&mut self, bus: &mut SpiBus) -> Result<(), SpiBus::Error> {
         self.socket.command(bus, socketn::Command::Close)?;
         self.socket.reset_interrupt(bus, socketn::Interrupt::All)?;
-        self.socket.set_source_port(bus, local_port)?;
+        self.socket.set_source_port(bus, self.port)?;
         self.socket.set_mode(bus, socketn::Protocol::Udp)?;
         self.socket.set_interrupt_mask(
             bus,
             socketn::Interrupt::SendOk as u8 & socketn::Interrupt::Timeout as u8,
         )?;
         self.socket.command(bus, socketn::Command::Open)?;
+
+        Ok(())
+    }
+
+    pub fn set_port<SpiBus: Bus>(
+        &mut self,
+        bus: &mut SpiBus,
+        local_port: u16,
+    ) -> Result<(), UdpSocketError<SpiBus::Error>> {
+        self.port = local_port;
+        self.socket.set_source_port(bus, self.port)?;
+
         Ok(())
     }
 
@@ -86,6 +106,8 @@ impl UdpSocket {
     ) -> Result<(), UdpSocketError<SpiBus::Error>> {
         self.socket.set_destination_ip(bus, *remote.ip())?;
         self.socket.set_destination_port(bus, remote.port())?;
+        self.has_destination = true;
+
         Ok(())
     }
 
@@ -94,11 +116,26 @@ impl UdpSocket {
         bus: &mut SpiBus,
         send_buffer: &[u8],
     ) -> NbResult<(), UdpSocketError<SpiBus::Error>> {
+        match Status::try_from(self.socket.get_status(bus)?) {
+            Ok(Status::Udp) => {}
+            Ok(status) => return Err(NbError::Other(UdpSocketError::SocketNotOpen)),
+            Err(err) => return Err(NbError::Other(UdpSocketError::UnrecognisedStatus)),
+        }
+
+        if !self.has_destination {
+            return Err(NbError::Other(UdpSocketError::DestinationNotSet));
+        }
+
         let mut free_size = self.socket.get_tx_free_size(bus)?;
 
-        // ensure write is currently possible
+        // Ensure write is currently possible.
+        // This should never be `0`
         if free_size == 0 {
-            return Err(NbError::WouldBlock);
+            // If this happens, then `Send` was not called in previous operations.
+            // FIXME: add a way to either:
+            // - flush the buffer by clearing it up
+            // - `Send` the data to its the destination - this might not be possible if the destination has changed.
+            return Err(NbError::Other(UdpSocketError::BufferFull));
         }
 
         // on the first send, we rely on the free TX size and the length of the send_buffer
@@ -115,7 +152,7 @@ impl UdpSocket {
             let send_batch = &remaining_bytes[..write_len];
 
             // but on consequent send calls, we leave that to send
-            let sent = self.send(bus, send_batch)?;
+            let sent = self.socket_send(bus, send_batch)?;
 
             total_sent += sent;
 
@@ -132,17 +169,31 @@ impl UdpSocket {
     ///
     /// The amount of bytes that were sent. The caller should make sure to
     /// check and send the rest of the `send_buffer` data.
-    fn send<SpiBus: Bus>(
+    fn socket_send<SpiBus: Bus>(
         &self,
         bus: &mut SpiBus,
         send_buffer: &[u8],
     ) -> NbResult<usize, UdpSocketError<SpiBus::Error>> {
+        match Status::try_from(self.socket.get_status(bus)?) {
+            Ok(Status::Udp) => {}
+            Ok(status) => return Err(NbError::Other(UdpSocketError::SocketNotOpen)),
+            Err(err) => return Err(NbError::Other(UdpSocketError::UnrecognisedStatus)),
+        }
+
+        if !self.has_destination {
+            return Err(NbError::Other(UdpSocketError::DestinationNotSet));
+        }
+
         let free_size = self.socket.get_tx_free_size(bus)?;
 
-        // ensure write is currently possible
+        // Ensure write is currently possible.
+        // This should never be `0`
         if free_size == 0 {
-            // TODO: better error for no more space in TX buffer
-            return Err(NbError::WouldBlock);
+            // If this happens, then `Send` was not called in previous operations.
+            // FIXME: add a way to either:
+            // - flush the buffer by clearing it up
+            // - `Send` the data to its the destination - this might not be possible if the destination has changed.
+            return Err(NbError::Other(UdpSocketError::BufferFull));
         }
 
         // check the size of the data buffer and limit it accordingly to the available (free) TX buffer size.
@@ -159,8 +210,8 @@ impl UdpSocket {
         bus.write_frame(self.socket.tx_buffer(), write_pointer, write_data)?;
         // this will wrap the pointer accordingly to the TX `free_size`.
         // safe to cast to `u16` because the maximum buffer size in w5500 is 16 KB!
-        self.socket
-            .set_tx_write_pointer(bus, write_pointer.wrapping_add(write_data.len() as u16))?;
+        let new_write_pointer = write_pointer.wrapping_add(write_data.len() as u16);
+        self.socket.set_tx_write_pointer(bus, new_write_pointer)?;
 
         // Send the data.
         self.socket.command(bus, socketn::Command::Send)?;
@@ -168,6 +219,7 @@ impl UdpSocket {
         loop {
             let tx_read = self.socket.get_tx_read_pointer(bus)?;
             let tx_write = self.socket.get_tx_write_pointer(bus)?;
+
             if tx_read == tx_write {
                 if self.socket.has_interrupt(bus, socketn::Interrupt::SendOk)? {
                     self.socket
@@ -190,6 +242,7 @@ impl UdpSocket {
     /// Sets a new destination before performing the send operation.
     ///
     /// # Returns
+    ///
     /// The amount of bytes that were sent. The caller should make sure to
     /// check and send the rest of the `send_buffer` data.
     fn socket_send_to<SpiBus: Bus>(
@@ -227,6 +280,12 @@ impl UdpSocket {
         bus: &mut SpiBus,
         receive_buffer: &mut [u8],
     ) -> NbResult<(usize, UdpHeader), UdpSocketError<SpiBus::Error>> {
+        match Status::try_from(self.socket.get_status(bus)?) {
+            Ok(Status::Udp) => {}
+            Ok(status) => return Err(NbError::Other(UdpSocketError::SocketNotOpen)),
+            Err(err) => return Err(NbError::Other(UdpSocketError::UnrecognisedStatus)),
+        }
+
         if !self
             .socket
             .has_interrupt(bus, socketn::Interrupt::Receive)?
@@ -304,11 +363,26 @@ impl UdpSocket {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum UdpSocketError<E: Debug> {
     NoMoreSockets,
+    /// Only IP V4 is supported
     UnsupportedAddress,
+    /// Returned [`Status`] for the socket was not recognised.
+    UnrecognisedStatus,
     /// Reading the entire packet will cause the buffer to overflow.
     ///
     /// Use a larger than the packet size buffer.
     BufferOverflow,
+    /// The TX or RX buffer has no more space left.
+    ///
+    /// You either need to read in case of RX or send the `Send` command in case of TX.
+    BufferFull,
+    /// Destination for the socket hasn't been set
+    ///
+    /// Before using [`Device::send`] you first need to set the destination
+    /// by connecting to a remote address.
+    DestinationNotSet,
+    /// Before sending any data over Udp you must first `bind` it to local port
+    /// or `connect` to a remote address.
+    SocketNotOpen,
     Other(#[cfg_attr(feature = "defmt", defmt(Debug2Format))] E),
     WriteTimeout,
 }
@@ -412,9 +486,7 @@ where
         let SocketAddr::V4(remote) = remote else {
             return Err(Self::Error::UnsupportedAddress)
         };
-        // TODO dynamically select a random port
-        socket.open(&mut self.bus, 49849 + u16::from(socket.socket.index))?; // chosen by fair dice roll.
-                                                                             // guaranteed to be random.
+        socket.open(&mut self.bus)?;
         socket.set_destination(&mut self.bus, remote)?;
         Ok(())
     }
@@ -468,7 +540,8 @@ where
     HostImpl: Host,
 {
     fn bind(&mut self, socket: &mut Self::UdpSocket, local_port: u16) -> Result<(), Self::Error> {
-        socket.open(&mut self.bus, local_port)?;
+        socket.set_port(&mut self.bus, local_port)?;
+        socket.open(&mut self.bus)?;
         Ok(())
     }
 
