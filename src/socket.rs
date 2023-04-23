@@ -76,6 +76,7 @@ impl Socket {
     ) -> Result<bool, SpiBus::Error> {
         let mut data = [0u8];
         bus.read_frame(self.register(), socketn::INTERRUPT, &mut data)?;
+
         Ok(data[0] & code as u8 != 0)
     }
 

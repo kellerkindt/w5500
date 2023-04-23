@@ -156,7 +156,10 @@ pub const SOCKET7_BUFFER_RX: u8 = 0b000_11111;
 pub mod socketn {
     use derive_try_from_primitive::TryFromPrimitive;
 
+    /// The Protocol mode
     pub const MODE: u16 = 0x00;
+
+    /// The protocol modes that can be used with the `w5500`
     #[repr(u8)]
     pub enum Protocol {
         Closed = 0b00,
@@ -170,18 +173,31 @@ pub mod socketn {
     /// `Sn_CR`
     // pub const COMMAND: u16 = 0b0001;
     pub const COMMAND: u16 = 0x01;
-    #[repr(u8)]
 
     /// Socket n Commands
     ///
     /// `Sn_CR` register
+    #[repr(u8)]
     pub enum Command {
         Open = 0x01,
+        /// [Datasheet page 46](https://docs.wiznet.io/img/products/w5500/W5500_ds_v110e.pdf):
+        ///
+        /// > This is valid only in TCP mode (Sn_MR(P3:P0) = Sn_MR_TCP). In this
+        /// > mode, Socket n operates as a ‘TCP server’ and waits for connection-
+        /// > request (SYN packet) from any ‘TCP client
         Listen = 0x02,
         Connect = 0x04,
         Discon = 0x08,
         Close = 0x10,
         Send = 0x20,
+
+        /// [Datasheet page 48](https://docs.wiznet.io/img/products/w5500/W5500_ds_v110e.pdf):
+        ///
+        /// > RECV completes the processing of the received data in Socket n RX
+        /// > Buffer by using a RX read pointer register (Sn_RX_RD).
+        /// > For more details, refer to Socket n RX Received Size Register
+        /// > (Sn_RX_RSR), Socket n RX Write Pointer Register (Sn_RX_WR), and
+        /// > Socket n RX Read Pointer Register (Sn_RX_RD).
         Receive = 0x40,
     }
 
@@ -201,18 +217,17 @@ pub mod socketn {
         All = 0b11111111u8,
         SendOk = 0b10000u8,
         Timeout = 0b1000u8,
+
+        /// Receive data
+        ///
+        /// bit 2, symbol `RECV`, `Sn_IR(RECV) Interrupt Mask`
         Receive = 0b100u8,
 
-        // SendOk = 0b10000u8,
-        // Timeout = 0b1000u8,
-        // /// Receive data
-        // ///
-        // /// bit 2, symbol `RECV`, `Sn_IR(RECV) Interrupt Mask`
-        // Receive = 0b100u8,
         /// Disconnect
         ///
         /// bit 1, symbol `DISCON`, `Sn_IR(DISCON) Interrupt Mask`
         Disconnect = 0b10u8,
+
         /// Connect
         ///
         /// bit 0, symbol `CON`, `Sn_IR(CON) Interrupt Mask`
@@ -225,6 +240,12 @@ pub mod socketn {
     pub enum Status {
         Closed = 0x00,
         Init = 0x13,
+
+        /// [Datasheet page 49](https://docs.wiznet.io/img/products/w5500/W5500_ds_v110e.pdf):
+        ///
+        /// > This indicates Socket n is operating as ‘TCP server’ mode and
+        /// > waiting for connection-request (SYN packet) from a peer
+        /// > (‘TCP client’).
         Listen = 0x14,
         Established = 0x17,
         CloseWait = 0x1c,
@@ -285,6 +306,24 @@ pub mod socketn {
     /// offset (register)
     /// 0x0024 (Sn_TX_WR0)
     /// 0x0025 (Sn_TX_WR1)
+    ///
+    /// [Datasheet page 54](https://docs.wiznet.io/img/products/w5500/W5500_ds_v110e.pdf):
+    ///
+    /// > Sn_TX_WR (Socket n TX Write Pointer Register) [R/W] [0x0024-0x0025] [0x0000]
+    /// >
+    /// > Sn_TX_WR is initialized by OPEN command. However, if Sn_MR(P[3:0]) is TCP
+    /// > mode(‘0001’), it is re-initialized while connecting with TCP.
+    /// > It should be read or to be updated like as follows.
+    /// > 1. Read the starting address for saving the transmitting data.
+    /// > 2. Save the transmitting data from the starting address of Socket n TX
+    /// > buffer.
+    /// > 3. After saving the transmitting data, update Sn_TX_WR to the
+    /// > increased value as many as transmitting data size. If the increment value
+    /// > exceeds the maximum value 0xFFFF(greater than 0x10000 and the carry
+    /// > bit occurs), then the carry bit is ignored and will automatically update
+    /// > with the lower 16bits value.
+    /// > 4. Transmit the saved data in Socket n TX Buffer by using SEND/SEND
+    /// command
     pub const TX_DATA_WRITE_POINTER: u16 = 0x24;
 
     /// Socket n Received Size Register
