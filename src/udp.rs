@@ -88,6 +88,11 @@ impl UdpSocket {
         Ok(())
     }
 
+    /// return the last set local port of the socket
+    pub fn get_port(&self) -> u16 {
+        self.port
+    }
+
     pub fn set_port<SpiBus: Bus>(
         &mut self,
         bus: &mut SpiBus,
@@ -297,16 +302,15 @@ impl UdpSocket {
         if rx_size == 0 {
             return Err(NbError::WouldBlock);
         }
+
         let buffer_size = receive_buffer.len();
         if buffer_size == 0 {
             return Err(NbError::Other(UdpSocketError::BufferOverflow));
         }
 
         // the amount of bytes we are able to read, the rest will be truncated by setting the RX read pointer
-        // to the end of the RX buffer.
-        let read_size = rx_size.min(buffer_size);
-
-        let read_buffer = &mut receive_buffer[..read_size];
+        // to the end (even if wrapped) of the RX buffer.
+        let read_max_size = rx_size.min(buffer_size);
 
         // Read from the RX ring buffer.
         let read_pointer = self.socket.get_rx_read_pointer(bus)?;
@@ -320,7 +324,20 @@ impl UdpSocket {
         // we have to exclude the header's bytes when reading the data we put in the buffer.
         let data_read_pointer = read_pointer.wrapping_add(8);
 
-        /// read the rest of the packet's data that can fit in the buffer
+        // if the packet is smaller than the maximum amount of bytes we can read
+        let read_length = if read_max_size > udp_header.len {
+            // just read to the end the packet
+            udp_header.len
+        } else {
+            // else read to either the max RX Buffer length or passed buffer length.
+            read_max_size
+        };
+        /// the maximum amount of bytes we can read based on the smallest value of either:
+        /// - the RX size of the socket
+        /// - Buffer size
+        let read_buffer = &mut receive_buffer[..read_length];
+
+        // read the rest of the packet's data that can fit in the buffer
         bus.read_frame(self.socket.rx_buffer(), data_read_pointer, read_buffer)?;
 
         // Set the RX point after the `rx_size`, truncating any bytes that the
@@ -333,6 +350,7 @@ impl UdpSocket {
         // > RECV completes the processing of the received data in Socket n RX
         // > Buffer by using a RX read pointer register (Sn_RX_RD).
         self.socket.command(bus, socketn::Command::Receive)?;
+
         // TODO: is this command `Open` really necessary if the socket is already set as Open?
         self.socket.command(bus, socketn::Command::Open)?;
 
@@ -340,7 +358,7 @@ impl UdpSocket {
         self.socket
             .reset_interrupt(bus, socketn::Interrupt::Receive)?;
 
-        Ok((read_size, udp_header))
+        Ok((read_length, udp_header))
     }
 
     fn socket_close<SpiBus: Bus>(
