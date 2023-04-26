@@ -236,7 +236,7 @@ pub mod socketn {
 
     pub const STATUS: u16 = 0x03;
     #[repr(u8)]
-    #[derive(TryFromPrimitive)]
+    #[derive(TryFromPrimitive, Debug, Copy, Clone)]
     pub enum Status {
         Closed = 0x00,
         Init = 0x13,
@@ -259,6 +259,14 @@ pub mod socketn {
         Closing = 0x1a,
         TimeWait = 0x1b,
         LastAck = 0x1d,
+    }
+
+    #[cfg(feature = "defmt")]
+    impl defmt::Format for Status {
+        fn format(&self, fmt: defmt::Formatter) {
+            // Format as hexadecimal.
+            defmt::write!(fmt, "{:?} ({=u8:#x})", self, *self as u8);
+        }
     }
 
     pub const SOURCE_PORT: u16 = 0x04;
