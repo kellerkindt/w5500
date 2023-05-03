@@ -6,6 +6,22 @@ pub mod common {
     use bit_field::BitArray;
 
     pub const MODE: u16 = 0x0;
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+    pub enum Mode {
+        Reset,
+        Mode(crate::Mode),
+    }
+
+    impl Mode {
+        pub fn to_u8(self) -> u8 {
+            match self {
+                Mode::Reset => 0b10000000,
+                Mode::Mode(mode) => mode.to_u8(),
+            }
+        }
+    }
+
     pub const GATEWAY: u16 = 0x01;
     pub const SUBNET_MASK: u16 = 0x05;
     pub const MAC: u16 = 0x09;
@@ -117,6 +133,32 @@ pub mod common {
     impl core::convert::From<u8> for PhyConfig {
         fn from(val: u8) -> Self {
             PhyConfig([val])
+        }
+    }
+
+    #[cfg(test)]
+    mod test {
+        use super::Mode;
+
+        fn test_mode_register() {
+            let reset = Mode::Reset;
+            assert_eq!(0b100_0000, reset.to_u8());
+
+            let ping_respond_and_force_arp = crate::Mode {
+                on_wake_on_lan: crate::OnWakeOnLan::Ignore,
+                on_ping_request: crate::OnPingRequest::Respond,
+                connection_type: crate::ConnectionType::Ethernet,
+                arp_responses: crate::ArpResponses::Cache,
+            };
+            assert_eq!(0b000_1001, ping_respond_and_force_arp.to_u8());
+
+            let all_enabled = crate::Mode {
+                on_wake_on_lan: crate::OnWakeOnLan::InvokeInterrupt,
+                on_ping_request: crate::OnPingRequest::Respond,
+                connection_type: crate::ConnectionType::PPoE,
+                arp_responses: crate::ArpResponses::DropAfterUse,
+            };
+            assert_eq!(0b000_1111, all_enabled.to_u8());
         }
     }
 }
@@ -235,8 +277,25 @@ pub mod socketn {
     }
 
     pub const STATUS: u16 = 0x03;
+
+    /// Socket status register
+    ///
+    /// `W5500 Datasheet Version 1.1.0` page 49:
+    ///
+    /// > Sn_SR (Socket n Status Register) [R] [0x0003] [0x00]
+    ///
+    /// - 0x18 SOCK_FIN_WAIT
+    /// - 0x1A SOCK_CLOSING
+    /// - 0X1B SOCK_TIME_WAIT
+    /// > These indicate Socket n is closing.
+    /// > These are shown in disconnect-process such as active-close
+    /// > and passive-close.
+    /// > When Disconnect-process is successfully completed, or
+    /// > when timeout occurs, these change to SOCK_CLOSED.
+    ///
     #[repr(u8)]
-    #[derive(TryFromPrimitive, Debug, Copy, Clone)]
+    #[derive(TryFromPrimitive, Debug, Copy, Clone, PartialEq, Eq)]
+    // #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub enum Status {
         Closed = 0x00,
         Init = 0x13,
@@ -265,7 +324,12 @@ pub mod socketn {
     impl defmt::Format for Status {
         fn format(&self, fmt: defmt::Formatter) {
             // Format as hexadecimal.
-            defmt::write!(fmt, "{:?} ({=u8:#x})", self, *self as u8);
+            defmt::write!(
+                fmt,
+                "Status::{} ({=u8:#x})",
+                defmt::Debug2Format(self),
+                *self as u8
+            );
         }
     }
 
@@ -346,4 +410,18 @@ pub mod socketn {
     /// offset (register)
     /// 0x002C (Sn_IMR)
     pub const INTERRUPT_MASK: u16 = 0x2C;
+
+    #[cfg(test)]
+    mod tests {
+        use core::convert::TryFrom;
+
+        use super::Status;
+
+        #[test]
+        fn test_status_from_byte() {
+            let udp = 0x22_u8;
+            let status = Status::try_from(udp).expect("Should parse to Status");
+            assert_eq!(status, Status::Udp);
+        }
+    }
 }

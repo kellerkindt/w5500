@@ -8,6 +8,8 @@ use crate::socket::Socket;
 use crate::uninitialized_device::UninitializedDevice;
 use crate::{register, MacAddress};
 
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ResetError<E> {
     SocketsNotReleased,
     Other(E),
@@ -53,9 +55,13 @@ impl<SpiBus: Bus, HostImpl: Host> Device<SpiBus, HostImpl> {
 
     fn clear_mode(&mut self) -> Result<(), SpiBus::Error> {
         // reset bit
-        let mode = [0b10000000];
-        self.bus
-            .write_frame(register::COMMON, register::common::MODE, &mode)?;
+        let reset_mode = register::common::Mode::Reset;
+
+        self.bus.write_frame(
+            register::COMMON,
+            register::common::MODE,
+            &[reset_mode.to_u8()],
+        )?;
         Ok(())
     }
 

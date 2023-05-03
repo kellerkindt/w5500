@@ -79,6 +79,7 @@ impl<Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin> Bus for FourWire<Spi,
 
 // Must use map_err, ambiguity prevents From from being implemented
 #[repr(u8)]
+#[derive(Clone)]
 pub enum FourWireError<TransferError, WriteError, ChipSelectError> {
     TransferError(TransferError),
     WriteError(WriteError),

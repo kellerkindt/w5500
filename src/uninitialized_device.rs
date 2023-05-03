@@ -58,6 +58,9 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
         self.initialize_with_host(host, mode_options)
     }
 
+    /// For the gateway is overrides the passed `ip` ([`Ip4Addr`]) to end with `.1`.
+    ///
+    /// E.g. `let ip = "192.168.0.201".parse::<Ip4Addr>()` becomes `let gateway = "192.168.0.1"`
     pub fn initialize_manual(
         self,
         mac: MacAddress,
@@ -92,9 +95,12 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
         self.assert_chip_version(0x4)?;
 
         // RESET
-        let mode = [0b10000000];
-        self.bus
-            .write_frame(register::COMMON, register::common::MODE, &mode)?;
+        let reset_mode = register::common::Mode::Reset;
+        self.bus.write_frame(
+            register::COMMON,
+            register::common::MODE,
+            &[reset_mode.to_u8()],
+        )?;
 
         self.set_mode(mode_options)?;
         host.refresh(&mut self.bus)?;
@@ -131,13 +137,11 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
     }
 
     fn set_mode(&mut self, mode_options: Mode) -> Result<(), SpiBus::Error> {
-        let mut mode = [0];
-        mode[0] |= mode_options.on_wake_on_lan as u8;
-        mode[0] |= mode_options.on_ping_request as u8;
-        mode[0] |= mode_options.connection_type as u8;
-        mode[0] |= mode_options.arp_responses as u8;
-        self.bus
-            .write_frame(register::COMMON, register::common::MODE, &mode)?;
+        self.bus.write_frame(
+            register::COMMON,
+            register::common::MODE,
+            &[mode_options.to_u8()],
+        )?;
         Ok(())
     }
 }
