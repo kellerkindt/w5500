@@ -8,6 +8,8 @@ use crate::register;
 use crate::MacAddress;
 use embedded_nal::Ipv4Addr;
 
+pub static UNSPECIFIED_IP: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
+
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct HostConfig {
@@ -24,9 +26,9 @@ impl Default for HostConfig {
     fn default() -> Self {
         Self {
             mac: MacAddress::default(),
-            ip: Ipv4Addr::unspecified(),
-            gateway: Ipv4Addr::unspecified(),
-            subnet: Ipv4Addr::unspecified(),
+            ip: UNSPECIFIED_IP,
+            gateway: UNSPECIFIED_IP,
+            subnet: UNSPECIFIED_IP,
         }
     }
 }
