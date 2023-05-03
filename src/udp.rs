@@ -283,7 +283,7 @@ impl UdpSocket {
             return Ok(());
         }
 
-        return Err(NbError::WouldBlock);
+        Err(NbError::WouldBlock)
     }
 
     /// Sets a new destination before performing the send operation.
