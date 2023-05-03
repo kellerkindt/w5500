@@ -56,7 +56,8 @@ impl From<[u8; 8]> for UdpHeader {
 pub struct UdpSocket {
     socket: Socket,
     /// Whether or not there has been a destination set for the socket.
-    has_destination: bool,
+    #[cfg_attr(feature = "defmt", defmt(Debug2Format))]
+    destination: Option<SocketAddrV4>,
     /// The local port of the socket
     port: u16,
 }
@@ -66,7 +67,7 @@ impl UdpSocket {
         let socket_index = socket.index;
         UdpSocket {
             socket,
-            has_destination: false,
+            destination: None,
             // TODO dynamically select a random port
             // chosen by fair dice roll.
             // guaranteed to be random.
@@ -74,7 +75,7 @@ impl UdpSocket {
         }
     }
 
-    fn open<SpiBus: Bus>(&mut self, bus: &mut SpiBus) -> Result<(), SpiBus::Error> {
+    fn open<SpiBus: Bus>(&self, bus: &mut SpiBus) -> Result<(), SpiBus::Error> {
         self.socket.command(bus, socketn::Command::Close)?;
         self.socket.reset_interrupt(bus, socketn::Interrupt::All)?;
         self.socket.set_source_port(bus, self.port)?;
@@ -109,9 +110,22 @@ impl UdpSocket {
         bus: &mut SpiBus,
         remote: SocketAddrV4,
     ) -> Result<(), UdpSocketError<SpiBus::Error>> {
-        self.socket.set_destination_ip(bus, *remote.ip())?;
-        self.socket.set_destination_port(bus, remote.port())?;
-        self.has_destination = true;
+        // We set this variable to true when:
+        /// - We have the same Socket address already set
+        /// - We don't have any previous destination set
+        let is_same = self
+            .destination
+            .filter(|set_destination| set_destination == &remote)
+            .is_some();
+
+        // either no previous destination is set or a new one
+        if !is_same {
+            self.socket.set_destination_ip(bus, *remote.ip())?;
+            self.socket.set_destination_port(bus, remote.port())?;
+
+            // set the new destination after we've successfully set them on chip
+            self.destination = Some(remote);
+        }
 
         Ok(())
     }
@@ -127,7 +141,7 @@ impl UdpSocket {
             Err(err) => return Err(NbError::Other(UdpSocketError::UnrecognisedStatus)),
         }
 
-        if !self.has_destination {
+        if self.destination.is_none() {
             return Err(NbError::Other(UdpSocketError::DestinationNotSet));
         }
 
@@ -169,6 +183,8 @@ impl UdpSocket {
     }
 
     /// Send buffer should be less than [`u16::MAX`].
+
+    /// Will block the device until all data is sent.
     ///
     /// # Returns
     ///
@@ -185,7 +201,8 @@ impl UdpSocket {
             Err(err) => return Err(NbError::Other(UdpSocketError::UnrecognisedStatus)),
         }
 
-        if !self.has_destination {
+        // We need to have a set destination before sending data with this method.
+        if self.destination.is_none() {
             return Err(NbError::Other(UdpSocketError::DestinationNotSet));
         }
 
@@ -218,30 +235,55 @@ impl UdpSocket {
         let new_write_pointer = write_pointer.wrapping_add(write_data.len() as u16);
         self.socket.set_tx_write_pointer(bus, new_write_pointer)?;
 
+        self.block_send_command(bus)?;
+
+        Ok(write_data.len())
+    }
+
+    /// Sets the socket to [`socketnCommand::Send`] and block flushes the TX buffer
+    fn block_send_command<SpiBus: Bus>(
+        &self,
+        bus: &mut SpiBus,
+    ) -> NbResult<(), UdpSocketError<SpiBus::Error>> {
         // Send the data.
         self.socket.command(bus, socketn::Command::Send)?;
 
         loop {
-            let tx_read = self.socket.get_tx_read_pointer(bus)?;
-            let tx_write = self.socket.get_tx_write_pointer(bus)?;
-
-            if tx_read == tx_write {
-                if self.socket.has_interrupt(bus, socketn::Interrupt::SendOk)? {
-                    self.socket
-                        .reset_interrupt(bus, socketn::Interrupt::SendOk)?;
-                    return Ok(write_data.len());
-                } else if self
-                    .socket
-                    .has_interrupt(bus, socketn::Interrupt::Timeout)?
-                {
-                    self.socket
-                        .reset_interrupt(bus, socketn::Interrupt::Timeout)?;
-                    return Err(NbError::Other(UdpSocketError::WriteTimeout));
-                }
+            match self.try_flush_tx(bus) {
+                Err(NbError::WouldBlock) => {}
+                result => return result,
             }
         }
+    }
 
-        Ok(write_data.len())
+    fn try_flush_tx<SpiBus: Bus>(
+        &self,
+        bus: &mut SpiBus,
+    ) -> NbResult<(), UdpSocketError<SpiBus::Error>> {
+        let tx_read = self.socket.get_tx_read_pointer(bus)?;
+        let tx_write = self.socket.get_tx_write_pointer(bus)?;
+
+        if tx_read == tx_write {
+            if self.socket.has_interrupt(bus, socketn::Interrupt::SendOk)? {
+                self.socket
+                    .reset_interrupt(bus, socketn::Interrupt::SendOk)?;
+
+                return Ok(());
+            } else if self
+                .socket
+                .has_interrupt(bus, socketn::Interrupt::Timeout)?
+            {
+                self.socket
+                    .reset_interrupt(bus, socketn::Interrupt::Timeout)?;
+
+                return Err(NbError::Other(UdpSocketError::WriteTimeout));
+            }
+            // other interrupts are unreachable in UDP mode.
+
+            return Ok(());
+        }
+
+        return Err(NbError::WouldBlock);
     }
 
     /// Sets a new destination before performing the send operation.
@@ -351,9 +393,6 @@ impl UdpSocket {
         // > Buffer by using a RX read pointer register (Sn_RX_RD).
         self.socket.command(bus, socketn::Command::Receive)?;
 
-        // TODO: is this command `Open` really necessary if the socket is already set as Open?
-        self.socket.command(bus, socketn::Command::Open)?;
-
         // Reset the Receive interrupt
         self.socket
             .reset_interrupt(bus, socketn::Interrupt::Receive)?;
@@ -377,7 +416,7 @@ impl UdpSocket {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum UdpSocketError<E: Debug> {
     NoMoreSockets,
@@ -551,6 +590,12 @@ where
         self.as_mut().send_to(socket, remote, buffer)
     }
 }
+
+// impl<SpiBus, HostImpl> UdpFullStack for &mut Device<SpiBus, HostImpl>
+// where
+//     SpiBus: Bus,
+//     HostImpl: Host,
+// {}
 
 impl<SpiBus, HostImpl> UdpFullStack for DeviceRefMut<'_, SpiBus, HostImpl>
 where
