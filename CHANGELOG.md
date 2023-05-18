@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Additional checks for `UdpSocket` status when sending data by [@elpiel](https://github.com/elpiel) ([#42][PR42])
 - Additional checks for `UdpSocket` when sending data to validate that there has been a set destination by [@elpiel](https://github.com/elpiel) ([#42][PR42])
 - Add `RetryTime` value and `RetryCount`
+- export `DeviceState` in the API and introduce `Device::get_state`
+- Improve documentation for register and methods
 
 ### Fixed
 

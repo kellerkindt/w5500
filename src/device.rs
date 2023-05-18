@@ -23,7 +23,7 @@ impl<E> From<E> for ResetError<E> {
 
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub(crate) struct DeviceState<HostImpl: Host> {
+pub struct DeviceState<HostImpl: Host> {
     host: HostImpl,
     sockets: [u8; 1],
 }
@@ -42,6 +42,10 @@ impl<SpiBus: Bus, HostImpl: Host> Device<SpiBus, HostImpl> {
                 sockets: [0b11111111],
             },
         }
+    }
+
+    pub fn get_state(&self) -> &DeviceState<HostImpl> {
+        &self.state
     }
 
     pub fn reset(mut self) -> Result<UninitializedDevice<SpiBus>, ResetError<SpiBus::Error>> {
@@ -151,6 +155,16 @@ impl<SpiBus: Bus, HostImpl: Host> DeviceRefMut<'_, SpiBus, HostImpl> {
     pub fn release_socket(&mut self, socket: Socket) {
         self.state.sockets.set_bit(socket.index.into(), true);
     }
+
+    // /// RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
+    // pub fn set_retry_timeout(
+    //     &self,
+    //     code: socketn::Interrupt,
+    // ) -> Result<(), SpiBus::Error> {
+    //     let data = [code as u8];
+    //     self.bus.write_frame(self.register(), socketn::, &data)?;
+    //     Ok(())
+    // }
 
     pub fn gateway(&mut self) -> Result<Ipv4Addr, SpiBus::Error> {
         let mut octets = [0u8; 4];
