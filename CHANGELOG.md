@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `UdpSocket.set_port` to set a new socket port by [@elpiel](https://github.com/elpiel) ([#42][PR42])
 - Additional checks for `UdpSocket` status when sending data by [@elpiel](https://github.com/elpiel) ([#42][PR42])
 - Additional checks for `UdpSocket` when sending data to validate that there has been a set destination by [@elpiel](https://github.com/elpiel) ([#42][PR42])
+- Add `RetryTime` value and `RetryCount`
 
 ### Fixed
 

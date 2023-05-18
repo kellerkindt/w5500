@@ -1,3 +1,5 @@
+use core::cell::RefCell;
+
 use embedded_hal::blocking::spi::{Transfer, Write};
 use embedded_hal::digital::v2::OutputPin;
 use embedded_nal::Ipv4Addr;
@@ -6,8 +8,13 @@ use crate::bus::{Bus, FourWire, ThreeWire};
 use crate::device::Device;
 use crate::host::{Dhcp, Host, Manual};
 use crate::raw_device::RawDevice;
-use crate::register;
-use crate::{MacAddress, Mode};
+use crate::{
+    register::{
+        self,
+        common::{RetryCount, RetryTime},
+    },
+    MacAddress, Mode,
+};
 
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -94,17 +101,49 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
         #[cfg(not(feature = "no-chip-version-assertion"))]
         self.assert_chip_version(0x4)?;
 
-        // RESET
-        let reset_mode = register::common::Mode::Reset;
-        self.bus.write_frame(
-            register::COMMON,
-            register::common::MODE,
-            &[reset_mode.to_u8()],
-        )?;
+        self.reset()?;
 
         self.set_mode(mode_options)?;
         host.refresh(&mut self.bus)?;
         Ok(Device::new(self.bus, host))
+    }
+
+    /// RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
+    ///
+    /// E.g. 4000 = 400ms
+    #[inline]
+    pub fn current_retry_timeout(&mut self) -> Result<RetryTime, SpiBus::Error> {
+        Ok(self.bus.current_retry_timeout()?)
+    }
+
+    /// RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
+    ///
+    /// # Example
+    /// ```
+    /// use w5500::register::common::RetryTime;
+    ///
+    /// let default = RetryTime::from_millis(200);
+    /// assert_eq!(RetryTime::default(), default);
+    ///
+    /// // E.g. 4000 (register) = 400ms
+    /// let four_hundred_ms = RetryTime::from_millis(400);
+    /// assert_eq!(four_hundred_ms.to_u16(), 4000);
+    /// ```
+    pub fn set_retry_timeout(&mut self, retry_time_value: RetryTime) -> Result<(), SpiBus::Error> {
+        self.bus.set_retry_timeout(retry_time_value)
+    }
+
+    /// RCR (Retry Count Register) [R/W] [0x001B] [0x08]
+    ///
+    /// E.g. In case of errors it will retry for 7 times:
+    /// `RCR = 0x0007`
+    #[inline]
+    pub fn current_retry_count(&mut self) -> Result<RetryCount, SpiBus::Error> {
+        self.bus.current_retry_count()
+    }
+
+    pub fn set_retry_count(&mut self, retry_count: RetryCount) -> Result<(), SpiBus::Error> {
+        self.bus.set_retry_count(retry_count)
     }
 
     pub fn initialize_macraw(
@@ -126,23 +165,22 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
         &mut self,
         expected_version: u8,
     ) -> Result<(), InitializeError<SpiBus::Error>> {
-        let mut version = [0];
-        self.bus
-            .read_frame(register::COMMON, register::common::VERSION, &mut version)?;
-        if version[0] != expected_version {
+        let version = self.bus.version()?;
+
+        if version != expected_version {
             Err(InitializeError::ChipNotConnected)
         } else {
             Ok(())
         }
     }
 
+    /// RESET
+    fn reset(&mut self) -> Result<(), SpiBus::Error> {
+        self.bus.reset()
+    }
+
     fn set_mode(&mut self, mode_options: Mode) -> Result<(), SpiBus::Error> {
-        self.bus.write_frame(
-            register::COMMON,
-            register::common::MODE,
-            &[mode_options.to_u8()],
-        )?;
-        Ok(())
+        self.bus.set_mode(mode_options.into())
     }
 }
 

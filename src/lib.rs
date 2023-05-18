@@ -17,6 +17,7 @@ mod uninitialized_device;
 pub use device::{Device, DeviceRefMut, InactiveDevice};
 pub use host::{Dhcp, Host, HostConfig, Manual};
 pub use net::MacAddress;
+use register::common;
 pub use uninitialized_device::{InitializeError, UninitializedDevice};
 
 // TODO add better docs to all public items, add unit tests.
@@ -80,6 +81,10 @@ pub struct Mode {
 }
 
 impl Mode {
+    pub fn to_register(self) -> [u8; 1] {
+        [self.to_u8()]
+    }
+
     pub fn to_u8(self) -> u8 {
         let mut register = 0;
         register |= self.on_wake_on_lan as u8;
@@ -88,6 +93,12 @@ impl Mode {
         register |= self.arp_responses as u8;
 
         register
+    }
+}
+
+impl From<Mode> for common::Mode {
+    fn from(value: Mode) -> Self {
+        Self::Mode(value)
     }
 }
 
