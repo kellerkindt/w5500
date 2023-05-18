@@ -4,6 +4,7 @@ use embedded_hal::digital::v2::OutputPin;
 use crate::bus::{Bus, BusRef, FourWire, SpiRef, ThreeWire};
 use crate::host::Host;
 use crate::net::Ipv4Addr;
+use crate::register::common::{RetryCount, RetryTime};
 use crate::socket::Socket;
 use crate::uninitialized_device::UninitializedDevice;
 use crate::{register, MacAddress};
@@ -67,6 +68,53 @@ impl<SpiBus: Bus, HostImpl: Host> Device<SpiBus, HostImpl> {
             &[reset_mode.to_u8()],
         )?;
         Ok(())
+    }
+
+    /// Get the currently set Retry Time-value Register.
+    ///
+    /// RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
+    #[inline]
+    pub fn current_retry_timeout(&mut self) -> Result<RetryTime, SpiBus::Error> {
+        self.as_mut().current_retry_timeout()
+    }
+
+    /// Set a new value for the Retry Time-value Register.
+    ///
+    /// RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
+    ///
+    /// # Example
+    /// ```
+    /// use w5500::register::common::RetryTime;
+    ///
+    /// let default = RetryTime::from_millis(200);
+    /// assert_eq!(RetryTime::default(), default);
+    ///
+    /// // E.g. 4000 (register) = 400ms
+    /// let four_hundred_ms = RetryTime::from_millis(400);
+    /// assert_eq!(four_hundred_ms.to_u16(), 4000);
+    /// ```
+    #[inline]
+    pub fn set_retry_timeout(&mut self, retry_time_value: RetryTime) -> Result<(), SpiBus::Error> {
+        self.as_mut().set_retry_timeout(retry_time_value)
+    }
+
+    /// Get the current Retry Count Register value.
+    ///
+    /// RCR (Retry Count Register) [R/W] [0x001B] [0x08]
+    ///
+    /// E.g. In case of errors it will retry for 7 times:
+    /// `RCR = 0x0007`
+    #[inline]
+    pub fn current_retry_count(&mut self) -> Result<RetryCount, SpiBus::Error> {
+        self.as_mut().current_retry_count()
+    }
+
+    /// Set a new value for the Retry Count register.
+    ///
+    /// RCR (Retry Count Register) [R/W] [0x001B] [0x08]
+    #[inline]
+    pub fn set_retry_count(&mut self, retry_count: RetryCount) -> Result<(), SpiBus::Error> {
+        self.as_mut().set_retry_count(retry_count)
     }
 
     #[inline]
@@ -156,15 +204,54 @@ impl<SpiBus: Bus, HostImpl: Host> DeviceRefMut<'_, SpiBus, HostImpl> {
         self.state.sockets.set_bit(socket.index.into(), true);
     }
 
-    // /// RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
-    // pub fn set_retry_timeout(
-    //     &self,
-    //     code: socketn::Interrupt,
-    // ) -> Result<(), SpiBus::Error> {
-    //     let data = [code as u8];
-    //     self.bus.write_frame(self.register(), socketn::, &data)?;
-    //     Ok(())
-    // }
+    /// Get the currently set Retry Time-value Register.
+    ///
+    /// RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
+    ///
+    /// E.g. 4000 = 400ms
+    #[inline]
+    pub fn current_retry_timeout(&mut self) -> Result<RetryTime, SpiBus::Error> {
+        self.bus.current_retry_timeout()
+    }
+
+    /// Set a new value for the Retry Time-value Register.
+    ///
+    /// RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
+    ///
+    /// # Example
+    /// ```
+    /// use w5500::register::common::RetryTime;
+    ///
+    /// let default = RetryTime::from_millis(200);
+    /// assert_eq!(RetryTime::default(), default);
+    ///
+    /// // E.g. 4000 (register) = 400ms
+    /// let four_hundred_ms = RetryTime::from_millis(400);
+    /// assert_eq!(four_hundred_ms.to_u16(), 4000);
+    /// ```
+    #[inline]
+    pub fn set_retry_timeout(&mut self, retry_time_value: RetryTime) -> Result<(), SpiBus::Error> {
+        self.bus.set_retry_timeout(retry_time_value)
+    }
+
+    /// Get the current Retry Count Register value.
+    ///
+    /// RCR (Retry Count Register) [R/W] [0x001B] [0x08]
+    ///
+    /// E.g. In case of errors it will retry for 7 times:
+    /// `RCR = 0x0007`
+    #[inline]
+    pub fn current_retry_count(&mut self) -> Result<RetryCount, SpiBus::Error> {
+        self.bus.current_retry_count()
+    }
+
+    /// Set a new value for the Retry Count register.
+    ///
+    /// RCR (Retry Count Register) [R/W] [0x001B] [0x08]
+    #[inline]
+    pub fn set_retry_count(&mut self, retry_count: RetryCount) -> Result<(), SpiBus::Error> {
+        self.bus.set_retry_count(retry_count)
+    }
 
     pub fn gateway(&mut self) -> Result<Ipv4Addr, SpiBus::Error> {
         let mut octets = [0u8; 4];

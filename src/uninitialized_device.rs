@@ -108,14 +108,18 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
         Ok(Device::new(self.bus, host))
     }
 
+    /// Get the currently set Retry Time-value Register.
+    ///
     /// RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
     ///
     /// E.g. 4000 = 400ms
     #[inline]
     pub fn current_retry_timeout(&mut self) -> Result<RetryTime, SpiBus::Error> {
-        Ok(self.bus.current_retry_timeout()?)
+        self.bus.current_retry_timeout()
     }
 
+    /// Set a new value for the Retry Time-value Register.
+    ///
     /// RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
     ///
     /// # Example
@@ -129,10 +133,13 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
     /// let four_hundred_ms = RetryTime::from_millis(400);
     /// assert_eq!(four_hundred_ms.to_u16(), 4000);
     /// ```
+    #[inline]
     pub fn set_retry_timeout(&mut self, retry_time_value: RetryTime) -> Result<(), SpiBus::Error> {
         self.bus.set_retry_timeout(retry_time_value)
     }
 
+    /// Get the current Retry Count Register value.
+    ///
     /// RCR (Retry Count Register) [R/W] [0x001B] [0x08]
     ///
     /// E.g. In case of errors it will retry for 7 times:
@@ -142,6 +149,10 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
         self.bus.current_retry_count()
     }
 
+    /// Set a new value for the Retry Count register.
+    ///
+    /// RCR (Retry Count Register) [R/W] [0x001B] [0x08]
+    #[inline]
     pub fn set_retry_count(&mut self, retry_count: RetryCount) -> Result<(), SpiBus::Error> {
         self.bus.set_retry_count(retry_count)
     }
