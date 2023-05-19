@@ -121,7 +121,7 @@ pub mod common {
     ///
     #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
     #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-    pub struct RetryCount(pub(crate) u8);
+    pub struct RetryCount(pub u8);
 
     impl RetryCount {
         #[inline]
