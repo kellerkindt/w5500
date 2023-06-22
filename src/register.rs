@@ -10,6 +10,7 @@ pub mod common {
     pub const SUBNET_MASK: u16 = 0x05;
     pub const MAC: u16 = 0x09;
     pub const IP: u16 = 0x0F;
+    pub const SOCKET_INTERRUPT_MASK: u16 = 0x0018;
     pub const PHY_CONFIG: u16 = 0x2E;
     pub const VERSION: u16 = 0x39;
 
