@@ -6,7 +6,7 @@ pub(crate) struct RxCursor<'a, SpiBus>
 where
     SpiBus: Bus,
 {
-    sock: &'a mut Socket,
+    sock: &'a Socket,
     bus: &'a mut SpiBus,
     ptr: u16,
     size: u16,
@@ -16,7 +16,7 @@ impl<'a, SpiBus> RxCursor<'a, SpiBus>
 where
     SpiBus: Bus,
 {
-    pub fn new(sock: &'a mut Socket, bus: &'a mut SpiBus) -> Result<Self, SpiBus::Error> {
+    pub fn new(sock: &'a Socket, bus: &'a mut SpiBus) -> Result<Self, SpiBus::Error> {
         let size = sock.get_receive_size(bus)?;
         let ptr = sock.get_rx_read_pointer(bus)?;
         Ok(Self {
@@ -57,7 +57,7 @@ where
     /// Skip up to count bytes. The actual number of bytes skipped is bounded by available().
     pub fn skip(&mut self, count: u16) -> u16 {
         let bounded_count = self.available().min(count);
-        self.ptr += bounded_count;
+        self.ptr = self.ptr.wrapping_add(bounded_count);
         self.size -= bounded_count;
         bounded_count
     }
@@ -75,7 +75,7 @@ pub(crate) struct TxCursor<'a, SpiBus>
 where
     SpiBus: Bus,
 {
-    sock: &'a mut Socket,
+    sock: &'a Socket,
     bus: &'a mut SpiBus,
     ptr: u16,
     size: u16,
@@ -85,7 +85,7 @@ impl<'a, SpiBus> TxCursor<'a, SpiBus>
 where
     SpiBus: Bus,
 {
-    pub fn new(sock: &'a mut Socket, bus: &'a mut SpiBus) -> Result<Self, SpiBus::Error> {
+    pub fn new(sock: &'a Socket, bus: &'a mut SpiBus) -> Result<Self, SpiBus::Error> {
         let size = sock.get_tx_free_size(bus)?;
         let ptr = sock.get_tx_write_pointer(bus)?;
         Ok(Self {
@@ -111,7 +111,7 @@ where
         let count = buf.len() as u16;
         self.bus
             .write_frame(self.sock.tx_buffer(), self.ptr, &buf[..count as _])?;
-        self.ptr += count;
+        self.ptr = self.ptr.wrapping_add(count);
         self.size -= count;
         Ok(count)
     }
