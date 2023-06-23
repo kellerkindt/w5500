@@ -47,7 +47,7 @@ impl<SpiBus: Bus> RawDevice<SpiBus> {
     /// # Returns
     /// The number of bytes read into the provided frame buffer.
     pub fn read_frame(&mut self, frame: &mut [u8]) -> Result<usize, SpiBus::Error> {
-        let mut rx_cursor = crate::cursor::RxCursor::new(&mut self.raw_socket, &mut self.bus)?;
+        let mut rx_cursor = crate::cursor::RxCursor::new(&self.raw_socket, &mut self.bus)?;
 
         // Check if there is anything to receive.
         if rx_cursor.available() == 0 {
@@ -84,7 +84,7 @@ impl<SpiBus: Bus> RawDevice<SpiBus> {
         self.raw_socket
             .reset_interrupt(&mut self.bus, register::socketn::Interrupt::SendOk)?;
 
-        let mut tx_cursor = crate::cursor::TxCursor::new(&mut self.raw_socket, &mut self.bus)?;
+        let mut tx_cursor = crate::cursor::TxCursor::new(&self.raw_socket, &mut self.bus)?;
         let count = tx_cursor.write(frame)?;
         tx_cursor.commit()?;
 
