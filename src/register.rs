@@ -6,12 +6,142 @@ pub mod common {
     use bit_field::BitArray;
 
     pub const MODE: u16 = 0x0;
+
+    /// Register: GAR (Gateway IP Address Register) [R/W] [0x0001 – 0x0004] [0x00]
     pub const GATEWAY: u16 = 0x01;
+
+    /// Register: SUBR (Subnet Mask Register) [R/W] [0x0005 – 0x0008] [0x00]
     pub const SUBNET_MASK: u16 = 0x05;
+
+    /// Register: SHAR (Source Hardware Address Register) [R/W] [0x0009 – 0x000E] [0x00]
     pub const MAC: u16 = 0x09;
+
+    /// Register: SIPR (Source IP Address Register) [R/W] [0x000F – 0x0012] [0x00]
     pub const IP: u16 = 0x0F;
+
+    /// Register: INTLEVEL (Interrupt Low Level Timer Register) [R/W] [0x0013 – 0x0014] [0x0000]
+    pub const INTERRUPT_TIMER: u16 = 0x13;
+
+    /// Register: RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
+    pub const RETRY_TIME: u16 = 0x19;
+
+    /// Register: RCR (Retry Count Register) [R/W] [0x001B] [0x08]
+    pub const RETRY_COUNT: u16 = 0x1B;
+
     pub const PHY_CONFIG: u16 = 0x2E;
     pub const VERSION: u16 = 0x39;
+
+    /// The common register Mode.
+    ///
+    /// It differs from the [`crate::Mode`] in one key aspect - we can also
+    /// send a reset value to the w5500, instead of only configuring the settings.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+    pub enum Mode {
+        Reset,
+        Mode(crate::Mode),
+    }
+
+    impl Mode {
+        pub fn to_register(self) -> [u8; 1] {
+            [self.to_u8()]
+        }
+
+        pub fn to_u8(self) -> u8 {
+            match self {
+                Mode::Reset => 0b10000000,
+                Mode::Mode(mode) => mode.to_u8(),
+            }
+        }
+    }
+
+    /// A Retry Time-value
+    ///
+    /// RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
+    ///
+    /// From datasheet:
+    ///
+    /// RTR configures the retransmission timeout period. The unit of timeout period is
+    /// 100us and the default of RTR is ‘0x07D0’ or ‘2000’. And so the default timeout period
+    /// is 200ms(100us X 2000).
+    /// During the time configured by RTR, W5500 waits for the peer response to the packet
+    /// that is transmitted by Sn_CR(CONNECT, DISCON, CLOSE, SEND, SEND_MAC, SEND_KEEP
+    /// command). If the peer does not respond within the RTR time, W5500 retransmits the
+    /// packet or issues timeout.
+    ///
+    ///
+    /// > Ex) When timeout-period is set as 400ms, RTR = (400ms / 1ms) X 10 = 4000(0x0FA0)
+    #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+    pub struct RetryTime(pub(crate) u16);
+
+    impl RetryTime {
+        #[inline]
+        pub fn to_u16(&self) -> u16 {
+            self.0
+        }
+
+        #[inline]
+        pub fn to_register(&self) -> [u8; 2] {
+            self.0.to_be_bytes()
+        }
+
+        #[inline]
+        pub fn from_register(register: [u8; 2]) -> Self {
+            Self(u16::from_be_bytes(register))
+        }
+
+        #[inline]
+        pub fn from_millis(milliseconds: u16) -> Self {
+            Self(milliseconds * 10)
+        }
+
+        #[inline]
+        pub fn to_millis(&self) -> u16 {
+            self.0 / 10
+        }
+    }
+
+    impl Default for RetryTime {
+        fn default() -> Self {
+            Self::from_millis(200)
+        }
+    }
+
+    /// RCR (Retry Count Register) [R/W] [0x001B] [0x08]
+    ///
+    /// For more details check out the rest of the datasheet documentation on the Retry count.
+    ///
+    /// From datasheet:
+    ///
+    /// RCR configures the number of time of retransmission. When retransmission occurs
+    /// as many as ‘RCR+1’, Timeout interrupt is issued (Sn_IR[TIMEOUT] = ‘1’).
+    ///
+    /// > Ex) RCR = 0x0007
+    ///
+    /// The timeout of W5500 can be configurable with RTR and RCR. W5500 has two kind
+    /// timeout such as Address Resolution Protocol (ARP) and TCP retransmission.
+    ///
+    #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+    pub struct RetryCount(pub u8);
+
+    impl RetryCount {
+        #[inline]
+        pub fn to_u8(&self) -> u8 {
+            self.0
+        }
+
+        #[inline]
+        pub fn to_register(&self) -> [u8; 1] {
+            self.0.to_be_bytes()
+        }
+
+        #[inline]
+        pub fn from_register(register: [u8; 1]) -> Self {
+            Self(register[0])
+        }
+    }
 
     #[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
     #[repr(u8)]
@@ -117,6 +247,50 @@ pub mod common {
     impl core::convert::From<u8> for PhyConfig {
         fn from(val: u8) -> Self {
             PhyConfig([val])
+        }
+    }
+
+    #[cfg(test)]
+    mod test {
+        use super::Mode;
+
+        #[test]
+        fn test_mode_register() {
+            let reset = Mode::Reset;
+            // Bit: 7 Reset (RST) should be 1
+            assert_eq!(0b1000_0000, reset.to_u8());
+
+            let ping_respond_and_force_arp = crate::Mode {
+                // Bit: 7 Reset (RST) should be 0
+                // Bit: 6 reserved
+                // Bit: 5 should be 0 - Disable WOL mode
+                on_wake_on_lan: crate::OnWakeOnLan::Ignore,
+                // Bit: 4 should be 0 - Disable Ping Block Mode
+                on_ping_request: crate::OnPingRequest::Respond,
+                // Bit: 3 should be 0 - PPoE disabled
+                connection_type: crate::ConnectionType::Ethernet,
+                // Bit: 2 reserved
+                // Bit: 1 should be 0 - Disabled Force ARP
+                arp_responses: crate::ArpResponses::Cache,
+                // Bit: 0 reserved
+            };
+            assert_eq!(0b0000_0000, ping_respond_and_force_arp.to_u8());
+
+            let all_enabled = crate::Mode {
+                // Bit: 7 Reset (RST) should be 0
+                // Bit: 6 reserved
+                // Bit: 5 should be 1 - Enable WOL mode
+                on_wake_on_lan: crate::OnWakeOnLan::InvokeInterrupt,
+                // Bit: 4 should be 0 - Disable Ping Block Mode
+                on_ping_request: crate::OnPingRequest::Respond,
+                // Bit: 3 should be 1 - PPoE enable
+                connection_type: crate::ConnectionType::PPoE,
+                // Bit: 2 reserved
+                // Bit: 1 should be 1 - Enable Force ARP
+                arp_responses: crate::ArpResponses::DropAfterUse,
+                // Bit: 0 reserved
+            };
+            assert_eq!(0b0010_1010, all_enabled.to_u8());
         }
     }
 }
