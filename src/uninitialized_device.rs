@@ -58,6 +58,10 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
         self.initialize_with_host(host, mode_options)
     }
 
+
+    /// The gateway overrides the passed `ip` ([`Ip4Addr`]) to end with `.1`.
+    ///
+    /// E.g. `let ip = "192.168.0.201".parse::<Ip4Addr>()` will become a device with a gateway `192.168.0.1`.
     pub fn initialize_manual(
         self,
         mac: MacAddress,
