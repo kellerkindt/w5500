@@ -6,7 +6,7 @@ mod three_wire;
 
 use crate::register::{
     self,
-    common::{RetryCount, RetryTime, MODE,VERSION, PhyConfig},
+    common::{PhyConfig, RetryCount, RetryTime, MODE, VERSION},
 };
 
 pub use self::four_wire::FourWire;

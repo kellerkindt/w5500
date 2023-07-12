@@ -6,7 +6,10 @@ use crate::host::Host;
 use crate::net::Ipv4Addr;
 use crate::socket::Socket;
 use crate::uninitialized_device::UninitializedDevice;
-use crate::{register, MacAddress};
+use crate::{
+    common::{RetryCount, RetryTime},
+    register, MacAddress,
+};
 
 pub enum ResetError<E> {
     SocketsNotReleased,

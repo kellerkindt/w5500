@@ -20,7 +20,7 @@ pub use self::{
     device::{Device, DeviceRefMut, InactiveDevice},
     host::{Dhcp, Host, HostConfig, Manual},
     net::MacAddress,
-    uninitialized_device::{InitializeError, UninitializedDevice}
+    uninitialized_device::{InitializeError, UninitializedDevice},
 };
 
 use register::common;
