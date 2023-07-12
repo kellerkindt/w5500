@@ -172,10 +172,9 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
         &mut self,
         expected_version: u8,
     ) -> Result<(), InitializeError<SpiBus::Error>> {
-        let mut version = [0];
-        self.bus
-            .read_frame(register::COMMON, register::common::VERSION, &mut version)?;
-        if version[0] != expected_version {
+        let version = self.bus.version()?;
+
+        if version != expected_version {
             Err(InitializeError::ChipNotConnected)
         } else {
             Ok(())
