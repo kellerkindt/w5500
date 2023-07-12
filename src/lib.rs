@@ -4,6 +4,7 @@
 #![doc = include_str!("../README.md")]
 
 pub mod bus;
+mod cursor;
 mod device;
 mod host;
 pub mod net;
