@@ -52,11 +52,8 @@ impl<SpiBus: Bus, HostImpl: Host> Device<SpiBus, HostImpl> {
     }
 
     fn clear_mode(&mut self) -> Result<(), SpiBus::Error> {
-        // reset bit
-        let mode = [0b10000000];
-        self.bus
-            .write_frame(register::COMMON, register::common::MODE, &mode)?;
-        Ok(())
+        // Set RST common register of the w5500
+        self.bus.reset()
     }
 
     #[inline]
@@ -87,6 +84,53 @@ impl<SpiBus: Bus, HostImpl: Host> Device<SpiBus, HostImpl> {
     #[inline]
     pub fn version(&mut self) -> Result<u8, SpiBus::Error> {
         self.as_mut().version()
+    }
+
+    /// Get the currently set Retry Time-value Register.
+    ///
+    /// RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
+    #[inline]
+    pub fn current_retry_timeout(&mut self) -> Result<RetryTime, SpiBus::Error> {
+        self.as_mut().current_retry_timeout()
+    }
+
+    /// Set a new value for the Retry Time-value Register.
+    ///
+    /// RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
+    ///
+    /// # Example
+    /// ```
+    /// use w5500::register::common::RetryTime;
+    ///
+    /// let default = RetryTime::from_millis(200);
+    /// assert_eq!(RetryTime::default(), default);
+    ///
+    /// // E.g. 4000 (register) = 400ms
+    /// let four_hundred_ms = RetryTime::from_millis(400);
+    /// assert_eq!(four_hundred_ms.to_u16(), 4000);
+    /// ```
+    #[inline]
+    pub fn set_retry_timeout(&mut self, retry_time_value: RetryTime) -> Result<(), SpiBus::Error> {
+        self.as_mut().set_retry_timeout(retry_time_value)
+    }
+
+    /// Get the current Retry Count Register value.
+    ///
+    /// RCR (Retry Count Register) [R/W] [0x001B] [0x08]
+    ///
+    /// E.g. In case of errors it will retry for 7 times:
+    /// `RCR = 0x0007`
+    #[inline]
+    pub fn current_retry_count(&mut self) -> Result<RetryCount, SpiBus::Error> {
+        self.as_mut().current_retry_count()
+    }
+
+    /// Set a new value for the Retry Count register.
+    ///
+    /// RCR (Retry Count Register) [R/W] [0x001B] [0x08]
+    #[inline]
+    pub fn set_retry_count(&mut self, retry_count: RetryCount) -> Result<(), SpiBus::Error> {
+        self.as_mut().set_retry_count(retry_count)
     }
 
     #[inline]
@@ -186,5 +230,54 @@ impl<SpiBus: Bus, HostImpl: Host> DeviceRefMut<'_, SpiBus, HostImpl> {
         self.bus
             .read_frame(register::COMMON, register::common::VERSION, &mut version)?;
         Ok(version[0])
+    }
+
+    /// Get the currently set Retry Time-value Register.
+    ///
+    /// RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
+    ///
+    /// E.g. 4000 = 400ms
+    #[inline]
+    pub fn current_retry_timeout(&mut self) -> Result<RetryTime, SpiBus::Error> {
+        self.bus.current_retry_timeout()
+    }
+
+    /// Set a new value for the Retry Time-value Register.
+    ///
+    /// RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
+    ///
+    /// # Example
+    /// ```
+    /// use w5500::register::common::RetryTime;
+    ///
+    /// let default = RetryTime::from_millis(200);
+    /// assert_eq!(RetryTime::default(), default);
+    ///
+    /// // E.g. 4000 (register) = 400ms
+    /// let four_hundred_ms = RetryTime::from_millis(400);
+    /// assert_eq!(four_hundred_ms.to_u16(), 4000);
+    /// ```
+    #[inline]
+    pub fn set_retry_timeout(&mut self, retry_time_value: RetryTime) -> Result<(), SpiBus::Error> {
+        self.bus.set_retry_timeout(retry_time_value)
+    }
+
+    /// Get the current Retry Count Register value.
+    ///
+    /// RCR (Retry Count Register) [R/W] [0x001B] [0x08]
+    ///
+    /// E.g. In case of errors it will retry for 7 times:
+    /// `RCR = 0x0007`
+    #[inline]
+    pub fn current_retry_count(&mut self) -> Result<RetryCount, SpiBus::Error> {
+        self.bus.current_retry_count()
+    }
+
+    /// Set a new value for the Retry Count register.
+    ///
+    /// RCR (Retry Count Register) [R/W] [0x001B] [0x08]
+    #[inline]
+    pub fn set_retry_count(&mut self, retry_count: RetryCount) -> Result<(), SpiBus::Error> {
+        self.bus.set_retry_count(retry_count)
     }
 }
