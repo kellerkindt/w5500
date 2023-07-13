@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `defmt` features for enabling `defmt::Format` to most structs and errors by [@elpiel](https://github.com/elpiel) ([#39](https://github.com/kellerkindt/w5500/issues/39))
 - Fixed an issue where internal function names were conflicting with trait names by [@ryan-summers](https://github.com/ryan-summers) ([#36](https://github.com/kellerkindt/w5500/issues/36))
-- Add `RetryTime` value and `RetryCount` registers methods and common register methods to `Bus` by [@elpiel](https://github.com/elpiel) ([#54][PR54])
+- Add `RetryTime` value and `RetryCount` registers methods and common register methods to `Device` and `UninitializedDevice` by [@elpiel](https://github.com/elpiel) ([#54][PR54])
 
 ### Fixed
 
