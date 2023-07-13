@@ -31,30 +31,6 @@ pub mod common {
     pub const PHY_CONFIG: u16 = 0x2E;
     pub const VERSION: u16 = 0x39;
 
-    /// The common register Mode.
-    ///
-    /// It differs from the [`crate::Mode`] in one key aspect - we can also
-    /// send a reset value to the w5500, instead of only configuring the settings.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-    pub enum Mode {
-        Reset,
-        Mode(crate::Mode),
-    }
-
-    impl Mode {
-        pub fn to_register(self) -> [u8; 1] {
-            [self.to_u8()]
-        }
-
-        pub fn to_u8(self) -> u8 {
-            match self {
-                Mode::Reset => 0b10000000,
-                Mode::Mode(mode) => mode.to_u8(),
-            }
-        }
-    }
-
     /// A Retry Time-value
     ///
     /// RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
@@ -105,41 +81,6 @@ pub mod common {
     impl Default for RetryTime {
         fn default() -> Self {
             Self::from_millis(200)
-        }
-    }
-
-    /// RCR (Retry Count Register) [R/W] [0x001B] [0x08]
-    ///
-    /// For more details check out the rest of the datasheet documentation on the Retry count.
-    ///
-    /// From datasheet:
-    ///
-    /// RCR configures the number of time of retransmission. When retransmission occurs
-    /// as many as ‘RCR+1’, Timeout interrupt is issued (Sn_IR[TIMEOUT] = ‘1’).
-    ///
-    /// > Ex) RCR = 0x0007
-    ///
-    /// The timeout of W5500 can be configurable with RTR and RCR. W5500 has two kind
-    /// timeout such as Address Resolution Protocol (ARP) and TCP retransmission.
-    ///
-    #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
-    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-    pub struct RetryCount(pub u8);
-
-    impl RetryCount {
-        #[inline]
-        pub fn to_u8(&self) -> u8 {
-            self.0
-        }
-
-        #[inline]
-        pub fn to_register(&self) -> [u8; 1] {
-            self.0.to_be_bytes()
-        }
-
-        #[inline]
-        pub fn from_register(register: [u8; 1]) -> Self {
-            Self(register[0])
         }
     }
 
@@ -247,50 +188,6 @@ pub mod common {
     impl core::convert::From<u8> for PhyConfig {
         fn from(val: u8) -> Self {
             PhyConfig([val])
-        }
-    }
-
-    #[cfg(test)]
-    mod test {
-        use super::Mode;
-
-        #[test]
-        fn test_mode_register() {
-            let reset = Mode::Reset;
-            // Bit: 7 Reset (RST) should be 1
-            assert_eq!(0b1000_0000, reset.to_u8());
-
-            let ping_respond_and_force_arp = crate::Mode {
-                // Bit: 7 Reset (RST) should be 0
-                // Bit: 6 reserved
-                // Bit: 5 should be 0 - Disable WOL mode
-                on_wake_on_lan: crate::OnWakeOnLan::Ignore,
-                // Bit: 4 should be 0 - Disable Ping Block Mode
-                on_ping_request: crate::OnPingRequest::Respond,
-                // Bit: 3 should be 0 - PPoE disabled
-                connection_type: crate::ConnectionType::Ethernet,
-                // Bit: 2 reserved
-                // Bit: 1 should be 0 - Disabled Force ARP
-                arp_responses: crate::ArpResponses::Cache,
-                // Bit: 0 reserved
-            };
-            assert_eq!(0b0000_0000, ping_respond_and_force_arp.to_u8());
-
-            let all_enabled = crate::Mode {
-                // Bit: 7 Reset (RST) should be 0
-                // Bit: 6 reserved
-                // Bit: 5 should be 1 - Enable WOL mode
-                on_wake_on_lan: crate::OnWakeOnLan::InvokeInterrupt,
-                // Bit: 4 should be 0 - Disable Ping Block Mode
-                on_ping_request: crate::OnPingRequest::Respond,
-                // Bit: 3 should be 1 - PPoE enable
-                connection_type: crate::ConnectionType::PPoE,
-                // Bit: 2 reserved
-                // Bit: 1 should be 1 - Enable Force ARP
-                arp_responses: crate::ArpResponses::DropAfterUse,
-                // Bit: 0 reserved
-            };
-            assert_eq!(0b0010_1010, all_enabled.to_u8());
         }
     }
 }

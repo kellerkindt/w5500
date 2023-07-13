@@ -4,11 +4,6 @@ mod four_wire;
 mod four_wire_ref;
 mod three_wire;
 
-use crate::register::{
-    self,
-    common::{PhyConfig, RetryCount, RetryTime, MODE, VERSION},
-};
-
 pub use self::four_wire::FourWire;
 pub use self::four_wire::FourWireError;
 pub use self::four_wire_ref::FourWireRef;

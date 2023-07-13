@@ -23,8 +23,6 @@ pub use self::{
     uninitialized_device::{InitializeError, UninitializedDevice},
 };
 
-use register::common;
-
 // TODO add better docs to all public items, add unit tests.
 
 /// Settings for wake on LAN.  Allows the W5500 to optionally emit an interrupt upon receiving a packet
@@ -101,12 +99,6 @@ impl Mode {
     }
 }
 
-impl From<Mode> for common::Mode {
-    fn from(value: Mode) -> Self {
-        Self::Mode(value)
-    }
-}
-
 impl Default for Mode {
     fn default() -> Self {
         Self {
@@ -115,5 +107,45 @@ impl Default for Mode {
             connection_type: ConnectionType::Ethernet,
             arp_responses: ArpResponses::DropAfterUse,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::Mode;
+
+    #[test]
+    fn test_mode_register() {
+        let ping_respond_and_force_arp = Mode {
+            // Bit: 7 Reset (RST) should be 0
+            // Bit: 6 reserved
+            // Bit: 5 should be 0 - Disable WOL mode
+            on_wake_on_lan: crate::OnWakeOnLan::Ignore,
+            // Bit: 4 should be 0 - Disable Ping Block Mode
+            on_ping_request: crate::OnPingRequest::Respond,
+            // Bit: 3 should be 0 - PPoE disabled
+            connection_type: crate::ConnectionType::Ethernet,
+            // Bit: 2 reserved
+            // Bit: 1 should be 0 - Disabled Force ARP
+            arp_responses: crate::ArpResponses::Cache,
+            // Bit: 0 reserved
+        };
+        assert_eq!(0b0000_0000, ping_respond_and_force_arp.to_u8());
+
+        let all_enabled = Mode {
+            // Bit: 7 Reset (RST) should be 0
+            // Bit: 6 reserved
+            // Bit: 5 should be 1 - Enable WOL mode
+            on_wake_on_lan: crate::OnWakeOnLan::InvokeInterrupt,
+            // Bit: 4 should be 0 - Disable Ping Block Mode
+            on_ping_request: crate::OnPingRequest::Respond,
+            // Bit: 3 should be 1 - PPoE enable
+            connection_type: crate::ConnectionType::PPoE,
+            // Bit: 2 reserved
+            // Bit: 1 should be 1 - Enable Force ARP
+            arp_responses: crate::ArpResponses::DropAfterUse,
+            // Bit: 0 reserved
+        };
+        assert_eq!(0b0010_1010, all_enabled.to_u8());
     }
 }

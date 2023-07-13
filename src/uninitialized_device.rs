@@ -7,10 +7,7 @@ use crate::device::Device;
 use crate::host::{Dhcp, Host, Manual};
 use crate::raw_device::RawDevice;
 use crate::{
-    register::{
-        self,
-        common::{RetryCount, RetryTime},
-    },
+    register::{self, common::RetryTime},
     MacAddress, Mode,
 };
 
@@ -99,7 +96,7 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
         // RESET
         self.reset()?;
 
-        self.set_mode(mode_options.into())?;
+        self.set_mode(mode_options)?;
         host.refresh(&mut self.bus)?;
         Ok(Device::new(self.bus, host))
     }
@@ -120,22 +117,23 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
 
     /// Reset the device
     #[inline]
-    fn reset(&mut self) -> Result<(), SpiBus::Error> {
-        self.set_mode(register::common::Mode::Reset)
+    pub fn reset(&mut self) -> Result<(), SpiBus::Error> {
+        // Set RST common register of the w5500
+        let mode = [0b10000000];
+        self.bus
+            .write_frame(register::COMMON, register::common::MODE, &mode)
     }
-
     #[inline]
-    fn set_mode(&mut self, mode_options: register::common::Mode) -> Result<(), SpiBus::Error> {
+    pub fn set_mode(&mut self, mode_options: Mode) -> Result<(), SpiBus::Error> {
         self.bus.write_frame(
             register::COMMON,
             register::common::MODE,
             &mode_options.to_register(),
-        )?;
-        Ok(())
+        )
     }
 
     #[inline]
-    fn version(&mut self) -> Result<u8, SpiBus::Error> {
+    pub fn version(&mut self) -> Result<u8, SpiBus::Error> {
         let mut version_register = [0_u8];
         self.bus.read_frame(
             register::COMMON,
@@ -161,7 +159,7 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
     /// assert_eq!(four_hundred_ms.to_u16(), 4000);
     /// ```
     #[inline]
-    fn set_retry_timeout(&mut self, retry_time_value: RetryTime) -> Result<(), SpiBus::Error> {
+    pub fn set_retry_timeout(&mut self, retry_time_value: RetryTime) -> Result<(), SpiBus::Error> {
         self.bus.write_frame(
             register::COMMON,
             register::common::RETRY_TIME,
@@ -175,7 +173,7 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
     ///
     /// E.g. 4000 = 400ms
     #[inline]
-    fn current_retry_timeout(&mut self) -> Result<RetryTime, SpiBus::Error> {
+    pub fn current_retry_timeout(&mut self) -> Result<RetryTime, SpiBus::Error> {
         let mut retry_time_register: [u8; 2] = [0, 0];
         self.bus.read_frame(
             register::COMMON,
@@ -189,11 +187,24 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
     /// Set a new value for the Retry Count register.
     ///
     /// RCR (Retry Count Register) [R/W] [0x001B] [0x08]
-    fn set_retry_count(&mut self, retry_count: RetryCount) -> Result<(), SpiBus::Error> {
+    ///
+    /// For more details check out the rest of the datasheet documentation on the Retry count.
+    ///
+    /// From datasheet:
+    ///
+    /// RCR configures the number of time of retransmission. When retransmission occurs
+    /// as many as ‘RCR+1’, Timeout interrupt is issued (Sn_IR[TIMEOUT] = ‘1’).
+    ///
+    /// The timeout of W5500 can be configurable with RTR and RCR. W5500 has two kind
+    /// timeout such as Address Resolution Protocol (ARP) and TCP retransmission.
+    ///
+    /// E.g. In case of errors it will retry for 7 times:
+    /// `RCR = 0x0007`
+    pub fn set_retry_count(&mut self, retry_count: u8) -> Result<(), SpiBus::Error> {
         self.bus.write_frame(
             register::COMMON,
             register::common::RETRY_COUNT,
-            &retry_count.to_register(),
+            &[retry_count],
         )?;
 
         Ok(())
@@ -205,7 +216,7 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
     /// E.g. In case of errors it will retry for 7 times:
     /// `RCR = 0x0007`
     #[inline]
-    fn current_retry_count(&mut self) -> Result<RetryCount, SpiBus::Error> {
+    pub fn current_retry_count(&mut self) -> Result<u8, SpiBus::Error> {
         let mut retry_count_register: [u8; 1] = [0];
         self.bus.read_frame(
             register::COMMON,
@@ -213,7 +224,7 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
             &mut retry_count_register,
         )?;
 
-        Ok(RetryCount::from_register(retry_count_register))
+        Ok(retry_count_register[0])
     }
 
     #[cfg(not(feature = "no-chip-version-assertion"))]
