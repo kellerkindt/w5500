@@ -99,7 +99,7 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
         // RESET
         self.reset()?;
 
-        self.set_mode(mode_options)?;
+        self.set_mode(mode_options.into())?;
         host.refresh(&mut self.bus)?;
         Ok(Device::new(self.bus, host))
     }
@@ -118,21 +118,38 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
         RawDevice::new(self.bus)
     }
 
-    /// Get the currently set Retry Time-value Register.
-    ///
-    /// RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
-    ///
-    /// E.g. 4000 = 400ms
+    /// Reset the device
     #[inline]
-    pub fn current_retry_timeout(&mut self) -> Result<RetryTime, SpiBus::Error> {
-        self.bus.current_retry_timeout()
+    fn reset(&mut self) -> Result<(), SpiBus::Error> {
+        self.set_mode(register::common::Mode::Reset)
     }
 
-    /// Set a new value for the Retry Time-value Register.
-    ///
+    #[inline]
+    fn set_mode(&mut self, mode_options: register::common::Mode) -> Result<(), SpiBus::Error> {
+        self.bus.write_frame(
+            register::COMMON,
+            register::common::MODE,
+            &mode_options.to_register(),
+        )?;
+        Ok(())
+    }
+
+    #[inline]
+    fn version(&mut self) -> Result<u8, SpiBus::Error> {
+        let mut version_register = [0_u8];
+        self.bus.read_frame(
+            register::COMMON,
+            register::common::VERSION,
+            &mut version_register,
+        )?;
+
+        Ok(version_register[0])
+    }
+
     /// RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
     ///
     /// # Example
+    ///
     /// ```
     /// use w5500::register::common::RetryTime;
     ///
@@ -144,27 +161,59 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
     /// assert_eq!(four_hundred_ms.to_u16(), 4000);
     /// ```
     #[inline]
-    pub fn set_retry_timeout(&mut self, retry_time_value: RetryTime) -> Result<(), SpiBus::Error> {
-        self.bus.set_retry_timeout(retry_time_value)
+    fn set_retry_timeout(&mut self, retry_time_value: RetryTime) -> Result<(), SpiBus::Error> {
+        self.bus.write_frame(
+            register::COMMON,
+            register::common::RETRY_TIME,
+            &retry_time_value.to_register(),
+        )?;
+
+        Ok(())
     }
 
-    /// Get the current Retry Count Register value.
+    /// RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
     ///
-    /// RCR (Retry Count Register) [R/W] [0x001B] [0x08]
-    ///
-    /// E.g. In case of errors it will retry for 7 times:
-    /// `RCR = 0x0007`
+    /// E.g. 4000 = 400ms
     #[inline]
-    pub fn current_retry_count(&mut self) -> Result<RetryCount, SpiBus::Error> {
-        self.bus.current_retry_count()
+    fn current_retry_timeout(&mut self) -> Result<RetryTime, SpiBus::Error> {
+        let mut retry_time_register: [u8; 2] = [0, 0];
+        self.bus.read_frame(
+            register::COMMON,
+            register::common::RETRY_TIME,
+            &mut retry_time_register,
+        )?;
+
+        Ok(RetryTime::from_register(retry_time_register))
     }
 
     /// Set a new value for the Retry Count register.
     ///
     /// RCR (Retry Count Register) [R/W] [0x001B] [0x08]
+    fn set_retry_count(&mut self, retry_count: RetryCount) -> Result<(), SpiBus::Error> {
+        self.bus.write_frame(
+            register::COMMON,
+            register::common::RETRY_COUNT,
+            &retry_count.to_register(),
+        )?;
+
+        Ok(())
+    }
+
+    /// Get the current Retry Count value
+    /// RCR (Retry Count Register) [R/W] [0x001B] [0x08]
+    ///
+    /// E.g. In case of errors it will retry for 7 times:
+    /// `RCR = 0x0007`
     #[inline]
-    pub fn set_retry_count(&mut self, retry_count: RetryCount) -> Result<(), SpiBus::Error> {
-        self.bus.set_retry_count(retry_count)
+    fn current_retry_count(&mut self) -> Result<RetryCount, SpiBus::Error> {
+        let mut retry_count_register: [u8; 1] = [0];
+        self.bus.read_frame(
+            register::COMMON,
+            register::common::RETRY_COUNT,
+            &mut retry_count_register,
+        )?;
+
+        Ok(RetryCount::from_register(retry_count_register))
     }
 
     #[cfg(not(feature = "no-chip-version-assertion"))]
@@ -172,22 +221,13 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
         &mut self,
         expected_version: u8,
     ) -> Result<(), InitializeError<SpiBus::Error>> {
-        let version = self.bus.version()?;
+        let version = self.version()?;
 
         if version != expected_version {
             Err(InitializeError::ChipNotConnected)
         } else {
             Ok(())
         }
-    }
-
-    /// RESET
-    fn reset(&mut self) -> Result<(), SpiBus::Error> {
-        self.bus.reset()
-    }
-
-    fn set_mode(&mut self, mode_options: Mode) -> Result<(), SpiBus::Error> {
-        self.bus.set_mode(mode_options.into())
     }
 }
 
