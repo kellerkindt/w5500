@@ -186,7 +186,7 @@ impl UdpSocket {
     }
 
     /// Send buffer should be less than [`u16::MAX`].
-
+    ///
     /// Will block the device until all data is sent.
     ///
     /// # Returns
