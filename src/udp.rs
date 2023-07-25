@@ -117,13 +117,14 @@ impl UdpSocket {
         // We set this variable to true when:
         /// - We have the same Socket address already set
         /// - We don't have any previous destination set
-        let is_same = self
-            .destination
-            .filter(|set_destination| set_destination == &remote)
-            .is_some();
-
+        ///
         // either no previous destination is set or a new one
-        if !is_same {
+        if self
+            .destination
+            .as_ref()
+            .map(|dest| dest != &remote)
+            .unwrap_or(true)
+        {
             self.socket.set_destination_ip(bus, *remote.ip())?;
             self.socket.set_destination_port(bus, remote.port())?;
 
@@ -272,7 +273,9 @@ impl UdpSocket {
                     .reset_interrupt(bus, socketn::Interrupt::SendOk)?;
 
                 return Ok(());
-            } else if self
+            }
+
+            if self
                 .socket
                 .has_interrupt(bus, socketn::Interrupt::Timeout)?
             {
@@ -313,18 +316,9 @@ impl UdpSocket {
     /// Note that the header is part of the internal RX buffer so `receive_buffer` can be smaller
     /// in size by 8 bytes.
     ///
-    /// If the packet len is larger than the internal RX buffer, the data will be truncated.
+    /// If the packet len is larger than the provided RX buffer, the data will be truncated.
     ///
     /// If [`Interrupt::Receive`] is not set, it will always return [`NbError::WouldBlock`].
-    ///
-    ///
-    /// Packet frame, as described in W5200 docs section 5.2.2.1:
-    ///
-    /// ```text
-    /// |<-- read_pointer                                 read_pointer + received_size -->|
-    /// | Destination IP Address | Destination Port | Byte Size of DATA | Actual DATA ... |
-    /// |    --- 4 Bytes ---     |  --- 2 Bytes --- |  --- 2 Bytes ---  |      ....       |
-    /// ```
     fn socket_receive<SpiBus: Bus>(
         &mut self,
         bus: &mut SpiBus,
@@ -369,14 +363,10 @@ impl UdpSocket {
         // we have to exclude the header's bytes when reading the data we put in the buffer.
         let data_read_pointer = read_pointer.wrapping_add(8);
 
-        // if the packet is smaller than the maximum amount of bytes we can read
-        let read_length = if read_max_size > udp_header.len {
-            // just read to the end the packet
-            udp_header.len
-        } else {
-            // else read to either the max RX Buffer length or passed buffer length.
-            read_max_size
-        };
+        // read to either the max RX Buffer length or passed buffer length.
+        // just read to the end the packet
+        let read_length = read_max_size.max(udp_header.len);
+
         /// the maximum amount of bytes we can read based on the smallest value of either:
         /// - the RX size of the socket
         /// - Buffer size
