@@ -171,7 +171,6 @@ pub mod socketn {
     /// Socket n Command Register
     ///
     /// `Sn_CR`
-    // pub const COMMAND: u16 = 0b0001;
     pub const COMMAND: u16 = 0x01;
 
     /// Socket n Commands
@@ -251,9 +250,8 @@ pub mod socketn {
     /// > When Disconnect-process is successfully completed, or
     /// > when timeout occurs, these change to SOCK_CLOSED.
     ///
-    #[repr(u8)]
     #[derive(TryFromPrimitive, Debug, Copy, Clone, PartialEq, Eq)]
-    // #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+    #[repr(u8)]
     pub enum Status {
         Closed = 0x00,
         Init = 0x13,
