@@ -6,8 +6,10 @@ use crate::bus::{Bus, FourWire, ThreeWire};
 use crate::device::Device;
 use crate::host::{Dhcp, Host, Manual};
 use crate::raw_device::RawDevice;
-use crate::register;
-use crate::{MacAddress, Mode};
+use crate::{
+    register::{self, common::RetryTime},
+    MacAddress, Mode,
+};
 
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -95,9 +97,7 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
         self.assert_chip_version(0x4)?;
 
         // RESET
-        let mode = [0b10000000];
-        self.bus
-            .write_frame(register::COMMON, register::common::MODE, &mode)?;
+        self.reset()?;
 
         self.set_mode(mode_options)?;
         host.refresh(&mut self.bus)?;
@@ -118,30 +118,130 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
         RawDevice::new(self.bus)
     }
 
+    /// Reset the device
+    #[inline]
+    pub fn reset(&mut self) -> Result<(), SpiBus::Error> {
+        // Set RST common register of the w5500
+        let mode = [0b10000000];
+        self.bus
+            .write_frame(register::COMMON, register::common::MODE, &mode)
+    }
+    #[inline]
+    pub fn set_mode(&mut self, mode_options: Mode) -> Result<(), SpiBus::Error> {
+        self.bus.write_frame(
+            register::COMMON,
+            register::common::MODE,
+            &mode_options.to_register(),
+        )
+    }
+
+    #[inline]
+    pub fn version(&mut self) -> Result<u8, SpiBus::Error> {
+        let mut version_register = [0_u8];
+        self.bus.read_frame(
+            register::COMMON,
+            register::common::VERSION,
+            &mut version_register,
+        )?;
+
+        Ok(version_register[0])
+    }
+
+    /// RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use w5500::register::common::RetryTime;
+    ///
+    /// let default = RetryTime::from_millis(200);
+    /// assert_eq!(RetryTime::default(), default);
+    ///
+    /// // E.g. 4000 (register) = 400ms
+    /// let four_hundred_ms = RetryTime::from_millis(400);
+    /// assert_eq!(four_hundred_ms.to_u16(), 4000);
+    /// ```
+    #[inline]
+    pub fn set_retry_timeout(&mut self, retry_time_value: RetryTime) -> Result<(), SpiBus::Error> {
+        self.bus.write_frame(
+            register::COMMON,
+            register::common::RETRY_TIME,
+            &retry_time_value.to_register(),
+        )?;
+
+        Ok(())
+    }
+
+    /// RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
+    ///
+    /// E.g. 4000 = 400ms
+    #[inline]
+    pub fn current_retry_timeout(&mut self) -> Result<RetryTime, SpiBus::Error> {
+        let mut retry_time_register: [u8; 2] = [0, 0];
+        self.bus.read_frame(
+            register::COMMON,
+            register::common::RETRY_TIME,
+            &mut retry_time_register,
+        )?;
+
+        Ok(RetryTime::from_register(retry_time_register))
+    }
+
+    /// Set a new value for the Retry Count register.
+    ///
+    /// RCR (Retry Count Register) [R/W] [0x001B] [0x08]
+    ///
+    /// For more details check out the rest of the datasheet documentation on the Retry count.
+    ///
+    /// From datasheet:
+    ///
+    /// RCR configures the number of time of retransmission. When retransmission occurs
+    /// as many as ‘RCR+1’, Timeout interrupt is issued (Sn_IR[TIMEOUT] = ‘1’).
+    ///
+    /// The timeout of W5500 can be configurable with RTR and RCR. W5500 has two kind
+    /// timeout such as Address Resolution Protocol (ARP) and TCP retransmission.
+    ///
+    /// E.g. In case of errors it will retry for 7 times:
+    /// `RCR = 0x0007`
+    pub fn set_retry_count(&mut self, retry_count: u8) -> Result<(), SpiBus::Error> {
+        self.bus.write_frame(
+            register::COMMON,
+            register::common::RETRY_COUNT,
+            &[retry_count],
+        )?;
+
+        Ok(())
+    }
+
+    /// Get the current Retry Count value
+    /// RCR (Retry Count Register) [R/W] [0x001B] [0x08]
+    ///
+    /// E.g. In case of errors it will retry for 7 times:
+    /// `RCR = 0x0007`
+    #[inline]
+    pub fn current_retry_count(&mut self) -> Result<u8, SpiBus::Error> {
+        let mut retry_count_register: [u8; 1] = [0];
+        self.bus.read_frame(
+            register::COMMON,
+            register::common::RETRY_COUNT,
+            &mut retry_count_register,
+        )?;
+
+        Ok(retry_count_register[0])
+    }
+
     #[cfg(not(feature = "no-chip-version-assertion"))]
     fn assert_chip_version(
         &mut self,
         expected_version: u8,
     ) -> Result<(), InitializeError<SpiBus::Error>> {
-        let mut version = [0];
-        self.bus
-            .read_frame(register::COMMON, register::common::VERSION, &mut version)?;
-        if version[0] != expected_version {
+        let version = self.version()?;
+
+        if version != expected_version {
             Err(InitializeError::ChipNotConnected)
         } else {
             Ok(())
         }
-    }
-
-    fn set_mode(&mut self, mode_options: Mode) -> Result<(), SpiBus::Error> {
-        let mut mode = [0];
-        mode[0] |= mode_options.on_wake_on_lan as u8;
-        mode[0] |= mode_options.on_ping_request as u8;
-        mode[0] |= mode_options.connection_type as u8;
-        mode[0] |= mode_options.arp_responses as u8;
-        self.bus
-            .write_frame(register::COMMON, register::common::MODE, &mode)?;
-        Ok(())
     }
 }
 
