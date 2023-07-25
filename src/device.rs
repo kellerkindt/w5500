@@ -8,6 +8,8 @@ use crate::socket::Socket;
 use crate::uninitialized_device::UninitializedDevice;
 use crate::{register, MacAddress};
 
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ResetError<E> {
     SocketsNotReleased,
     Other(E),
@@ -21,7 +23,7 @@ impl<E> From<E> for ResetError<E> {
 
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub(crate) struct DeviceState<HostImpl: Host> {
+pub struct DeviceState<HostImpl: Host> {
     host: HostImpl,
     sockets: [u8; 1],
 }
@@ -40,6 +42,10 @@ impl<SpiBus: Bus, HostImpl: Host> Device<SpiBus, HostImpl> {
                 sockets: [0b11111111],
             },
         }
+    }
+
+    pub fn get_state(&self) -> &DeviceState<HostImpl> {
+        &self.state
     }
 
     pub fn reset(mut self) -> Result<UninitializedDevice<SpiBus>, ResetError<SpiBus::Error>> {
