@@ -11,10 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `defmt` features for enabling `defmt::Format` to most structs and errors by [@elpiel](https://github.com/elpiel) ([#39](https://github.com/kellerkindt/w5500/issues/39))
 - Fixed an issue where internal function names were conflicting with trait names by [@ryan-summers](https://github.com/ryan-summers) ([#36](https://github.com/kellerkindt/w5500/issues/36))
 - Add `RetryTime` and `RetryCount` common register methods to `Device` and `UninitializedDevice` by [@elpiel](https://github.com/elpiel) ([#54][PR54])
+- Add `Udp::get_port` and `Udp::set_port` by [@elpiel](https://github.com/elpiel) ([#57](https://github.com/kellerkindt/w5500/pull/57))
 
 ### Fixed
 
 - Fixed an issue that caused corruption when reading partial MACRAW frames by [@Felix-El](https://github.com/Felix-El) ([#47](https://github.com/kellerkindt/w5500/pull/47))
+- Fixes `Udp` implementation to use the socket's ring buffers and include more `UdpSocketError` by [@elpiel](https://github.com/elpiel) ([#57](https://github.com/kellerkindt/w5500/pull/57))
 
 ## [0.4.1] - January 2nd, 2023
 
