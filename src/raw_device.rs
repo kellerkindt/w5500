@@ -46,7 +46,7 @@ impl<SpiBus: Bus> RawDevice<SpiBus> {
     ///             For instance, pass `Interrupt::Receive` to get interrupts
     ///             on packet reception only.
     ///
-    pub fn enable_interrupt(&mut self, which: u8) -> Result<(), SpiBus::Error> {
+    pub fn enable_interrupts(&mut self, which: u8) -> Result<(), SpiBus::Error> {
         self.raw_socket.set_interrupt_mask(&mut self.bus, which)?;
         self.bus.write_frame(
             register::COMMON,
@@ -64,14 +64,14 @@ impl<SpiBus: Bus> RawDevice<SpiBus> {
     /// can mask the interrupt *at microcontroller level* in the
     /// interrupt handler, then call this from thread mode before
     /// unmasking again.
-    pub fn clear_interrupt(&mut self) -> Result<(), SpiBus::Error> {
+    pub fn clear_interrupts(&mut self) -> Result<(), SpiBus::Error> {
         self.raw_socket
             .reset_interrupt(&mut self.bus, register::socketn::Interrupt::All)
     }
 
     /// Disable all interrupts
     ///
-    pub fn disable_interrupt(&mut self) -> Result<(), SpiBus::Error> {
+    pub fn disable_interrupts(&mut self) -> Result<(), SpiBus::Error> {
         self.bus.write_frame(
             register::COMMON,
             register::common::SOCKET_INTERRUPT_MASK,

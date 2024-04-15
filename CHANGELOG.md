@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed an issue where internal function names were conflicting with trait names by [@ryan-summers](https://github.com/ryan-summers) ([#36](https://github.com/kellerkindt/w5500/issues/36))
 - Add `RetryTime` and `RetryCount` common register methods to `Device` and `UninitializedDevice` by [@elpiel](https://github.com/elpiel) ([#54][PR54])
 - Add `Udp::get_port` and `Udp::set_port` by [@elpiel](https://github.com/elpiel) ([#57](https://github.com/kellerkindt/w5500/pull/57))
+- Add `RawDevice::enable_interrupts` (and `clear_interrupts`, `disable_interrupts`) for interrupt-driven MACRAW mode by [@pdh11](https://github.com/pdh11) ([#60](https://github.com/kellerkindt/w5000/pull/60))
 
 ### Fixed
 
