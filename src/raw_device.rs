@@ -39,6 +39,48 @@ impl<SpiBus: Bus> RawDevice<SpiBus> {
         Ok(Self { bus, raw_socket })
     }
 
+    /// Enable one or more interrupts
+    ///
+    /// # Args
+    /// * `which` - The interrupts to enable; see `register::socketn::Interrupt`
+    ///             For instance, pass `Interrupt::Receive` to get interrupts
+    ///             on packet reception only.
+    ///
+    pub fn enable_interrupt(&mut self, which: u8) -> Result<(), SpiBus::Error> {
+        self.raw_socket.set_interrupt_mask(&mut self.bus, which)?;
+        self.bus.write_frame(
+            register::COMMON,
+            register::common::SOCKET_INTERRUPT_MASK,
+            &[1],
+        )?;
+        Ok(())
+    }
+
+    /// Clear pending interrupts
+    ///
+    /// If using RTIC or similar, this should be called from the
+    /// interrupt handler. If not (i.e., if there's concern that this
+    /// use of the SPI bus will clobber someone else's use), then you
+    /// can mask the interrupt *at microcontroller level* in the
+    /// interrupt handler, then call this from thread mode before
+    /// unmasking again.
+    pub fn clear_interrupt(&mut self) -> Result<(), SpiBus::Error> {
+        self.raw_socket
+            .reset_interrupt(&mut self.bus, register::socketn::Interrupt::All)
+    }
+
+    /// Disable all interrupts
+    ///
+    pub fn disable_interrupt(&mut self) -> Result<(), SpiBus::Error> {
+        self.bus.write_frame(
+            register::COMMON,
+            register::common::SOCKET_INTERRUPT_MASK,
+            &[0],
+        )?;
+        self.raw_socket.set_interrupt_mask(&mut self.bus, 0xFF)?;
+        Ok(())
+    }
+
     /// Read an ethernet frame from the device.
     ///
     /// # Args
