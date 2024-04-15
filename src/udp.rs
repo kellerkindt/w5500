@@ -534,7 +534,7 @@ where
         remote: SocketAddr,
     ) -> Result<(), Self::Error> {
         let SocketAddr::V4(remote) = remote else {
-            return Err(Self::Error::UnsupportedAddress)
+            return Err(Self::Error::UnsupportedAddress);
         };
         socket.open(&mut self.bus)?;
         socket.set_destination(&mut self.bus, remote)?;
@@ -602,7 +602,7 @@ where
         buffer: &[u8],
     ) -> nb::Result<(), Self::Error> {
         let SocketAddr::V4(remote) = remote else {
-            return Err(nb::Error::Other(Self::Error::UnsupportedAddress))
+            return Err(nb::Error::Other(Self::Error::UnsupportedAddress));
         };
 
         socket.socket_send_to(&mut self.bus, remote, buffer)?;

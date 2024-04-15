@@ -223,7 +223,7 @@ impl<SpiBus: Bus, HostImpl: Host> TcpClientStack for DeviceRefMut<'_, SpiBus, Ho
         remote: SocketAddr,
     ) -> nb::Result<(), Self::Error> {
         let SocketAddr::V4(remote) = remote else {
-            return Err(nb::Error::Other(Self::Error::UnsupportedAddress))
+            return Err(nb::Error::Other(Self::Error::UnsupportedAddress));
         };
         // TODO dynamically select a random port
         socket.open(&mut self.bus, 49849 + u16::from(socket.socket.index))?; // chosen by fair dice roll.

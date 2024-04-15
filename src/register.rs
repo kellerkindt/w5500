@@ -22,6 +22,9 @@ pub mod common {
     /// Register: INTLEVEL (Interrupt Low Level Timer Register) [R/W] [0x0013 – 0x0014] [0x0000]
     pub const INTERRUPT_TIMER: u16 = 0x13;
 
+    /// Register: SIMR (Socket Interrupt Mask Register) [R/W] [0x0018] [0x00]
+    pub const SOCKET_INTERRUPT_MASK: u16 = 0x18;
+
     /// Register: RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
     pub const RETRY_TIME: u16 = 0x19;
 
