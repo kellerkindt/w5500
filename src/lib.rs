@@ -17,7 +17,7 @@ mod uninitialized_device;
 
 #[doc(inline)]
 pub use self::{
-    device::{Device, DeviceRefMut, InactiveDevice},
+    device::Device,
     host::{Dhcp, Host, HostConfig, Manual},
     net::MacAddress,
     uninitialized_device::{InitializeError, UninitializedDevice},

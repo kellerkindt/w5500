@@ -1,5 +1,4 @@
-use embedded_hal::blocking::spi::{Transfer, Write};
-use embedded_hal::digital::v2::OutputPin;
+use embedded_hal::spi::SpiDevice;
 use embedded_nal::Ipv4Addr;
 
 use crate::bus::{Bus, FourWire, ThreeWire};
@@ -242,19 +241,5 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
         } else {
             Ok(())
         }
-    }
-}
-
-impl<Spi: Transfer<u8> + Write<u8>, ChipSelect: OutputPin>
-    UninitializedDevice<FourWire<Spi, ChipSelect>>
-{
-    pub fn deactivate(self) -> (Spi, ChipSelect) {
-        self.bus.release()
-    }
-}
-
-impl<Spi: Transfer<u8> + Write<u8>> UninitializedDevice<ThreeWire<Spi>> {
-    pub fn deactivate(self) -> Spi {
-        self.bus.release()
     }
 }

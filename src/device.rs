@@ -1,7 +1,6 @@
 use bit_field::BitArray;
-use embedded_hal::digital::v2::OutputPin;
 
-use crate::bus::{Bus, BusRef, FourWire, SpiRef, ThreeWire};
+use crate::bus::{Bus, FourWire, ThreeWire};
 use crate::host::Host;
 use crate::net::Ipv4Addr;
 use crate::socket::Socket;
@@ -32,7 +31,7 @@ pub struct DeviceState<HostImpl: Host> {
 }
 
 pub struct Device<SpiBus: Bus, HostImpl: Host> {
-    bus: SpiBus,
+    pub(crate) bus: SpiBus,
     state: DeviceState<HostImpl>,
 }
 
@@ -55,92 +54,8 @@ impl<SpiBus: Bus, HostImpl: Host> Device<SpiBus, HostImpl> {
         if self.state.sockets != [0b11111111] {
             Err(ResetError::SocketsNotReleased)
         } else {
-            self.clear_mode()?;
+            self.reset_device()?;
             Ok(UninitializedDevice::new(self.bus))
-        }
-    }
-
-    fn clear_mode(&mut self) -> Result<(), SpiBus::Error> {
-        // Set RST common register of the w5500
-        self.as_mut().reset_device()
-    }
-
-    #[inline]
-    pub fn gateway(&mut self) -> Result<Ipv4Addr, SpiBus::Error> {
-        self.as_mut().gateway()
-    }
-
-    #[inline]
-    pub fn subnet_mask(&mut self) -> Result<Ipv4Addr, SpiBus::Error> {
-        self.as_mut().subnet_mask()
-    }
-
-    #[inline]
-    pub fn mac(&mut self) -> Result<MacAddress, SpiBus::Error> {
-        self.as_mut().mac()
-    }
-
-    #[inline]
-    pub fn ip(&mut self) -> Result<Ipv4Addr, SpiBus::Error> {
-        self.as_mut().ip()
-    }
-
-    #[inline]
-    pub fn phy_config(&mut self) -> Result<register::common::PhyConfig, SpiBus::Error> {
-        self.as_mut().phy_config()
-    }
-
-    #[inline]
-    pub fn version(&mut self) -> Result<u8, SpiBus::Error> {
-        self.as_mut().version()
-    }
-
-    /// Get the currently set Retry Time-value Register.
-    ///
-    /// RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
-    #[inline]
-    pub fn current_retry_timeout(&mut self) -> Result<RetryTime, SpiBus::Error> {
-        self.as_mut().current_retry_timeout()
-    }
-
-    /// Set a new value for the Retry Time-value Register.
-    ///
-    /// RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use w5500::register::common::RetryTime;
-    ///
-    /// let default = RetryTime::from_millis(200);
-    /// assert_eq!(RetryTime::default(), default);
-    ///
-    /// // E.g. 4000 (register) = 400ms
-    /// let four_hundred_ms = RetryTime::from_millis(400);
-    /// assert_eq!(four_hundred_ms.to_u16(), 4000);
-    /// ```
-    #[inline]
-    pub fn set_retry_timeout(&mut self, retry_time_value: RetryTime) -> Result<(), SpiBus::Error> {
-        self.as_mut().set_retry_timeout(retry_time_value)
-    }
-
-    /// Get the current Retry Count Register value.
-    #[inline]
-    pub fn current_retry_count(&mut self) -> Result<u8, SpiBus::Error> {
-        self.as_mut().current_retry_count()
-    }
-
-    /// Set a new value for the Retry Count register.
-    #[inline]
-    pub fn set_retry_count(&mut self, retry_count: u8) -> Result<(), SpiBus::Error> {
-        self.as_mut().set_retry_count(retry_count)
-    }
-
-    #[inline]
-    pub(crate) fn as_mut(&mut self) -> DeviceRefMut<'_, BusRef<'_, SpiBus>, HostImpl> {
-        DeviceRefMut {
-            bus: BusRef(&mut self.bus),
-            state: &mut self.state,
         }
     }
 
@@ -148,36 +63,6 @@ impl<SpiBus: Bus, HostImpl: Host> Device<SpiBus, HostImpl> {
         (self.bus, self.state.host)
     }
 
-    pub fn deactivate(self) -> (SpiBus, InactiveDevice<HostImpl>) {
-        (self.bus, InactiveDevice(self.state))
-    }
-}
-
-#[derive(Debug)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct InactiveDevice<HostImpl: Host>(DeviceState<HostImpl>);
-
-impl<HostImpl: Host> InactiveDevice<HostImpl> {
-    /// Activates the device by taking ownership
-    pub fn activate<SpiBus: Bus>(self, bus: SpiBus) -> Device<SpiBus, HostImpl> {
-        Device { bus, state: self.0 }
-    }
-
-    /// Activates the device by borrowing it
-    pub fn activate_ref<SpiBus: Bus>(&mut self, bus: SpiBus) -> DeviceRefMut<SpiBus, HostImpl> {
-        DeviceRefMut {
-            bus,
-            state: &mut self.0,
-        }
-    }
-}
-
-pub struct DeviceRefMut<'a, SpiBus: Bus, HostImpl: Host> {
-    pub(crate) bus: SpiBus,
-    state: &'a mut DeviceState<HostImpl>,
-}
-
-impl<SpiBus: Bus, HostImpl: Host> DeviceRefMut<'_, SpiBus, HostImpl> {
     pub fn take_socket(&mut self) -> Option<Socket> {
         // TODO maybe return Future that resolves when release_socket invoked
         for index in 0..8 {
@@ -257,6 +142,8 @@ impl<SpiBus: Bus, HostImpl: Host> DeviceRefMut<'_, SpiBus, HostImpl> {
         Ok(version_register[0])
     }
 
+    /// Set a new value for the Retry Time-value Register.
+    ///
     /// RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
     ///
     /// # Example
@@ -282,6 +169,8 @@ impl<SpiBus: Bus, HostImpl: Host> DeviceRefMut<'_, SpiBus, HostImpl> {
         Ok(())
     }
 
+    /// Get the currently set Retry Time-value Register.
+    ///
     /// RTR (Retry Time-value Register) [R/W] [0x0019 – 0x001A] [0x07D0]
     ///
     /// E.g. 4000 = 400ms
