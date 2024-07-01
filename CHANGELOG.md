@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- [breaking] The driver now uses the v1.0 of the `embedded-hal` traits.
+- [breaking] The `FourWireRef` bus, `InactiveDevice`, and `DeviceRefMut` have been removed in favor of using
+`embedded-hal-bus` to facilitate SPI bus sharing.
+
 ### Added
 
 - Add `defmt` features for enabling `defmt::Format` to most structs and errors by [@elpiel](https://github.com/elpiel) ([#39](https://github.com/kellerkindt/w5500/issues/39))
