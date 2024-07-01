@@ -4,7 +4,7 @@ use embedded_nal::{nb, IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, UdpClientStac
 
 use crate::{
     bus::Bus,
-    device::{Device, DeviceRefMut},
+    device::Device,
     host::Host,
     register::socketn::{self, Status},
     socket::Socket,
@@ -478,48 +478,6 @@ where
     type UdpSocket = UdpSocket;
     type Error = UdpSocketError<SpiBus::Error>;
 
-    #[inline]
-    fn socket(&mut self) -> Result<Self::UdpSocket, Self::Error> {
-        self.as_mut().socket()
-    }
-
-    #[inline]
-    fn connect(
-        &mut self,
-        socket: &mut Self::UdpSocket,
-        remote: SocketAddr,
-    ) -> Result<(), Self::Error> {
-        self.as_mut().connect(socket, remote)
-    }
-
-    #[inline]
-    fn send(&mut self, socket: &mut Self::UdpSocket, buffer: &[u8]) -> nb::Result<(), Self::Error> {
-        self.as_mut().send(socket, buffer)
-    }
-
-    #[inline]
-    fn receive(
-        &mut self,
-        socket: &mut Self::UdpSocket,
-        buffer: &mut [u8],
-    ) -> nb::Result<(usize, SocketAddr), Self::Error> {
-        self.as_mut().receive(socket, buffer)
-    }
-
-    #[inline]
-    fn close(&mut self, socket: Self::UdpSocket) -> Result<(), Self::Error> {
-        self.as_mut().close(socket)
-    }
-}
-
-impl<SpiBus, HostImpl> UdpClientStack for DeviceRefMut<'_, SpiBus, HostImpl>
-where
-    SpiBus: Bus,
-    HostImpl: Host,
-{
-    type UdpSocket = UdpSocket;
-    type Error = UdpSocketError<SpiBus::Error>;
-
     fn socket(&mut self) -> Result<Self::UdpSocket, Self::Error> {
         if let Some(socket) = self.take_socket() {
             Ok(UdpSocket::new(socket))
@@ -564,27 +522,6 @@ where
 }
 
 impl<SpiBus, HostImpl> UdpFullStack for Device<SpiBus, HostImpl>
-where
-    SpiBus: Bus,
-    HostImpl: Host,
-{
-    #[inline]
-    fn bind(&mut self, socket: &mut Self::UdpSocket, local_port: u16) -> Result<(), Self::Error> {
-        self.as_mut().bind(socket, local_port)
-    }
-
-    #[inline]
-    fn send_to(
-        &mut self,
-        socket: &mut Self::UdpSocket,
-        remote: SocketAddr,
-        buffer: &[u8],
-    ) -> nb::Result<(), Self::Error> {
-        self.as_mut().send_to(socket, remote, buffer)
-    }
-}
-
-impl<SpiBus, HostImpl> UdpFullStack for DeviceRefMut<'_, SpiBus, HostImpl>
 where
     SpiBus: Bus,
     HostImpl: Host,

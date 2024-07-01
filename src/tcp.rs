@@ -1,10 +1,4 @@
-use crate::{
-    bus::Bus,
-    device::{Device, DeviceRefMut},
-    host::Host,
-    register::socketn,
-    socket::Socket,
-};
+use crate::{bus::Bus, device::Device, host::Host, register::socketn, socket::Socket};
 
 use embedded_nal::{nb, IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, TcpClientStack};
 
@@ -206,7 +200,7 @@ impl TcpSocket {
     }
 }
 
-impl<SpiBus: Bus, HostImpl: Host> TcpClientStack for DeviceRefMut<'_, SpiBus, HostImpl> {
+impl<SpiBus: Bus, HostImpl: Host> TcpClientStack for Device<SpiBus, HostImpl> {
     type TcpSocket = TcpSocket;
     type Error = TcpSocketError<SpiBus::Error>;
 
@@ -257,46 +251,5 @@ impl<SpiBus: Bus, HostImpl: Host> TcpClientStack for DeviceRefMut<'_, SpiBus, Ho
         socket.socket_close(&mut self.bus)?;
         self.release_socket(socket.socket);
         Ok(())
-    }
-}
-
-impl<SpiBus: Bus, HostImpl: Host> TcpClientStack for Device<SpiBus, HostImpl> {
-    type TcpSocket = TcpSocket;
-    type Error = TcpSocketError<SpiBus::Error>;
-
-    fn socket(&mut self) -> Result<TcpSocket, Self::Error> {
-        self.as_mut().socket()
-    }
-
-    fn connect(
-        &mut self,
-        socket: &mut Self::TcpSocket,
-        remote: SocketAddr,
-    ) -> nb::Result<(), Self::Error> {
-        self.as_mut().connect(socket, remote)
-    }
-
-    fn is_connected(&mut self, socket: &Self::TcpSocket) -> Result<bool, Self::Error> {
-        self.as_mut().is_connected(socket)
-    }
-
-    fn send(
-        &mut self,
-        socket: &mut Self::TcpSocket,
-        buffer: &[u8],
-    ) -> nb::Result<usize, Self::Error> {
-        self.as_mut().send(socket, buffer)
-    }
-
-    fn receive(
-        &mut self,
-        socket: &mut Self::TcpSocket,
-        buffer: &mut [u8],
-    ) -> nb::Result<usize, Self::Error> {
-        self.as_mut().receive(socket, buffer)
-    }
-
-    fn close(&mut self, socket: Self::TcpSocket) -> Result<(), Self::Error> {
-        self.as_mut().close(socket)
     }
 }

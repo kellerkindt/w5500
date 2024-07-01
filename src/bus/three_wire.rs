@@ -1,7 +1,7 @@
 #![allow(clippy::inconsistent_digit_grouping, clippy::unusual_byte_groupings)]
 
 use core::fmt;
-use embedded_hal::blocking::spi::{Transfer, Write};
+use embedded_hal::spi::{ErrorType, Operation, SpiBus};
 
 use crate::bus::Bus;
 
@@ -14,22 +14,22 @@ const FIXED_DATA_LENGTH_MODE_4: u8 = 0b000000_11;
 // TODO This name is not ideal, should be renamed to FDM
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct ThreeWire<Spi: Transfer<u8> + Write<u8>> {
-    spi: Spi,
+pub struct ThreeWire<SPI> {
+    spi: SPI,
 }
 
-impl<Spi: Transfer<u8> + Write<u8>> ThreeWire<Spi> {
-    pub fn new(spi: Spi) -> Self {
+impl<SPI> ThreeWire<SPI> {
+    pub fn new(spi: SPI) -> Self {
         Self { spi }
     }
 
-    pub fn release(self) -> Spi {
+    pub fn release(self) -> SPI {
         self.spi
     }
 }
 
-impl<Spi: Transfer<u8> + Write<u8>> Bus for ThreeWire<Spi> {
-    type Error = ThreeWireError<<Spi as Transfer<u8>>::Error, <Spi as Write<u8>>::Error>;
+impl<SPI: SpiBus> Bus for ThreeWire<SPI> {
+    type Error = <SPI as ErrorType>::Error;
 
     /// Transfers a frame with an arbitrary data length in FDM
     ///
@@ -67,11 +67,9 @@ impl<Spi: Transfer<u8> + Write<u8>> Bus for ThreeWire<Spi> {
             let address_phase = address.to_be_bytes();
             self.spi
                 .write(&address_phase)
-                .and_then(|_| self.spi.write(&[control_phase]))
-                .map_err(ThreeWireError::WriteError)?;
+                .and_then(|_| self.spi.write(&[control_phase]))?;
             self.spi
-                .transfer(&mut data_phase[..last_length_written as usize])
-                .map_err(ThreeWireError::TransferError)?;
+                .transfer_in_place(&mut data_phase[..last_length_written as usize])?;
 
             address += last_length_written;
             data_phase = &mut data_phase[last_length_written as usize..];
@@ -100,8 +98,7 @@ impl<Spi: Transfer<u8> + Write<u8>> Bus for ThreeWire<Spi> {
             self.spi
                 .write(&address_phase)
                 .and_then(|_| self.spi.write(&[control_phase]))
-                .and_then(|_| self.spi.write(&data_phase[..last_length_written as usize]))
-                .map_err(ThreeWireError::WriteError)?;
+                .and_then(|_| self.spi.write(&data_phase[..last_length_written as usize]))?;
 
             address += last_length_written;
             data_phase = &data_phase[last_length_written as usize..];
