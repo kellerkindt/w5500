@@ -14,10 +14,12 @@ more popular ethernet modules on Arduino platforms.
 
 ## Embedded-HAL
 
-Embedded-HAL is a standard set of traits meant to permit communication between MCU implementations and hardware drivers
-like this one.  Any microcontroller that implements the
-[`spi::FullDuplex<u8>`](https://docs.rs/embedded-hal/0.2.3/embedded_hal/spi/trait.FullDuplex.html) interface can use
-this driver.
+The [`embedded-hal`](https://docs.rs/embedded-hal/latest/embedded_hal/index.html) is a standard set
+of traits meant to permit communication between MCU implementations and hardware drivers like this
+one.  Any microcontroller that implements the
+[`spi::SpiDevice`](https://docs.rs/embedded-hal/latest/embedded_hal/spi/trait.SpiDevice.html) or
+[`spi::SpiBus`](https://docs.rs/embedded-hal/latest/embedded_hal/spi/trait.SpiBus.html) can use this
+driver.
 
 # Example Usage
 
