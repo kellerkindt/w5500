@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - [breaking] The driver now uses the v1.0 of the `embedded-hal` traits.
-- [breaking] The `FourWireRef` bus, `InactiveDevice`, and `DeviceRefMut` have been removed in favor of using
+- [breaking] The `FourWireRef` bus and `DeviceRefMut` have been removed in favor of using
 `embedded-hal-bus` to facilitate SPI bus sharing.
 
 ### Added
