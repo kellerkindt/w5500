@@ -229,4 +229,19 @@ impl<SpiBus: Bus, HostImpl: Host> Device<SpiBus, HostImpl> {
 
         Ok(retry_count_register[0])
     }
+
+    pub fn deactivate(self) -> (SpiBus, InactiveDevice<HostImpl>) {
+        (self.bus, InactiveDevice(self.state))
+    }
+}
+
+#[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct InactiveDevice<HostImpl: Host>(DeviceState<HostImpl>);
+
+impl<HostImpl: Host> InactiveDevice<HostImpl> {
+    /// Activates the device by taking ownership
+    pub fn activate<SpiBus: Bus>(self, bus: SpiBus) -> Device<SpiBus, HostImpl> {
+        Device { bus, state: self.0 }
+    }
 }
