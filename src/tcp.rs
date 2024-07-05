@@ -1,4 +1,9 @@
-use crate::{bus::Bus, device::Device, host::Host, register::socketn, socket::Socket};
+use crate::{
+    bus::Bus,
+    device::{Device, State},
+    register::socketn,
+    socket::Socket,
+};
 
 use embedded_nal::{nb, IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, TcpClientStack};
 
@@ -200,7 +205,7 @@ impl TcpSocket {
     }
 }
 
-impl<SpiBus: Bus, HostImpl: Host> TcpClientStack for Device<SpiBus, HostImpl> {
+impl<SpiBus: Bus, StateImpl: State> TcpClientStack for Device<SpiBus, StateImpl> {
     type TcpSocket = TcpSocket;
     type Error = TcpSocketError<SpiBus::Error>;
 

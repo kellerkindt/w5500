@@ -4,8 +4,7 @@ use embedded_nal::{nb, IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, UdpClientStac
 
 use crate::{
     bus::Bus,
-    device::Device,
-    host::Host,
+    device::{Device, State},
     register::socketn::{self, Status},
     socket::Socket,
 };
@@ -470,10 +469,10 @@ impl<E: Debug> From<NbError<E>> for nb::Error<E> {
     }
 }
 
-impl<SpiBus, HostImpl> UdpClientStack for Device<SpiBus, HostImpl>
+impl<SpiBus, StateImpl> UdpClientStack for Device<SpiBus, StateImpl>
 where
     SpiBus: Bus,
-    HostImpl: Host,
+    StateImpl: State,
 {
     type UdpSocket = UdpSocket;
     type Error = UdpSocketError<SpiBus::Error>;
@@ -521,10 +520,10 @@ where
     }
 }
 
-impl<SpiBus, HostImpl> UdpFullStack for Device<SpiBus, HostImpl>
+impl<SpiBus, StateImpl> UdpFullStack for Device<SpiBus, StateImpl>
 where
     SpiBus: Bus,
-    HostImpl: Host,
+    StateImpl: State,
 {
     fn bind(&mut self, socket: &mut Self::UdpSocket, local_port: u16) -> Result<(), Self::Error> {
         socket.set_port(&mut self.bus, local_port)?;

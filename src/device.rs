@@ -1,4 +1,4 @@
-use bit_field::BitArray;
+use bit_field::BitField;
 
 use crate::bus::{Bus, FourWire, ThreeWire};
 use crate::host::Host;
@@ -23,35 +23,93 @@ impl<E> From<E> for ResetError<E> {
     }
 }
 
+pub trait State {
+    type Host: Host;
+
+    fn socket(&mut self) -> Option<Socket>;
+    fn release_socket(&mut self, socket: Socket);
+    fn any_allocated(&self) -> bool;
+    fn host(&self) -> &Self::Host;
+}
+
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct DeviceState<HostImpl: Host> {
     host: HostImpl,
-    sockets: [u8; 1],
+    sockets: u8,
 }
 
-pub struct Device<SpiBus: Bus, HostImpl: Host> {
-    pub(crate) bus: SpiBus,
-    state: DeviceState<HostImpl>,
-}
-
-impl<SpiBus: Bus, HostImpl: Host> Device<SpiBus, HostImpl> {
-    pub(crate) fn new(bus: SpiBus, host: HostImpl) -> Self {
-        Device {
-            bus,
-            state: DeviceState {
-                host,
-                sockets: [0b11111111],
-            },
+impl<HostImpl: Host> DeviceState<HostImpl> {
+    pub fn new(host: HostImpl) -> Self {
+        Self {
+            sockets: 0xFF,
+            host,
         }
     }
+}
 
-    pub fn get_state(&self) -> &DeviceState<HostImpl> {
+impl<HostImpl: Host> State for DeviceState<HostImpl> {
+    type Host = HostImpl;
+
+    fn socket(&mut self) -> Option<Socket> {
+        for index in 0..8 {
+            if self.sockets.get_bit(index) {
+                self.sockets.set_bit(index, false);
+                return Some(Socket::new(index as u8));
+            }
+        }
+        None
+    }
+
+    fn release_socket(&mut self, socket: Socket) {
+        self.sockets.set_bit(socket.index.into(), true);
+    }
+
+    fn host(&self) -> &Self::Host {
+        &self.host
+    }
+
+    fn any_allocated(&self) -> bool {
+        self.sockets != 0xFF
+    }
+}
+
+impl<'a, T: State> State for &'a mut T {
+    type Host = T::Host;
+
+    fn socket(&mut self) -> Option<Socket> {
+        T::socket(self)
+    }
+
+    fn release_socket(&mut self, socket: Socket) {
+        T::release_socket(self, socket)
+    }
+
+    fn host(&self) -> &Self::Host {
+        T::host(self)
+    }
+
+    fn any_allocated(&self) -> bool {
+        T::any_allocated(self)
+    }
+}
+
+pub struct Device<SpiBus: Bus, StateImpl: State> {
+    pub(crate) bus: SpiBus,
+    state: StateImpl,
+}
+
+impl<SpiBus: Bus, StateImpl: State> Device<SpiBus, StateImpl> {
+    pub(crate) fn new(bus: SpiBus, state: StateImpl) -> Self {
+        Device { bus, state }
+    }
+
+    pub fn get_state(&self) -> &StateImpl {
         &self.state
     }
 
     pub fn reset(mut self) -> Result<UninitializedDevice<SpiBus>, ResetError<SpiBus::Error>> {
-        if self.state.sockets != [0b11111111] {
+        if self.state.any_allocated() {
             Err(ResetError::SocketsNotReleased)
         } else {
             self.reset_device()?;
@@ -59,23 +117,17 @@ impl<SpiBus: Bus, HostImpl: Host> Device<SpiBus, HostImpl> {
         }
     }
 
-    pub fn release(self) -> (SpiBus, HostImpl) {
-        (self.bus, self.state.host)
+    pub fn release(self) -> (SpiBus, StateImpl) {
+        (self.bus, self.state)
     }
 
     pub fn take_socket(&mut self) -> Option<Socket> {
         // TODO maybe return Future that resolves when release_socket invoked
-        for index in 0..8 {
-            if self.state.sockets.get_bit(index) {
-                self.state.sockets.set_bit(index, false);
-                return Some(Socket::new(index as u8));
-            }
-        }
-        None
+        self.state.socket()
     }
 
     pub fn release_socket(&mut self, socket: Socket) {
-        self.state.sockets.set_bit(socket.index.into(), true);
+        self.state.release_socket(socket)
     }
 
     pub fn gateway(&mut self) -> Result<Ipv4Addr, SpiBus::Error> {
@@ -230,18 +282,25 @@ impl<SpiBus: Bus, HostImpl: Host> Device<SpiBus, HostImpl> {
         Ok(retry_count_register[0])
     }
 
-    pub fn deactivate(self) -> (SpiBus, InactiveDevice<HostImpl>) {
+    pub fn deactivate(self) -> (SpiBus, InactiveDevice<StateImpl>) {
         (self.bus, InactiveDevice(self.state))
     }
 }
 
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct InactiveDevice<HostImpl: Host>(DeviceState<HostImpl>);
+pub struct InactiveDevice<StateImpl: State>(StateImpl);
 
-impl<HostImpl: Host> InactiveDevice<HostImpl> {
+impl<StateImpl: State> InactiveDevice<StateImpl> {
     /// Activates the device by taking ownership
-    pub fn activate<SpiBus: Bus>(self, bus: SpiBus) -> Device<SpiBus, HostImpl> {
+    pub fn activate<SpiBus: Bus>(self, bus: SpiBus) -> Device<SpiBus, StateImpl> {
         Device { bus, state: self.0 }
+    }
+
+    pub fn activate_ref<SpiBus: Bus>(&mut self, bus: SpiBus) -> Device<SpiBus, &mut StateImpl> {
+        Device {
+            bus,
+            state: &mut self.0,
+        }
     }
 }
