@@ -24,9 +24,9 @@ impl Default for HostConfig {
     fn default() -> Self {
         Self {
             mac: MacAddress::default(),
-            ip: Ipv4Addr::unspecified(),
-            gateway: Ipv4Addr::unspecified(),
-            subnet: Ipv4Addr::unspecified(),
+            ip: Ipv4Addr::UNSPECIFIED,
+            gateway: Ipv4Addr::UNSPECIFIED,
+            subnet: Ipv4Addr::UNSPECIFIED,
         }
     }
 }

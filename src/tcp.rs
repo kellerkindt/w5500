@@ -5,7 +5,9 @@ use crate::{
     socket::Socket,
 };
 
-use embedded_nal::{nb, IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, TcpClientStack};
+use embedded_nal::{
+    nb, IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, TcpClientStack, TcpError, TcpErrorKind,
+};
 
 use core::convert::TryFrom;
 
@@ -13,10 +15,19 @@ use core::convert::TryFrom;
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum TcpSocketError<E: core::fmt::Debug> {
     NoMoreSockets,
-    NotReady,
+    NotConnected,
     UnsupportedAddress,
     Other(#[cfg_attr(feature = "defmt", defmt(Debug2Format))] E),
     UnsupportedMode,
+}
+
+impl<E: core::fmt::Debug> TcpError for TcpSocketError<E> {
+    fn kind(&self) -> TcpErrorKind {
+        match self {
+            TcpSocketError::NotConnected => TcpErrorKind::PipeClosed,
+            _ => TcpErrorKind::Other,
+        }
+    }
 }
 
 impl<E: core::fmt::Debug> From<E> for TcpSocketError<E> {
@@ -135,7 +146,7 @@ impl TcpSocket {
         data: &[u8],
     ) -> Result<usize, TcpSocketError<B::Error>> {
         if !self.socket_is_connected(bus)? {
-            return Err(TcpSocketError::NotReady);
+            return Err(TcpSocketError::NotConnected);
         }
 
         let max_size = self.socket.get_tx_free_size(bus)? as usize;
@@ -171,7 +182,7 @@ impl TcpSocket {
         data: &mut [u8],
     ) -> Result<usize, TcpSocketError<B::Error>> {
         if !self.socket_is_connected(bus)? {
-            return Err(TcpSocketError::NotReady);
+            return Err(TcpSocketError::NotConnected);
         }
 
         // Check if we've received data.
@@ -229,10 +240,6 @@ impl<SpiBus: Bus, StateImpl: State> TcpClientStack for Device<SpiBus, StateImpl>
         socket.socket_connect(&mut self.bus, remote)?;
 
         Ok(())
-    }
-
-    fn is_connected(&mut self, socket: &Self::TcpSocket) -> Result<bool, Self::Error> {
-        socket.socket_is_connected(&mut self.bus)
     }
 
     fn send(
