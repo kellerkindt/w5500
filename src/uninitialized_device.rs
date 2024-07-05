@@ -2,7 +2,7 @@ use embedded_hal::spi::SpiDevice;
 use embedded_nal::Ipv4Addr;
 
 use crate::bus::{Bus, FourWire, ThreeWire};
-use crate::device::Device;
+use crate::device::{Device, DeviceState};
 use crate::host::{Dhcp, Host, Manual};
 use crate::raw_device::RawDevice;
 use crate::{
@@ -54,7 +54,7 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
         self,
         mac: MacAddress,
         mode_options: Mode,
-    ) -> Result<Device<SpiBus, Dhcp>, InitializeError<SpiBus::Error>> {
+    ) -> Result<Device<SpiBus, DeviceState<Dhcp>>, InitializeError<SpiBus::Error>> {
         let host = Dhcp::new(mac);
         self.initialize_with_host(host, mode_options)
     }
@@ -67,7 +67,7 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
         mac: MacAddress,
         ip: Ipv4Addr,
         mode_options: Mode,
-    ) -> Result<Device<SpiBus, Manual>, InitializeError<SpiBus::Error>> {
+    ) -> Result<Device<SpiBus, DeviceState<Manual>>, InitializeError<SpiBus::Error>> {
         let mut ip_bytes = ip.octets();
         ip_bytes[3] = 1;
         let gateway = Ipv4Addr::from(ip_bytes);
@@ -82,7 +82,7 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
         gateway: Ipv4Addr,
         subnet: Ipv4Addr,
         mode_options: Mode,
-    ) -> Result<Device<SpiBus, Manual>, InitializeError<SpiBus::Error>> {
+    ) -> Result<Device<SpiBus, DeviceState<Manual>>, InitializeError<SpiBus::Error>> {
         let host = Manual::new(mac, ip, gateway, subnet);
         self.initialize_with_host(host, mode_options)
     }
@@ -91,7 +91,7 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
         mut self,
         mut host: HostImpl,
         mode_options: Mode,
-    ) -> Result<Device<SpiBus, HostImpl>, InitializeError<SpiBus::Error>> {
+    ) -> Result<Device<SpiBus, DeviceState<HostImpl>>, InitializeError<SpiBus::Error>> {
         #[cfg(not(feature = "no-chip-version-assertion"))]
         self.assert_chip_version(0x4)?;
 
@@ -100,7 +100,7 @@ impl<SpiBus: Bus> UninitializedDevice<SpiBus> {
 
         self.set_mode(mode_options)?;
         host.refresh(&mut self.bus)?;
-        Ok(Device::new(self.bus, host))
+        Ok(Device::new(self.bus, DeviceState::new(host)))
     }
 
     pub fn initialize_macraw(
