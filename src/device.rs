@@ -23,13 +23,16 @@ impl<E> From<E> for ResetError<E> {
     }
 }
 
-pub trait State {
-    type Host: Host;
+mod private {
+    pub trait Sealed {}
 
+    impl<'a, T: Sealed> Sealed for &'a mut T {}
+}
+
+pub trait State: private::Sealed {
     fn socket(&mut self) -> Option<Socket>;
     fn release_socket(&mut self, socket: Socket);
     fn any_allocated(&self) -> bool;
-    fn host(&self) -> &Self::Host;
 }
 
 #[derive(Debug)]
@@ -48,9 +51,9 @@ impl<HostImpl: Host> DeviceState<HostImpl> {
     }
 }
 
-impl<HostImpl: Host> State for DeviceState<HostImpl> {
-    type Host = HostImpl;
+impl<HostImpl: Host> private::Sealed for DeviceState<HostImpl> {}
 
+impl<HostImpl: Host> State for DeviceState<HostImpl> {
     fn socket(&mut self) -> Option<Socket> {
         for index in 0..8 {
             if self.sockets.get_bit(index) {
@@ -65,28 +68,18 @@ impl<HostImpl: Host> State for DeviceState<HostImpl> {
         self.sockets.set_bit(socket.index.into(), true);
     }
 
-    fn host(&self) -> &Self::Host {
-        &self.host
-    }
-
     fn any_allocated(&self) -> bool {
         self.sockets != 0xFF
     }
 }
 
 impl<'a, T: State> State for &'a mut T {
-    type Host = T::Host;
-
     fn socket(&mut self) -> Option<Socket> {
         T::socket(self)
     }
 
     fn release_socket(&mut self, socket: Socket) {
         T::release_socket(self, socket)
-    }
-
-    fn host(&self) -> &Self::Host {
-        T::host(self)
     }
 
     fn any_allocated(&self) -> bool {
