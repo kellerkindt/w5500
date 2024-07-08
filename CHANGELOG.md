@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.5.0] - July 5th, 2024
+## [0.5.0] - July 8th, 2024
 
 ### Changed
 - [breaking] The driver now uses the v1.0 of the `embedded-hal` traits.
