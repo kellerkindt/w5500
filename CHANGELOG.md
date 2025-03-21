@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.0] - March 21st, 2025
 - [breaking] The driver now uses v0.9 of embedded-nal [@reitermarkus](https://github.com/reitermarkus) ([#66](https://github.com/kellerkindt/w5500/pull/66))
-- `DeviceState` is now publicly re-exported [@22dd5e2bdd](https://github.com/22dd5e2bdd) ([#65](https://github.com/reitermarkus))
+- `DeviceState` is now publicly re-exported [@22dd5e2bdd](https://github.com/22dd5e2bdd) ([#65](https://github.com/kellerkindt/w5500/pull/65))
 
 ## [0.5.0] - July 8th, 2024
 
