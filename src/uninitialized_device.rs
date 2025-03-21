@@ -1,5 +1,6 @@
+use core::net::Ipv4Addr;
+
 use embedded_hal::spi::SpiDevice;
-use embedded_nal::Ipv4Addr;
 
 use crate::bus::{Bus, FourWire, ThreeWire};
 use crate::device::{Device, DeviceState};

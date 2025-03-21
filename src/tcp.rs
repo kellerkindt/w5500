@@ -1,15 +1,16 @@
+use core::{
+    convert::TryFrom,
+    net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4},
+};
+
+use embedded_nal::{nb, TcpClientStack, TcpError, TcpErrorKind};
+
 use crate::{
     bus::Bus,
     device::{Device, State},
     register::socketn,
     socket::Socket,
 };
-
-use embedded_nal::{
-    nb, IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, TcpClientStack, TcpError, TcpErrorKind,
-};
-
-use core::convert::TryFrom;
 
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
