@@ -418,14 +418,14 @@ pub mod socketn {
     /// > It should be read or to be updated like as follows.
     /// > 1. Read the starting address for saving the transmitting data.
     /// > 2. Save the transmitting data from the starting address of Socket n TX
-    /// > buffer.
+    /// >    buffer.
     /// > 3. After saving the transmitting data, update Sn_TX_WR to the
-    /// > increased value as many as transmitting data size. If the increment value
-    /// > exceeds the maximum value 0xFFFF(greater than 0x10000 and the carry
-    /// > bit occurs), then the carry bit is ignored and will automatically update
-    /// > with the lower 16bits value.
+    /// >    increased value as many as transmitting data size. If the increment value
+    /// >    exceeds the maximum value 0xFFFF(greater than 0x10000 and the carry
+    /// >    bit occurs), then the carry bit is ignored and will automatically update
+    /// >    with the lower 16bits value.
     /// > 4. Transmit the saved data in Socket n TX Buffer by using SEND/SEND
-    /// command
+    /// >    command
     pub const TX_DATA_WRITE_POINTER: u16 = 0x24;
 
     /// Socket n Received Size Register

@@ -41,7 +41,7 @@ impl<SPI: SpiDevice> Bus for FourWire<SPI> {
     }
 
     fn write_frame(&mut self, block: u8, address: u16, data: &[u8]) -> Result<(), SPI::Error> {
-        let control_phase = block << 3 | WRITE_MODE_MASK;
+        let control_phase = (block << 3) | WRITE_MODE_MASK;
 
         let address_phase = address.to_be_bytes();
         self.spi.transaction(&mut [

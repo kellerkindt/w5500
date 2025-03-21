@@ -26,7 +26,7 @@ impl<E> From<E> for ResetError<E> {
 mod private {
     pub trait Sealed {}
 
-    impl<'a, T: Sealed> Sealed for &'a mut T {}
+    impl<T: Sealed> Sealed for &'_ mut T {}
 }
 
 pub trait State: private::Sealed {
@@ -73,7 +73,7 @@ impl<HostImpl: Host> State for DeviceState<HostImpl> {
     }
 }
 
-impl<'a, T: State> State for &'a mut T {
+impl<T: State> State for &'_ mut T {
     fn socket(&mut self) -> Option<Socket> {
         T::socket(self)
     }

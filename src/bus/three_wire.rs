@@ -78,7 +78,7 @@ impl<SPI: SpiBus> Bus for ThreeWire<SPI> {
     }
 
     fn write_frame(&mut self, block: u8, mut address: u16, data: &[u8]) -> Result<(), Self::Error> {
-        let mut control_phase = block << 3 | WRITE_MODE_MASK;
+        let mut control_phase = (block << 3) | WRITE_MODE_MASK;
 
         let mut data_phase = data;
         let mut last_length_written: u16;
