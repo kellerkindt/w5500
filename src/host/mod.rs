@@ -1,3 +1,5 @@
+use core::net::Ipv4Addr;
+
 mod dhcp;
 mod manual;
 
@@ -6,7 +8,6 @@ pub use self::manual::Manual;
 use crate::bus::Bus;
 use crate::register;
 use crate::MacAddress;
-use embedded_nal::Ipv4Addr;
 
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]

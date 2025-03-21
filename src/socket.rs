@@ -1,6 +1,7 @@
+use core::net::Ipv4Addr;
+
 use crate::bus::Bus;
 use crate::register::socketn;
-use embedded_nal::Ipv4Addr;
 
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]

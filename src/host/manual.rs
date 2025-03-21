@@ -1,7 +1,8 @@
+use core::net::Ipv4Addr;
+
 use crate::bus::Bus;
 use crate::host::{Host, HostConfig};
 use crate::MacAddress;
-use embedded_nal::Ipv4Addr;
 
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]

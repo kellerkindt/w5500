@@ -1,6 +1,10 @@
-use core::{convert::TryFrom, fmt::Debug};
+use core::{
+    convert::TryFrom,
+    fmt::Debug,
+    net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4},
+};
 
-use embedded_nal::{nb, IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, UdpClientStack, UdpFullStack};
+use embedded_nal::{nb, UdpClientStack, UdpFullStack};
 
 use crate::{
     bus::Bus,

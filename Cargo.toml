@@ -16,7 +16,7 @@ no-chip-version-assertion = []
 [dependencies]
 byteorder = { version = "1.3.4", default-features = false }
 embedded-hal = "1"
-embedded-nal = "0.8.0"
+embedded-nal = "0.9.0"
 bit_field = "0.10"
 derive-try-from-primitive = "1"
 nb = "1.0.0"

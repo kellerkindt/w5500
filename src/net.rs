@@ -12,7 +12,7 @@
 
 // TODO remove some of these constructs and use equivalents available from embedded-nal
 
-pub use embedded_nal::Ipv4Addr;
+pub use core::net::Ipv4Addr;
 
 /// MAC address struct.  Can be instantiated with `MacAddress::new`.
 ///
