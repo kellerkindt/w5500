@@ -50,11 +50,11 @@ use embedded_nal::UdpClientStack;
 let mut spi = Mock;
 
 let mut device = w5500::UninitializedDevice::new(w5500::bus::FourWire::new(spi))
-        .initialize_manual(
-                w5500::MacAddress::new(0, 1, 2, 3, 4, 5),
-                Ipv4Addr::new(192, 168, 86, 79),
-                w5500::Mode::default()
-        ).unwrap();
+    .initialize_manual(
+        w5500::MacAddress::new(0, 1, 2, 3, 4, 5),
+        Ipv4Addr::new(192, 168, 86, 79),
+        w5500::Mode::default()
+    ).unwrap();
 
 // Allocate a UDP socket to send data with
 let mut socket = device.socket().unwrap();
