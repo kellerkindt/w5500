@@ -32,7 +32,7 @@ of the SPI implementation.  It must be set up to work as the W5500 chip requires
 * Clock speed: 33MHz maximum
 
 ```rust,no_run
-use embedded_nal::{IpAddr, Ipv4Addr, SocketAddr};
+use core::net::{IpAddr, Ipv4Addr, SocketAddr};
 #
 # struct Mock;
 #
