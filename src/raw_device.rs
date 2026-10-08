@@ -43,8 +43,8 @@ impl<SpiBus: Bus> RawDevice<SpiBus> {
     ///
     /// # Args
     /// * `which` - The interrupts to enable; see `register::socketn::Interrupt`
-    ///             For instance, pass `Interrupt::Receive` to get interrupts
-    ///             on packet reception only.
+    ///   For instance, pass `Interrupt::Receive` to get interrupts on packet
+    ///   reception only.
     ///
     pub fn enable_interrupts(&mut self, which: u8) -> Result<(), SpiBus::Error> {
         self.raw_socket.set_interrupt_mask(&mut self.bus, which)?;
